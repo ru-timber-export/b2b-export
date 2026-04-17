@@ -1,16 +1,42 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function AdminDashboard() {
-  const [buyPrice, setBuyPrice] = useState(125);
-  const [volume, setVolume] = useState(38);
+  // 1. Создаем переменные (сначала базовые значения)
+  const [buyPrice, setBuyPrice] = useState(130);
+  const [volume, setVolume] = useState(40);
   const [logistics, setLogistics] = useState(4200);
-  const [sellPrice, setSellPrice] = useState(249);
+  const [sellPrice, setSellPrice] = useState(265);
   
   const [docs, setDocs] = useState({
     contract: false, invoice: false, customs: false, phyto: false, bl: false
   });
 
+  // 2. ЗАГРУЗКА ИЗ ПАМЯТИ (работает один раз при открытии страницы)
+  useEffect(() => {
+    const savedBuy = localStorage.getItem('erp_buyPrice');
+    const savedVol = localStorage.getItem('erp_volume');
+    const savedLog = localStorage.getItem('erp_logistics');
+    const savedSell = localStorage.getItem('erp_sellPrice');
+    const savedDocs = localStorage.getItem('erp_docs');
+
+    if (savedBuy) setBuyPrice(Number(savedBuy));
+    if (savedVol) setVolume(Number(savedVol));
+    if (savedLog) setLogistics(Number(savedLog));
+    if (savedSell) setSellPrice(Number(savedSell));
+    if (savedDocs) setDocs(JSON.parse(savedDocs));
+  }, []);
+
+  // 3. АВТОСОХРАНЕНИЕ (работает каждый раз, когда вы меняете любую цифру)
+  useEffect(() => {
+    localStorage.setItem('erp_buyPrice', buyPrice);
+    localStorage.setItem('erp_volume', volume);
+    localStorage.setItem('erp_logistics', logistics);
+    localStorage.setItem('erp_sellPrice', sellPrice);
+    localStorage.setItem('erp_docs', JSON.stringify(docs));
+  }, [buyPrice, volume, logistics, sellPrice, docs]);
+
+  // Математика
   const totalCost = (buyPrice * volume) + logistics;
   const revenue = sellPrice * volume;
   const profit = revenue - totalCost;
@@ -25,10 +51,9 @@ export default function AdminDashboard() {
   const fillPercentage = Math.min((volume / 40) * 100, 100);
 
   return (
-    // Изменили flex-row на flex-col для мобилок
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 font-sans">
       
-      {/* Боковое меню (На мобилках становится шапкой) */}
+      {/* Боковое меню */}
       <aside className="w-full md:w-64 bg-slate-900 text-white flex flex-col flex-shrink-0">
         <div className="p-4 md:p-6 border-b border-slate-700 flex justify-between items-center">
           <div>
@@ -36,7 +61,6 @@ export default function AdminDashboard() {
             <p className="text-slate-400 text-xs md:text-sm">RU-TIMBER EXPORT</p>
           </div>
         </div>
-        {/* На мобилках меню скрываем, чтобы не занимало пол-экрана, оставляем только на ПК */}
         <nav className="hidden md:block flex-1 p-4 space-y-2 overflow-y-auto">
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-4">Управление</div>
           <a href="#" className="block p-3 bg-blue-600 rounded-lg font-semibold shadow-md">🧮 Калькулятор сделки</a>
@@ -46,9 +70,14 @@ export default function AdminDashboard() {
 
       {/* Основная рабочая зона */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto">
-        <h1 className="text-2xl md:text-3xl font-bold text-slate-800 mb-6">Расчет экономики (1x40HC)</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Расчет экономики (1x40HC)</h1>
+          <span className="text-xs text-gray-400 flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-green-500"></span> Автосохранение включено
+          </span>
+        </div>
 
-        {/* Сетка: 1 колонка на мобилках, 2 на ПК */}
+        {/* Сетка */}
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 md:gap-8">
           
           {/* Левая колонка: Ввод данных */}
