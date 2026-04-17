@@ -2,17 +2,17 @@
 import { useState, useEffect } from 'react';
 
 export default function AdminDashboard() {
-  // 1. Создаем переменные (сначала базовые значения)
-  const [buyPrice, setBuyPrice] = useState(130);
-  const [volume, setVolume] = useState(40);
-  const [logistics, setLogistics] = useState(4200);
-  const [sellPrice, setSellPrice] = useState(265);
+  // 1. Храним значения как строки, чтобы можно было стереть поле до пустоты
+  const [buyPrice, setBuyPrice] = useState("130");
+  const [volume, setVolume] = useState("40");
+  const [logistics, setLogistics] = useState("4200");
+  const [sellPrice, setSellPrice] = useState("265");
   
   const [docs, setDocs] = useState({
     contract: false, invoice: false, customs: false, phyto: false, bl: false
   });
 
-  // 2. ЗАГРУЗКА ИЗ ПАМЯТИ (работает один раз при открытии страницы)
+  // 2. ЗАГРУЗКА ИЗ ПАМЯТИ
   useEffect(() => {
     const savedBuy = localStorage.getItem('erp_buyPrice');
     const savedVol = localStorage.getItem('erp_volume');
@@ -20,14 +20,14 @@ export default function AdminDashboard() {
     const savedSell = localStorage.getItem('erp_sellPrice');
     const savedDocs = localStorage.getItem('erp_docs');
 
-    if (savedBuy) setBuyPrice(Number(savedBuy));
-    if (savedVol) setVolume(Number(savedVol));
-    if (savedLog) setLogistics(Number(savedLog));
-    if (savedSell) setSellPrice(Number(savedSell));
+    if (savedBuy) setBuyPrice(savedBuy);
+    if (savedVol) setVolume(savedVol);
+    if (savedLog) setLogistics(savedLog);
+    if (savedSell) setSellPrice(savedSell);
     if (savedDocs) setDocs(JSON.parse(savedDocs));
   }, []);
 
-  // 3. АВТОСОХРАНЕНИЕ (работает каждый раз, когда вы меняете любую цифру)
+  // 3. АВТОСОХРАНЕНИЕ
   useEffect(() => {
     localStorage.setItem('erp_buyPrice', buyPrice);
     localStorage.setItem('erp_volume', volume);
@@ -36,19 +36,34 @@ export default function AdminDashboard() {
     localStorage.setItem('erp_docs', JSON.stringify(docs));
   }, [buyPrice, volume, logistics, sellPrice, docs]);
 
-  // Математика
-  const totalCost = (buyPrice * volume) + logistics;
-  const revenue = sellPrice * volume;
+  // Математика (превращаем строки в числа для расчетов. Если поле пустое, считаем как 0)
+  const numBuyPrice = Number(buyPrice) || 0;
+  const numVolume = Number(volume) || 0;
+  const numLogistics = Number(logistics) || 0;
+  const numSellPrice = Number(sellPrice) || 0;
+
+  const totalCost = (numBuyPrice * numVolume) + numLogistics;
+  const revenue = numSellPrice * numVolume;
   const profit = revenue - totalCost;
-  const recSubsidy = Math.min(logistics * 0.3, (buyPrice * volume) * 0.11);
+  const recSubsidy = Math.min(numLogistics * 0.3, (numBuyPrice * numVolume) * 0.11);
   const profitWithRec = profit + recSubsidy;
 
-  const isOverweight = volume > 41;
+  const isOverweight = numVolume > 41;
   const isLoss = profit < 0;
 
   const toggleDoc = (docName) => setDocs({ ...docs, [docName]: !docs[docName] });
   const isReadyToShip = docs.contract && docs.invoice && docs.customs && docs.phyto;
-  const fillPercentage = Math.min((volume / 40) * 100, 100);
+  const fillPercentage = Math.min((numVolume / 40) * 100, 100);
+
+  // Функция-обработчик для полей ввода (убирает ведущие нули, если они есть)
+  const handleChange = (setter) => (e) => {
+    let val = e.target.value;
+    // Если ввели что-то вроде "05", делаем "5". Но если стерли всё, оставляем пустоту ""
+    if (val.length > 1 && val.startsWith('0')) {
+      val = val.replace(/^0+/, '');
+    }
+    setter(val);
+  };
 
   return (
     <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 font-sans">
@@ -87,20 +102,20 @@ export default function AdminDashboard() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">Цена закупки (FCA) - $ за м³</label>
-                  <input type="number" value={buyPrice} onChange={(e) => setBuyPrice(Number(e.target.value))} className="block w-full p-2 border border-gray-300 rounded-md bg-gray-50" />
+                  <input type="number" value={buyPrice} onChange={handleChange(setBuyPrice)} className="block w-full p-2 border border-gray-300 rounded-md bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">Объем загрузки - м³</label>
-                  <input type="number" value={volume} onChange={(e) => setVolume(Number(e.target.value))} className={`block w-full p-2 border rounded-md ${isOverweight ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-300 bg-gray-50'}`} />
+                  <input type="number" value={volume} onChange={handleChange(setVolume)} className={`block w-full p-2 border rounded-md focus:outline-none focus:ring-2 ${isOverweight ? 'border-red-500 bg-red-50 text-red-700 focus:ring-red-500' : 'border-gray-300 bg-gray-50 focus:ring-blue-500'}`} />
                   {isOverweight && <p className="text-red-600 text-xs mt-1 font-bold">⚠️ Больше 41 куба - перегруз!</p>}
                 </div>
                 <div>
                   <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">Логистика (ЖД+Море) - $</label>
-                  <input type="number" value={logistics} onChange={(e) => setLogistics(Number(e.target.value))} className="block w-full p-2 border border-gray-300 rounded-md bg-gray-50" />
+                  <input type="number" value={logistics} onChange={handleChange(setLogistics)} className="block w-full p-2 border border-gray-300 rounded-md bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:outline-none" />
                 </div>
                 <div className="pt-4 border-t border-gray-200">
                   <label className="block text-xs md:text-sm font-bold text-blue-900 mb-1">Цена продажи (CIF) - $ за м³</label>
-                  <input type="number" value={sellPrice} onChange={(e) => setSellPrice(Number(e.target.value))} className="block w-full p-3 border-2 border-blue-500 rounded-md bg-blue-50 font-bold text-lg md:text-xl text-blue-900" />
+                  <input type="number" value={sellPrice} onChange={handleChange(setSellPrice)} className="block w-full p-3 border-2 border-blue-500 rounded-md bg-blue-50 font-bold text-lg md:text-xl text-blue-900 focus:ring-2 focus:ring-blue-600 focus:outline-none" />
                 </div>
               </div>
             </div>
@@ -117,23 +132,23 @@ export default function AdminDashboard() {
               </div>
               <div className="space-y-2 text-sm">
                 <label className="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                  <input type="checkbox" checked={docs.contract} onChange={() => toggleDoc('contract')} className="w-5 h-5 text-blue-600 rounded" />
+                  <input type="checkbox" checked={docs.contract} onChange={() => toggleDoc('contract')} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
                   <span className={docs.contract ? "text-gray-400 line-through" : "text-gray-800"}>Контракт</span>
                 </label>
                 <label className="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                  <input type="checkbox" checked={docs.invoice} onChange={() => toggleDoc('invoice')} className="w-5 h-5 text-blue-600 rounded" />
+                  <input type="checkbox" checked={docs.invoice} onChange={() => toggleDoc('invoice')} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
                   <span className={docs.invoice ? "text-gray-400 line-through" : "text-gray-800"}>Инвойс</span>
                 </label>
                 <label className="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                  <input type="checkbox" checked={docs.customs} onChange={() => toggleDoc('customs')} className="w-5 h-5 text-blue-600 rounded" />
+                  <input type="checkbox" checked={docs.customs} onChange={() => toggleDoc('customs')} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
                   <span className={docs.customs ? "text-gray-400 line-through" : "text-gray-800"}>ДТ (Таможня)</span>
                 </label>
                 <label className="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded">
-                  <input type="checkbox" checked={docs.phyto} onChange={() => toggleDoc('phyto')} className="w-5 h-5 text-blue-600 rounded" />
+                  <input type="checkbox" checked={docs.phyto} onChange={() => toggleDoc('phyto')} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500" />
                   <span className={docs.phyto ? "text-gray-400 line-through" : "text-gray-800"}>Фитосанитарный</span>
                 </label>
                 <label className="flex items-center space-x-3 cursor-pointer p-2 hover:bg-gray-50 rounded border-t mt-2 pt-2">
-                  <input type="checkbox" checked={docs.bl} onChange={() => toggleDoc('bl')} className="w-5 h-5 text-orange-500 rounded" />
+                  <input type="checkbox" checked={docs.bl} onChange={() => toggleDoc('bl')} className="w-5 h-5 text-orange-500 rounded focus:ring-orange-500" />
                   <span className={docs.bl ? "text-gray-400 line-through" : "text-orange-600 font-bold"}>Коносамент</span>
                 </label>
               </div>
@@ -169,7 +184,7 @@ export default function AdminDashboard() {
                   className={`h-full transition-all duration-500 flex items-center justify-center text-white font-bold text-lg shadow-inner ${isOverweight ? 'bg-red-500' : 'bg-amber-600 bg-[url("https://www.transparenttextures.com/patterns/wood-pattern.png")]'}`}
                   style={{ width: `${fillPercentage}%` }}
                 >
-                  {volume} м³
+                  {numVolume} м³
                 </div>
               </div>
             </div>
