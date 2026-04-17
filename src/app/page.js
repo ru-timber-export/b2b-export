@@ -10,7 +10,7 @@ export default function Home() {
           </div>
           <div className="mt-4 md:mt-0 text-right">
             <p className="text-sm text-slate-300">Contact us:</p>
-            <p className="font-bold text-orange-400">sales.rutimber@yandex.ru</p>
+            <a href="mailto:novostiizdrugihgalaktik@gmail.com" className="font-bold text-orange-400 hover:text-orange-300 transition-colors">novostiizdrugihgalaktik@gmail.com</a>
           </div>
         </div>
       </header>
