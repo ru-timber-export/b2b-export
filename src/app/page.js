@@ -1,121 +1,100 @@
-import Image from "next/image";
-
 export default function Home() {
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-gray-50 font-sans text-slate-800">
       {/* Шапка сайта */}
-      <header className="bg-slate-900 text-white py-4 px-8 flex justify-between items-center sticky top-0 z-50 shadow-lg">
-        <div className="text-2xl font-bold tracking-wider text-orange-500">RU-TIMBER<span className="text-white">EXPORT</span></div>
-        <nav className="hidden md:flex space-x-6 text-sm font-semibold">
-          <a href="#about" className="hover:text-orange-400 transition-colors">ABOUT US</a>
-          <a href="#products" className="hover:text-orange-400 transition-colors">PRODUCTS</a>
-          <a href="#logistics" className="hover:text-orange-400 transition-colors">LOGISTICS</a>
-          <a href="#contact" className="hover:text-orange-400 transition-colors">CONTACT</a>
-        </nav>
-        <a href="mailto:export@ru-timber.com" className="bg-orange-600 hover:bg-orange-700 px-5 py-2 rounded font-bold transition-colors">
-          GET A QUOTE
-        </a>
+      <header className="bg-slate-900 text-white p-6 shadow-lg">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-orange-500 tracking-wider">RU-TIMBER EXPORT</h1>
+            <p className="text-sm text-slate-400 mt-1">Direct from Siberian Sawmills to the World</p>
+          </div>
+          <div className="mt-4 md:mt-0 text-right">
+            <p className="text-sm text-slate-300">Contact us:</p>
+            <p className="font-bold text-orange-400">sales.rutimber@yandex.ru</p>
+          </div>
+        </div>
       </header>
 
-      {/* Главный экран (Hero) */}
-      <section className="relative h-[600px] flex items-center justify-center text-center">
-        {/* Промышленное фото штабелей досок */}
-        <div className="absolute inset-0 z-0">
-          <img 
-            src="https://images.unsplash.com/photo-1587582423116-ec07293f0395?q=80&w=2070&auto=format&fit=crop" 
-            alt="Industrial Timber" 
-            className="w-full h-full object-cover brightness-50"
-          />
-        </div>
-        <div className="relative z-10 max-w-4xl px-6">
-          <h1 className="text-5xl md:text-6xl font-extrabold text-white mb-6 leading-tight">
-            Premium Russian Pine <br/><span className="text-orange-500">Direct to India</span>
-          </h1>
-          <p className="text-xl text-gray-200 mb-10 font-light">
-            FCA / CIF Tuticorin. High-quality sawn timber (KD 10-12%) for construction and furniture. Reliable logistics via Novorossiysk.
+      {/* Основной контент */}
+      <main className="max-w-6xl mx-auto p-6 py-12">
+        
+        {/* Заголовок */}
+        <div className="mb-12 text-center md:text-left">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-slate-800">Premium Russian Pine Sawn Timber</h2>
+          <p className="text-lg text-slate-600 max-w-3xl">
+            We supply high-quality Pinus Sylvestris (GOST 8486-86) and Siberian Spruce directly from the Russian Federation. 
+            Perfect for furniture, construction, and packaging.
           </p>
-          <div className="flex justify-center space-x-4">
-            <a href="#products" className="bg-orange-600 hover:bg-orange-700 text-white px-8 py-4 rounded-lg font-bold text-lg transition-all shadow-lg hover:shadow-orange-500/30">
-              View Specifications
-            </a>
-            <a href="#contact" className="bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/30 text-white px-8 py-4 rounded-lg font-bold text-lg transition-all">
-              Contact Sales
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Блок преимуществ */}
-      <section id="products" className="py-20 px-8 max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-slate-900 mb-4">Why Choose Our Timber?</h2>
-          <div className="w-24 h-1 bg-orange-500 mx-auto"></div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-10">
-          {/* Карточка 1: Качество */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow border border-gray-100">
-            <div className="h-48 overflow-hidden">
-              <img src="https://images.unsplash.com/photo-1550684376-efcbd6e3f031?q=80&w=2070&auto=format&fit=crop" alt="Pine Wood" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"/>
-            </div>
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-slate-800 mb-2">Siberian Pine (GOST 8486-86)</h3>
-              <p className="text-gray-600">Strictly graded, KD 10-12%. Perfect dimensions for the Indian market. Anti-stain treated for sea transit.</p>
-            </div>
+        {/* ГАЛЕРЕЯ ФОТОГРАФИЙ */}
+        <h3 className="text-2xl font-bold mb-6 border-b-2 border-orange-500 pb-2 inline-block">Product Gallery & Packaging</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+          {/* Фото 1: Пакеты досок */}
+          <div className="bg-white p-2 rounded-xl shadow-md hover:shadow-xl transition-shadow">
+            <img 
+              src="https://images.unsplash.com/photo-1597423498219-04418210827d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+              alt="Timber packages" 
+              className="rounded-lg h-64 w-full object-cover"
+            />
+            <p className="text-center text-sm font-bold text-slate-500 mt-3">Export Standard Packaging</p>
           </div>
-
-          {/* Карточка 2: Логистика */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow border border-gray-100">
-            <div className="h-48 overflow-hidden">
-              <img src="https://images.unsplash.com/photo-1494412519320-aa613dfb7738?q=80&w=2070&auto=format&fit=crop" alt="Logistics" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"/>
-            </div>
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-slate-800 mb-2">Seamless Logistics</h3>
-              <p className="text-gray-600">Direct railway to Novorossiysk port, then sea freight to Tuticorin/Mundra. Full tracking provided.</p>
-            </div>
+          {/* Фото 2: Качество доски */}
+          <div className="bg-white p-2 rounded-xl shadow-md hover:shadow-xl transition-shadow">
+            <img 
+              src="https://images.unsplash.com/photo-1505027368916-2ba11ff31481?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+              alt="Sawn timber quality" 
+              className="rounded-lg h-64 w-full object-cover"
+            />
+            <p className="text-center text-sm font-bold text-slate-500 mt-3">KD 10-12% Moisture Content</p>
           </div>
-
-          {/* Карточка 3: Документы */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow border border-gray-100">
-            <div className="h-48 overflow-hidden bg-slate-800 flex items-center justify-center">
-              <div className="text-6xl">📄</div>
-            </div>
-            <div className="p-6">
-              <h3 className="text-xl font-bold text-slate-800 mb-2">Full Export Documentation</h3>
-              <p className="text-gray-600">Phytosanitary certificates, Certificate of Origin, Custom Declarations. We handle all the paperwork.</p>
-            </div>
+          {/* Фото 3: Погрузка/Склад */}
+          <div className="bg-white p-2 rounded-xl shadow-md hover:shadow-xl transition-shadow">
+            <img 
+              src="https://images.unsplash.com/photo-1589939705384-5185137a7f0f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+              alt="Pine wood texture" 
+              className="rounded-lg h-64 w-full object-cover"
+            />
+            <p className="text-center text-sm font-bold text-slate-500 mt-3">GOST 8486-86 (Grades 1-3)</p>
           </div>
         </div>
-      </section>
 
-      {/* Форма контактов */}
-      <section id="contact" className="bg-slate-900 text-white py-20 px-8">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold mb-8">Ready to Order?</h2>
-          <p className="text-xl text-slate-400 mb-10">Get current CIF prices for 40HC containers to your port.</p>
-          
-          <div className="bg-slate-800 p-8 rounded-2xl border border-slate-700 max-w-md mx-auto">
-            <div className="space-y-4 text-left">
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Company Name</label>
-                <input type="text" className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-orange-500 outline-none" placeholder="e.g. India Timber Pvt Ltd" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Email / WhatsApp</label>
-                <input type="text" className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-orange-500 outline-none" placeholder="+91..." />
-              </div>
-              <button className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 rounded mt-4 transition-colors">
-                Request Price List
-              </button>
-            </div>
+        {/* Спецификация */}
+        <div className="bg-slate-900 text-white rounded-2xl p-8 shadow-2xl">
+          <h3 className="text-2xl font-bold mb-6 text-orange-500">Technical Specifications</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-lg">
+            <ul className="space-y-4">
+              <li className="flex items-center gap-3">
+                <span className="text-green-500">✔</span> 
+                <span><strong>Standard:</strong> GOST 8486-86 (Grades 1-3)</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="text-green-500">✔</span> 
+                <span><strong>Moisture:</strong> Kiln Dried (KD) 10-12%</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="text-green-500">✔</span> 
+                <span><strong>Treatment:</strong> AST (Anti-stain treated)</span>
+              </li>
+            </ul>
+            <ul className="space-y-4">
+              <li className="flex items-center gap-3">
+                <span className="text-green-500">✔</span> 
+                <span><strong>Thickness:</strong> 44 mm / 50 mm</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="text-green-500">✔</span> 
+                <span><strong>Width:</strong> 100 / 150 / 200 mm</span>
+              </li>
+              <li className="flex items-center gap-3">
+                <span className="text-green-500">✔</span> 
+                <span><strong>Length:</strong> 5980 mm (Tolerance -0/+2mm)</span>
+              </li>
+            </ul>
           </div>
         </div>
-      </section>
 
-      {/* Подвал */}
-      <footer className="bg-black py-6 text-center text-slate-500 text-sm">
-        <p>© 2024 RU-TIMBER EXPORT. All rights reserved.</p>
-      </footer>
+      </main>
     </div>
   );
 }
