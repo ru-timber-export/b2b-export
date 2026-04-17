@@ -1,133 +1,109 @@
+"use client";
 import Link from 'next/link';
 
-export default function SpyDashboard() {
+export default function CommandCenter() {
   return (
-    <div className="flex h-screen bg-black text-slate-200 font-mono selection:bg-green-500 selection:text-black">
+    <div className="flex h-screen bg-[#0a0a0a] text-gray-300 font-sans selection:bg-blue-500/30">
       
-      {/* БОКОВОЕ МЕНЮ */}
-      <aside className="w-64 bg-zinc-950 border-r border-zinc-800 flex flex-col relative overflow-hidden">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,0,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(0,255,0,0.03)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none"></div>
-        <div className="p-6 relative z-10">
-          <h1 className="text-2xl font-black text-green-500 tracking-widest drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]">OVERSEER</h1>
-          <p className="text-[10px] text-green-700 mt-1 uppercase tracking-widest">Global Tracking System</p>
+      {/* СТРОГОЕ БОКОВОЕ МЕНЮ */}
+      <aside className="w-64 bg-[#111] border-r border-gray-800 flex flex-col">
+        <div className="p-6 border-b border-gray-800">
+          <h1 className="text-xl font-black text-white tracking-widest">RU-TIMBER</h1>
+          <p className="text-[10px] text-blue-500 mt-1 uppercase tracking-widest font-mono">Strategic Command</p>
         </div>
-        <nav className="flex-1 px-4 space-y-2 mt-4 relative z-10">
-          <Link href="/" className="block px-4 py-3 rounded text-zinc-500 hover:text-green-400 hover:bg-green-900/20 transition-all text-sm uppercase tracking-wider">
-            [01] Public Site
+        <nav className="flex-1 px-4 py-6 space-y-2">
+          <Link href="/" className="block px-4 py-2 rounded text-gray-500 hover:text-white hover:bg-gray-800 transition-all text-xs uppercase tracking-wider font-bold">
+            Витрина (Public)
           </Link>
-          <Link href="/stats" className="block px-4 py-3 rounded bg-green-900/20 text-green-400 border border-green-500/30 text-sm uppercase tracking-wider shadow-[inset_0_0_10px_rgba(0,255,0,0.1)]">
-            [02] Live Intercept
+          <Link href="/admin" className="block px-4 py-2 rounded text-gray-500 hover:text-white hover:bg-gray-800 transition-all text-xs uppercase tracking-wider font-bold">
+            ERP Калькулятор
+          </Link>
+          <Link href="/stats" className="block px-4 py-2 rounded bg-blue-900/20 text-blue-400 border border-blue-900/50 text-xs uppercase tracking-wider font-bold">
+            Сводка (Dashboard)
           </Link>
         </nav>
-        <div className="p-4 border-t border-zinc-800 text-[10px] text-zinc-600 text-center uppercase tracking-widest">
-          Encrypted Connection
+        <div className="p-4 bg-[#0a0a0a] border-t border-gray-800 text-[10px] text-gray-600 font-mono flex items-center gap-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          SECURE CONNECTION
         </div>
       </aside>
 
       {/* ОСНОВНОЙ КОНТЕНТ */}
-      <main className="flex-1 p-8 overflow-y-auto relative">
-        <header className="mb-8 flex justify-between items-end border-b border-zinc-800 pb-4">
+      <main className="flex-1 p-8 overflow-y-auto">
+        <header className="mb-8 flex justify-between items-center">
           <div>
-            <h2 className="text-3xl font-light text-white tracking-widest">TARGET <span className="font-bold text-green-500">TELEMETRY</span></h2>
-            <p className="text-zinc-500 mt-1 text-xs uppercase tracking-widest">Real-time session monitoring</p>
+            <h2 className="text-2xl font-bold text-white uppercase tracking-wider">Глобальная сводка ВЭД</h2>
+            <p className="text-gray-500 mt-1 text-xs uppercase tracking-widest font-mono">Мониторинг сделок и логистики</p>
           </div>
-          <div className="flex items-center gap-3 bg-red-900/20 text-red-500 px-4 py-2 border border-red-500/30">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex h-2 w-2 bg-red-500"></span>
-            </span>
-            <span className="text-xs font-bold uppercase tracking-widest">1 Target Active</span>
+          <div className="text-right font-mono text-xs text-gray-500">
+            <p>SYSTEM TIME: {new Date().toLocaleTimeString()}</p>
+            <p>STATUS: <span className="text-green-500">ONLINE</span></p>
           </div>
         </header>
 
-        {/* СЕТКА ПЕНТАГОНА */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+        {/* ГЛАВНЫЕ МЕТРИКИ */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-[#111] p-5 border border-gray-800 rounded-lg">
+            <h3 className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-2">Активные сделки</h3>
+            <div className="text-3xl font-light text-white">1</div>
+            <p className="text-blue-400 text-xs mt-2 font-mono">Индия (Tuticorin)</p>
+          </div>
+          <div className="bg-[#111] p-5 border border-gray-800 rounded-lg">
+            <h3 className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-2">Объем в работе</h3>
+            <div className="text-3xl font-light text-white">40 <span className="text-lg text-gray-600">м³</span></div>
+            <p className="text-gray-400 text-xs mt-2 font-mono">1 Контейнер 40HC</p>
+          </div>
+          <div className="bg-[#111] p-5 border border-gray-800 rounded-lg">
+            <h3 className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-2">Ожидаемая выручка</h3>
+            <div className="text-3xl font-light text-green-500">$8,800</div>
+            <p className="text-gray-400 text-xs mt-2 font-mono">По ставке $220/м³</p>
+          </div>
+          <div className="bg-[#111] p-5 border border-gray-800 rounded-lg">
+            <h3 className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-2">Статус логистики</h3>
+            <div className="text-xl font-bold text-orange-400 mt-2">ОЖИДАНИЕ СТАВКИ</div>
+            <p className="text-gray-400 text-xs mt-2 font-mono">Запрос в РУСКОН</p>
+          </div>
+        </div>
+
+        {/* ОПЕРАТИВНАЯ ОБСТАНОВКА */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
-          {/* DIGITAL FOOTPRINT */}
-          <div className="bg-zinc-900/50 p-6 border border-zinc-800 relative group hover:border-green-500/50 transition-colors">
-            <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-green-500"></div>
-            <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-green-500"></div>
-            <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-green-500"></div>
-            <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-green-500"></div>
-            
-            <h3 className="text-green-600 text-xs font-bold mb-4 uppercase tracking-widest">Digital Footprint</h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between border-b border-zinc-800 pb-1">
-                <span className="text-zinc-500">IP Address</span>
-                <span className="text-white">103.119.165.42</span>
+          {/* ЛОГИСТИЧЕСКИЕ УЗЛЫ */}
+          <div className="bg-[#111] p-6 border border-gray-800 rounded-lg">
+            <h3 className="text-white text-sm font-bold uppercase tracking-widest mb-6 border-b border-gray-800 pb-2">Логистические узлы</h3>
+            <div className="relative pl-6 border-l-2 border-gray-800 space-y-6 font-mono text-sm">
+              <div className="relative">
+                <div className="absolute -left-[31px] top-1 w-4 h-4 bg-[#111] border-2 border-gray-500 rounded-full"></div>
+                <p className="text-white font-bold">Братск / Анзеби (РФ)</p>
+                <p className="text-gray-500 text-xs">Подача контейнера, погрузка</p>
               </div>
-              <div className="flex justify-between border-b border-zinc-800 pb-1">
-                <span className="text-zinc-500">Location</span>
-                <span className="text-orange-400">Mumbai, IND [21.02, 75.31]</span>
+              <div className="relative">
+                <div className="absolute -left-[31px] top-1 w-4 h-4 bg-[#111] border-2 border-gray-500 rounded-full"></div>
+                <p className="text-white font-bold">Новороссийск (РФ)</p>
+                <p className="text-gray-500 text-xs">Таможня, перевалка на судно</p>
               </div>
-              <div className="flex justify-between border-b border-zinc-800 pb-1">
-                <span className="text-zinc-500">ISP</span>
-                <span className="text-white">Reliance Jio Infocomm</span>
+              <div className="relative">
+                <div className="absolute -left-[31px] top-1 w-4 h-4 bg-[#111] border-2 border-blue-500 rounded-full shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
+                <p className="text-blue-400 font-bold">Tuticorin (Индия)</p>
+                <p className="text-gray-500 text-xs">Порт назначения (CIF)</p>
               </div>
             </div>
           </div>
 
-          {/* DEVICE TELEMETRY */}
-          <div className="bg-zinc-900/50 p-6 border border-zinc-800 relative group hover:border-green-500/50 transition-colors">
-            <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-green-500"></div>
-            <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-green-500"></div>
-            <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-green-500"></div>
-            <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-green-500"></div>
-
-            <h3 className="text-green-600 text-xs font-bold mb-4 uppercase tracking-widest">Device Specs</h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between border-b border-zinc-800 pb-1">
-                <span className="text-zinc-500">Hardware</span>
-                <span className="text-white">Apple iPhone 14 Pro</span>
-              </div>
-              <div className="flex justify-between border-b border-zinc-800 pb-1">
-                <span className="text-zinc-500">Network</span>
-                <span className="text-green-400">4G LTE (Good Signal)</span>
-              </div>
-              <div className="flex justify-between border-b border-zinc-800 pb-1">
-                <span className="text-zinc-500">Battery</span>
-                <span className="text-red-400">18% (Discharging)</span>
-              </div>
+          {/* ЖУРНАЛ ОПЕРАЦИЙ */}
+          <div className="bg-[#111] p-6 border border-gray-800 rounded-lg flex flex-col">
+            <h3 className="text-white text-sm font-bold uppercase tracking-widest mb-6 border-b border-gray-800 pb-2">Журнал операций (Log)</h3>
+            <div className="flex-1 bg-[#0a0a0a] border border-gray-800 p-4 font-mono text-xs text-gray-400 space-y-2 overflow-y-auto">
+              <p><span className="text-gray-600">[17.04 15:19]</span> <span className="text-blue-400">СИСТЕМА:</span> Запрос цен отправлен на заводы.</p>
+              <p><span className="text-gray-600">[17.04 16:30]</span> <span className="text-green-500">ВХОДЯЩЕЕ:</span> Ответ от ООО "Ангарская сосна". Станции: Братск, Анзеби.</p>
+              <p><span className="text-gray-600">[17.04 17:00]</span> <span className="text-blue-400">СИСТЕМА:</span> Запрос фрахта отправлен в РУСКОН.</p>
+              <p><span className="text-gray-600">[17.04 18:45]</span> <span className="text-blue-400">СИСТЕМА:</span> Оффер (3 варианта цены) отправлен брокеру (Nandha).</p>
+              <p><span className="text-gray-600">[17.04 19:10]</span> <span className="text-orange-400">ОЖИДАНИЕ:</span> Запрос фото с производства.</p>
+              <p className="animate-pulse mt-4 text-gray-600">_</p>
             </div>
           </div>
 
-          {/* BEHAVIORAL INTERCEPT */}
-          <div className="bg-zinc-900/50 p-6 border border-zinc-800 relative group hover:border-green-500/50 transition-colors">
-            <div className="absolute top-0 left-0 w-2 h-2 border-t border-l border-green-500"></div>
-            <div className="absolute top-0 right-0 w-2 h-2 border-t border-r border-green-500"></div>
-            <div className="absolute bottom-0 left-0 w-2 h-2 border-b border-l border-green-500"></div>
-            <div className="absolute bottom-0 right-0 w-2 h-2 border-b border-r border-green-500"></div>
-
-            <h3 className="text-green-600 text-xs font-bold mb-4 uppercase tracking-widest">Action Intercept</h3>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between border-b border-zinc-800 pb-1">
-                <span className="text-zinc-500">Time on Site</span>
-                <span className="text-white">04m 12s</span>
-              </div>
-              <div className="flex justify-between border-b border-zinc-800 pb-1">
-                <span className="text-zinc-500">Focus Area</span>
-                <span className="text-white">"Option B: $260"</span>
-              </div>
-              <div className="flex justify-between border-b border-zinc-800 pb-1">
-                <span className="text-zinc-500">Clipboard Event</span>
-                <span className="text-orange-400 bg-orange-900/30 px-1">Copied Text</span>
-              </div>
-            </div>
-          </div>
         </div>
-
-        {/* ЖИВОЙ ТЕРМИНАЛ */}
-        <div className="bg-black p-4 border border-zinc-800 font-mono text-xs text-green-500 h-48 overflow-hidden relative">
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-transparent to-black pointer-events-none"></div>
-          <p className="opacity-50">&gt; INITIALIZING SECURE CONNECTION...</p>
-          <p className="opacity-60">&gt; BYPASSING PROXY...</p>
-          <p className="opacity-70">&gt; CONNECTION ESTABLISHED. PORT 443.</p>
-          <p className="opacity-80">&gt; NEW TARGET ACQUIRED: 103.119.165.42</p>
-          <p className="opacity-90">&gt; TARGET SCROLLING TO "TECHNICAL SPECIFICATIONS"</p>
-          <p className="text-white">&gt; [ALERT] TARGET HIGHLIGHTED TEXT: "GOST 8486-86"</p>
-          <p className="animate-pulse mt-2">_</p>
-        </div>
-
       </main>
     </div>
   );
