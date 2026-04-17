@@ -27,36 +27,70 @@ export default function Home() {
           </p>
         </div>
 
-        {/* ГАЛЕРЕЯ ФОТОГРАФИЙ */}
+        {/* ГАЛЕРЕЯ ФОТОГРАФИЙ (Сетка из 6 фото) */}
         <h3 className="text-2xl font-bold mb-6 border-b-2 border-orange-500 pb-2 inline-block">Product Gallery & Packaging</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-          {/* Фото 1: Пакеты досок */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
+          
+          {/* Фото 1: Готовые пакеты */}
           <div className="bg-white p-2 rounded-xl shadow-md hover:shadow-xl transition-shadow">
             <img 
               src="https://images.unsplash.com/photo-1597423498219-04418210827d?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
               alt="Timber packages" 
-              className="rounded-lg h-64 w-full object-cover"
+              className="rounded-lg h-56 w-full object-cover"
             />
             <p className="text-center text-sm font-bold text-slate-500 mt-3">Export Standard Packaging</p>
           </div>
-          {/* Фото 2: Качество доски */}
-          <div className="bg-white p-2 rounded-xl shadow-md hover:shadow-xl transition-shadow">
-            <img 
-              src="https://images.unsplash.com/photo-1505027368916-2ba11ff31481?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
-              alt="Sawn timber quality" 
-              className="rounded-lg h-64 w-full object-cover"
-            />
-            <p className="text-center text-sm font-bold text-slate-500 mt-3">KD 10-12% Moisture Content</p>
-          </div>
-          {/* Фото 3: Погрузка/Склад */}
+          
+          {/* Фото 2: Текстура доски (Новая надежная ссылка) */}
           <div className="bg-white p-2 rounded-xl shadow-md hover:shadow-xl transition-shadow">
             <img 
               src="https://images.unsplash.com/photo-1589939705384-5185137a7f0f?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
               alt="Pine wood texture" 
-              className="rounded-lg h-64 w-full object-cover"
+              className="rounded-lg h-56 w-full object-cover"
             />
-            <p className="text-center text-sm font-bold text-slate-500 mt-3">GOST 8486-86 (Grades 1-3)</p>
+            <p className="text-center text-sm font-bold text-slate-500 mt-3">Clean Surface, No Stain</p>
           </div>
+
+          {/* Фото 3: Склад / Объем */}
+          <div className="bg-white p-2 rounded-xl shadow-md hover:shadow-xl transition-shadow">
+            <img 
+              src="https://images.unsplash.com/photo-1611078813455-83e3ce87e22b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+              alt="Timber warehouse" 
+              className="rounded-lg h-56 w-full object-cover"
+            />
+            <p className="text-center text-sm font-bold text-slate-500 mt-3">Large Volume Capacity</p>
+          </div>
+
+          {/* Фото 4: Торец доски (Показывает плотность) */}
+          <div className="bg-white p-2 rounded-xl shadow-md hover:shadow-xl transition-shadow">
+            <img 
+              src="https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+              alt="Wood rings" 
+              className="rounded-lg h-56 w-full object-cover"
+            />
+            <p className="text-center text-sm font-bold text-slate-500 mt-3">High Density Pine</p>
+          </div>
+
+          {/* Фото 5: Производство / Распиловка */}
+          <div className="bg-white p-2 rounded-xl shadow-md hover:shadow-xl transition-shadow">
+            <img 
+              src="https://images.unsplash.com/photo-1504307651254-35680f356f12?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+              alt="Sawmill" 
+              className="rounded-lg h-56 w-full object-cover"
+            />
+            <p className="text-center text-sm font-bold text-slate-500 mt-3">Direct from Sawmill</p>
+          </div>
+
+          {/* Фото 6: Погрузка в контейнер (Имитация) */}
+          <div className="bg-white p-2 rounded-xl shadow-md hover:shadow-xl transition-shadow">
+            <img 
+              src="https://images.unsplash.com/photo-1493925410384-84f842e616fb?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" 
+              alt="Container loading" 
+              className="rounded-lg h-56 w-full object-cover"
+            />
+            <p className="text-center text-sm font-bold text-slate-500 mt-3">Ready for Container Loading</p>
+          </div>
+
         </div>
 
         {/* Спецификация */}
