@@ -13,7 +13,7 @@ export default function CommandCenter() {
         <nav className="flex md:flex-col p-2 md:p-4 gap-2 overflow-x-auto md:overflow-visible">
           <Link href="/" className="whitespace-nowrap px-4 py-2 md:py-3 rounded text-gray-500 hover:text-white hover:bg-gray-800 transition-all text-[10px] md:text-xs uppercase tracking-wider font-bold">Витрина</Link>
           <Link href="/admin" className="whitespace-nowrap px-4 py-2 md:py-3 rounded text-gray-500 hover:text-white hover:bg-gray-800 transition-all text-[10px] md:text-xs uppercase tracking-wider font-bold">ERP Калькулятор</Link>
-          <Link href="/crm" className="whitespace-nowrap px-4 py-2 md:py-3 rounded text-gray-500 hover:text-white hover:bg-gray-800 transition-all text-[10px] md:text-xs uppercase tracking-wider font-bold">CRM Доска</Link>
+          <Link href="/crm" className="whitespace-nowrap px-4 py-2 md:py-3 rounded text-gray-500 hover:text-white hover:bg-gray-800 transition-all text-[10px] md:text-xs uppercase tracking-wider font-bold">CRM (Сделки)</Link>
           <Link href="/stats" className="whitespace-nowrap px-4 py-2 md:py-3 rounded bg-blue-900/20 text-blue-400 border border-blue-900/50 text-[10px] md:text-xs uppercase tracking-wider font-bold">Сводка</Link>
         </nav>
       </aside>
