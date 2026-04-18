@@ -74,6 +74,60 @@ export default function Home() {
             </ul>
           </div>
         </div>
+{/* БЛОК ЛОГИСТИКИ */}
+        <div className="mt-16 mb-8">
+          <h3 className="text-2xl font-bold mb-8 border-b-2 border-orange-500 pb-2 inline-block text-slate-800">Global Logistics & Delivery</h3>
+          <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-100 relative overflow-hidden">
+            {/* Декоративный фон */}
+            <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-full -mr-20 -mt-20 opacity-50"></div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 relative z-10">
+              
+              <div className="text-center relative">
+                <div className="w-16 h-16 mx-auto bg-orange-100 rounded-full flex items-center justify-center mb-4 border-2 border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.2)]">
+                  <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                </div>
+                <h4 className="font-bold text-slate-800 mb-2">1. Production</h4>
+                <p className="text-xs text-slate-500">Siberian Sawmill (Bratsk). Kiln drying and AST treatment.</p>
+                {/* Стрелка для ПК */}
+                <div className="hidden md:block absolute top-8 -right-6 text-slate-300">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                </div>
+              </div>
+
+              <div className="text-center relative">
+                <div className="w-16 h-16 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4 border-2 border-slate-300">
+                  <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                </div>
+                <h4 className="font-bold text-slate-800 mb-2">2. Rail Transit</h4>
+                <p className="text-xs text-slate-500">Fast block trains to Novorossiysk or Vladivostok ports.</p>
+                <div className="hidden md:block absolute top-8 -right-6 text-slate-300">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                </div>
+              </div>
+
+              <div className="text-center relative">
+                <div className="w-16 h-16 mx-auto bg-slate-100 rounded-full flex items-center justify-center mb-4 border-2 border-slate-300">
+                  <svg className="w-8 h-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+                </div>
+                <h4 className="font-bold text-slate-800 mb-2">3. Customs & Port</h4>
+                <p className="text-xs text-slate-500">Full export documentation (Phyto, Origin, BL) and loading.</p>
+                <div className="hidden md:block absolute top-8 -right-6 text-slate-300">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4 border-2 border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.2)]">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
+                <h4 className="font-bold text-slate-800 mb-2">4. Destination (CIF)</h4>
+                <p className="text-xs text-slate-500">Ocean freight to India, China, MENA. Safe and insured.</p>
+              </div>
+
+            </div>
+          </div>
+        </div>
       </main>
 
       {/* ПЛАВАЮЩАЯ КНОПКА WHATSAPP */}
