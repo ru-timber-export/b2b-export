@@ -152,7 +152,7 @@ function InvoiceContent() {
               
               {/* ВАША ПОДПИСЬ С ФИЛЬТРАМИ (отбеливание бумаги) */}
               <img 
-                src="/signature.jpg" 
+                src="/sign.jpg" 
                 alt="Signature" 
                 className="absolute bottom-6 left-4 w-48 h-auto z-10 mix-blend-multiply"
                 style={{ filter: 'grayscale(100%) contrast(200%) brightness(120%)' }}
