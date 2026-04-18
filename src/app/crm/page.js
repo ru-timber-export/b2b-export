@@ -160,90 +160,102 @@ export default function CRMDashboard() {
 
   // --- ГЕНЕРАТОР PDF ИНВОЙСОВ ---
   const generateInvoice = (task) => {
-    const doc = new jsPDF();
-    doc.setFont("helvetica");
-    
-    // ШАПКА
-    doc.setFontSize(24);
-    doc.setTextColor(249, 115, 22);
-    doc.text("RU-TIMBER EXPORT", 14, 25);
-    
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text("Direct from Siberian Sawmills", 14, 32);
-    doc.text("Email: export@ru-timber.com", 14, 38);
-    doc.text("WhatsApp: +7 915 349 00 07", 14, 44);
+    try {
+      // Создаем документ с явным указанием формата
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4"
+      });
+      
+      doc.setFont("helvetica");
+      
+      // ШАПКА
+      doc.setFontSize(24);
+      doc.setTextColor(249, 115, 22);
+      doc.text("RU-TIMBER EXPORT", 14, 25);
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text("Direct from Siberian Sawmills", 14, 32);
+      doc.text("Email: export@ru-timber.com", 14, 38);
+      doc.text("WhatsApp: +7 915 349 00 07", 14, 44);
 
-    const invoiceNumber = `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`;
-    const date = new Date().toLocaleDateString('en-US');
-    
-    doc.setFontSize(16);
-    doc.setTextColor(0, 0, 0);
-    doc.text("COMMERCIAL INVOICE", 130, 25);
-    doc.setFontSize(10);
-    doc.text(`Invoice No: ${invoiceNumber}`, 130, 35);
-    doc.text(`Date: ${date}`, 130, 41);
+      const invoiceNumber = `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`;
+      const date = new Date().toLocaleDateString('en-US');
+      
+      doc.setFontSize(16);
+      doc.setTextColor(0, 0, 0);
+      doc.text("COMMERCIAL INVOICE", 130, 25);
+      doc.setFontSize(10);
+      doc.text(`Invoice No: ${invoiceNumber}`, 130, 35);
+      doc.text(`Date: ${date}`, 130, 41);
 
-    // КЛИЕНТ
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("BILL TO:", 14, 60);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Company: ${task.client}`, 14, 67);
-    doc.text(`Phone: ${task.phone || "N/A"}`, 14, 73);
+      // КЛИЕНТ
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text("BILL TO:", 14, 60);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Company: ${task.client || "Client"}`, 14, 67);
+      doc.text(`Phone: ${task.phone || "N/A"}`, 14, 73);
 
-    // ПАРСИНГ ЦИФР
-    const priceMatch = String(task.price).match(/\d+/);
-    const volumeMatch = String(task.volume).match(/\d+/);
-    const unitPrice = priceMatch ? Number(priceMatch[0]) : 0;
-    const qty = volumeMatch ? Number(volumeMatch[0]) : 0;
-    const totalAmount = unitPrice * qty;
+      // ПАРСИНГ ЦИФР
+      const unitPrice = Number(task.price) || 0;
+      const qty = Number(task.volume) || 0;
+      const totalAmount = unitPrice * qty;
 
-    // ТАБЛИЦА
-    doc.autoTable({
-      startY: 85,
-      head: [['Description', 'Quantity (m3)', 'Unit Price (USD)', 'Total (USD)']],
-      body: [
-        [
-          'Russian Pine Sawn Timber\nGOST 8486-86 (KD 10-12%, AST)\nSize: 44x100/150x5980mm', 
-          qty || task.volume, 
-          `$${unitPrice}` || task.price, 
-          `$${totalAmount.toLocaleString()}`
+      // ТАБЛИЦА
+      doc.autoTable({
+        startY: 85,
+        head: [['Description', 'Quantity (m3)', 'Unit Price (USD)', 'Total (USD)']],
+        body: [
+          [
+            'Russian Pine Sawn Timber\nGOST 8486-86 (KD 10-12%, AST)\nSize: 44x100/150x5980mm', 
+            qty.toString(), 
+            `$${unitPrice}`, 
+            `$${totalAmount.toLocaleString()}`
+          ],
         ],
-      ],
-      headStyles: { fillColor: [15, 23, 42] },
-      theme: 'grid',
-      styles: { fontSize: 10, cellPadding: 5 }
-    });
+        headStyles: { fillColor: [15, 23, 42] },
+        theme: 'grid',
+        styles: { fontSize: 10, cellPadding: 5 }
+      });
 
-    // ИТОГО
-    const finalY = doc.lastAutoTable.finalY || 120;
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text(`TOTAL AMOUNT: $${totalAmount.toLocaleString()}`, 140, finalY + 15);
+      // ИТОГО
+      const finalY = doc.lastAutoTable.finalY || 120;
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.text(`TOTAL AMOUNT: $${totalAmount.toLocaleString()}`, 140, finalY + 15);
 
-    // РЕКВИЗИТЫ
-    doc.setFontSize(10);
-    doc.text("BANK DETAILS:", 14, finalY + 30);
-    doc.setFont("helvetica", "normal");
-    doc.text("Bank Name: [To be provided upon contract signing]", 14, finalY + 37);
-    doc.text("SWIFT: [XXX]", 14, finalY + 43);
-    doc.text("Account No: [XXX]", 14, finalY + 49);
+      // РЕКВИЗИТЫ
+      doc.setFontSize(10);
+      doc.text("BANK DETAILS:", 14, finalY + 30);
+      doc.setFont("helvetica", "normal");
+      doc.text("Bank Name: [To be provided upon contract signing]", 14, finalY + 37);
+      doc.text("SWIFT: [XXX]", 14, finalY + 43);
+      doc.text("Account No: [XXX]", 14, finalY + 49);
 
-    // ПЕЧАТЬ
-    doc.text("Authorized Signature:", 140, finalY + 40);
-    doc.setDrawColor(0, 0, 0);
-    doc.line(140, finalY + 50, 190, finalY + 50);
-    
-    doc.setDrawColor(37, 99, 235);
-    doc.setLineWidth(1);
-    doc.circle(165, finalY + 50, 15);
-    doc.setTextColor(37, 99, 235);
-    doc.setFontSize(8);
-    doc.text("RU-TIMBER", 155, finalY + 48);
-    doc.text("EXPORT", 157, finalY + 52);
+      // ПЕЧАТЬ
+      doc.text("Authorized Signature:", 140, finalY + 40);
+      doc.setDrawColor(0, 0, 0);
+      doc.line(140, finalY + 50, 190, finalY + 50);
+      
+      doc.setDrawColor(37, 99, 235);
+      doc.setLineWidth(1);
+      doc.circle(165, finalY + 50, 15);
+      doc.setTextColor(37, 99, 235);
+      doc.setFontSize(8);
+      doc.text("RU-TIMBER", 155, finalY + 48);
+      doc.text("EXPORT", 157, finalY + 52);
 
-    doc.save(`Invoice_${task.client.replace(/\s+/g, '_')}.pdf`);
+      // Принудительное сохранение с безопасным именем файла
+      const safeName = (task.client || "Client").replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      doc.save(`Invoice_${safeName}.pdf`);
+      
+    } catch (error) {
+      console.error("Ошибка при генерации PDF:", error);
+      alert("Не удалось создать PDF. Проверьте консоль браузера.");
+    }
   };
 
   if (!data) return <div className="h-screen bg-[#0a0a0a] flex items-center justify-center text-green-500 font-mono">LOADING SECURE DATA...</div>;
