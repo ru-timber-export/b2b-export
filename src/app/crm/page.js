@@ -1,11 +1,11 @@
 "use client";
-import { jsPDF } from "jspdf";
-import "jspdf-autotable";
 import { useState, useEffect } from "react";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import Link from "next/link";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { jsPDF } from "jspdf";
+import "jspdf-autotable";
 
 const exportDocumentChecklist = [
   { id: "doc1", text: "1. Контракт (Sales Contract)", done: false },
@@ -28,8 +28,8 @@ const initialData = {
   },
   tasks: {
     "task-1": { 
-      id: "task-1", client: "Nandha (IND)", phone: "919876543210", volume: "40 м³ (1x40HC)", 
-      price: "Ожидание CIF", status: "Отправлены фото с завода", containerId: "", checklist: exportDocumentChecklist
+      id: "task-1", client: "Nandha (IND)", phone: "919876543210", volume: "40", 
+      price: "260", status: "Отправлены фото с завода", containerId: "", checklist: exportDocumentChecklist
     },
   },
   columnOrder: ["col-1", "col-2", "col-3", "col-4", "col-5"],
@@ -117,100 +117,7 @@ export default function CRMDashboard() {
     if (!checklist || checklist.length === 0) return 0;
     return Math.round((checklist.filter(item => item.done).length / checklist.length) * 100);
   };
-// --- ГЕНЕРАТОР PDF ИНВОЙСОВ ---
-  const generateInvoice = (task) => {
-    const doc = new jsPDF();
-    
-    // Цвета и шрифты
-    doc.setFont("helvetica");
-    
-    // ШАПКА (Логотип и реквизиты компании)
-    doc.setFontSize(24);
-    doc.setTextColor(249, 115, 22); // Оранжевый цвет (Orange-500)
-    doc.text("RU-TIMBER EXPORT", 14, 25);
-    
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text("Direct from Siberian Sawmills", 14, 32);
-    doc.text("Email: export@ru-timber.com", 14, 38);
-    doc.text("WhatsApp: +7 915 349 00 07", 14, 44);
 
-    // ИНФОРМАЦИЯ ОБ ИНВОЙСЕ
-    const invoiceNumber = `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`;
-    const date = new Date().toLocaleDateString('en-US');
-    
-    doc.setFontSize(16);
-    doc.setTextColor(0, 0, 0);
-    doc.text("COMMERCIAL INVOICE", 130, 25);
-    
-    doc.setFontSize(10);
-    doc.text(`Invoice No: ${invoiceNumber}`, 130, 35);
-    doc.text(`Date: ${date}`, 130, 41);
-
-    // ДАННЫЕ КЛИЕНТА
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text("BILL TO:", 14, 60);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Company: ${task.client}`, 14, 67);
-    doc.text(`Phone: ${task.phone || "N/A"}`, 14, 73);
-
-    // ПАРСИНГ ЦЕНЫ И ОБЪЕМА (Пытаемся вытащить цифры из текста)
-    const priceMatch = task.price.match(/\d+/);
-    const volumeMatch = task.volume.match(/\d+/);
-    
-    const unitPrice = priceMatch ? Number(priceMatch[0]) : 0;
-    const qty = volumeMatch ? Number(volumeMatch[0]) : 0;
-    const totalAmount = unitPrice * qty;
-
-    // ТАБЛИЦА ТОВАРОВ
-    doc.autoTable({
-      startY: 85,
-      head: [['Description', 'Quantity (m3)', 'Unit Price (USD)', 'Total (USD)']],
-      body: [
-        [
-          'Russian Pine Sawn Timber\nGOST 8486-86 (KD 10-12%, AST)\nSize: 44x100/150x5980mm', 
-          qty || task.volume, 
-          `$${unitPrice}` || task.price, 
-          `$${totalAmount.toLocaleString()}`
-        ],
-      ],
-      headStyles: { fillColor: [15, 23, 42] }, // Темно-синий цвет шапки
-      theme: 'grid',
-      styles: { fontSize: 10, cellPadding: 5 }
-    });
-
-    // ИТОГО
-    const finalY = doc.lastAutoTable.finalY || 120;
-    doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
-    doc.text(`TOTAL AMOUNT: $${totalAmount.toLocaleString()}`, 140, finalY + 15);
-
-    // БАНКОВСКИЕ РЕКВИЗИТЫ
-    doc.setFontSize(10);
-    doc.text("BANK DETAILS:", 14, finalY + 30);
-    doc.setFont("helvetica", "normal");
-    doc.text("Bank Name: [To be provided upon contract signing]", 14, finalY + 37);
-    doc.text("SWIFT: [XXX]", 14, finalY + 43);
-    doc.text("Account No: [XXX]", 14, finalY + 49);
-
-    // ПОДПИСЬ И ПЕЧАТЬ (Имитация)
-    doc.text("Authorized Signature:", 140, finalY + 40);
-    doc.setDrawColor(0, 0, 0);
-    doc.line(140, finalY + 50, 190, finalY + 50); // Линия для подписи
-    
-    // Синяя круглая "печать"
-    doc.setDrawColor(37, 99, 235); // Синий цвет
-    doc.setLineWidth(1);
-    doc.circle(165, finalY + 50, 15);
-    doc.setTextColor(37, 99, 235);
-    doc.setFontSize(8);
-    doc.text("RU-TIMBER", 155, finalY + 48);
-    doc.text("EXPORT", 157, finalY + 52);
-
-    // СКАЧИВАНИЕ
-    doc.save(`Invoice_${task.client.replace(/\s+/g, '_')}.pdf`);
-  };
   const handleAddNew = () => {
     setEditingTask({ id: `task-${Date.now()}`, client: "", phone: "", volume: "", price: "", status: "", containerId: "", checklist: exportDocumentChecklist, isNew: true });
     setIsEditing(true);
@@ -249,6 +156,94 @@ export default function CRMDashboard() {
     setData(newData);
     setDoc(doc(db, "erp", "crm"), newData);
     setIsEditing(false);
+  };
+
+  // --- ГЕНЕРАТОР PDF ИНВОЙСОВ ---
+  const generateInvoice = (task) => {
+    const doc = new jsPDF();
+    doc.setFont("helvetica");
+    
+    // ШАПКА
+    doc.setFontSize(24);
+    doc.setTextColor(249, 115, 22);
+    doc.text("RU-TIMBER EXPORT", 14, 25);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Direct from Siberian Sawmills", 14, 32);
+    doc.text("Email: export@ru-timber.com", 14, 38);
+    doc.text("WhatsApp: +7 915 349 00 07", 14, 44);
+
+    const invoiceNumber = `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`;
+    const date = new Date().toLocaleDateString('en-US');
+    
+    doc.setFontSize(16);
+    doc.setTextColor(0, 0, 0);
+    doc.text("COMMERCIAL INVOICE", 130, 25);
+    doc.setFontSize(10);
+    doc.text(`Invoice No: ${invoiceNumber}`, 130, 35);
+    doc.text(`Date: ${date}`, 130, 41);
+
+    // КЛИЕНТ
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text("BILL TO:", 14, 60);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Company: ${task.client}`, 14, 67);
+    doc.text(`Phone: ${task.phone || "N/A"}`, 14, 73);
+
+    // ПАРСИНГ ЦИФР
+    const priceMatch = String(task.price).match(/\d+/);
+    const volumeMatch = String(task.volume).match(/\d+/);
+    const unitPrice = priceMatch ? Number(priceMatch[0]) : 0;
+    const qty = volumeMatch ? Number(volumeMatch[0]) : 0;
+    const totalAmount = unitPrice * qty;
+
+    // ТАБЛИЦА
+    doc.autoTable({
+      startY: 85,
+      head: [['Description', 'Quantity (m3)', 'Unit Price (USD)', 'Total (USD)']],
+      body: [
+        [
+          'Russian Pine Sawn Timber\nGOST 8486-86 (KD 10-12%, AST)\nSize: 44x100/150x5980mm', 
+          qty || task.volume, 
+          `$${unitPrice}` || task.price, 
+          `$${totalAmount.toLocaleString()}`
+        ],
+      ],
+      headStyles: { fillColor: [15, 23, 42] },
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 5 }
+    });
+
+    // ИТОГО
+    const finalY = doc.lastAutoTable.finalY || 120;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`TOTAL AMOUNT: $${totalAmount.toLocaleString()}`, 140, finalY + 15);
+
+    // РЕКВИЗИТЫ
+    doc.setFontSize(10);
+    doc.text("BANK DETAILS:", 14, finalY + 30);
+    doc.setFont("helvetica", "normal");
+    doc.text("Bank Name: [To be provided upon contract signing]", 14, finalY + 37);
+    doc.text("SWIFT: [XXX]", 14, finalY + 43);
+    doc.text("Account No: [XXX]", 14, finalY + 49);
+
+    // ПЕЧАТЬ
+    doc.text("Authorized Signature:", 140, finalY + 40);
+    doc.setDrawColor(0, 0, 0);
+    doc.line(140, finalY + 50, 190, finalY + 50);
+    
+    doc.setDrawColor(37, 99, 235);
+    doc.setLineWidth(1);
+    doc.circle(165, finalY + 50, 15);
+    doc.setTextColor(37, 99, 235);
+    doc.setFontSize(8);
+    doc.text("RU-TIMBER", 155, finalY + 48);
+    doc.text("EXPORT", 157, finalY + 52);
+
+    doc.save(`Invoice_${task.client.replace(/\s+/g, '_')}.pdf`);
   };
 
   if (!data) return <div className="h-screen bg-[#0a0a0a] flex items-center justify-center text-green-500 font-mono">LOADING SECURE DATA...</div>;
@@ -303,16 +298,23 @@ export default function CRMDashboard() {
                                   <div className="flex justify-between items-start mb-3 border-b border-gray-800 pb-3 pr-6">
                                     <div>
                                       <h4 className="text-white font-bold text-sm">{task.client}</h4>
-                                      <p className="text-green-500 font-mono text-xs mt-1">{task.price}</p>
+                                      <p className="text-green-500 font-mono text-xs mt-1">${task.price}</p>
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
-                                      <span className="text-[10px] font-mono text-purple-400 bg-purple-900/20 px-2 py-1 rounded">{task.volume}</span>
-                                      {task.phone && (
-                                        <a href={`https://wa.me/${task.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 bg-green-900/30 text-green-500 hover:bg-green-500 hover:text-white transition-colors px-2 py-1 rounded text-[10px] font-bold">
-                                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.883-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51h-.57c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-                                          ЧАТ
-                                        </a>
-                                      )}
+                                      <span className="text-[10px] font-mono text-purple-400 bg-purple-900/20 px-2 py-1 rounded">{task.volume} м³</span>
+                                      
+                                      <div className="flex gap-2">
+                                        <button onClick={() => generateInvoice(task)} className="flex items-center gap-1 bg-blue-900/30 text-blue-500 hover:bg-blue-500 hover:text-white transition-colors px-2 py-1 rounded text-[10px] font-bold" title="Скачать PDF Инвойс">
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                          INVOICE
+                                        </button>
+                                        {task.phone && (
+                                          <a href={`https://wa.me/${task.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 bg-green-900/30 text-green-500 hover:bg-green-500 hover:text-white transition-colors px-2 py-1 rounded text-[10px] font-bold">
+                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.883-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51h-.57c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+                                            ЧАТ
+                                          </a>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                   
@@ -368,39 +370,16 @@ export default function CRMDashboard() {
               </div>
               <div>
                 <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase">Телефон (WhatsApp)</label>
-<div className="flex flex-col items-end gap-2">
-                                      <span className="text-[10px] font-mono text-purple-400 bg-purple-900/20 px-2 py-1 rounded">{task.volume}</span>
-                                      
-                                      <div className="flex gap-2">
-                                        {/* КНОПКА INVOICE */}
-                                        <button 
-                                          onClick={() => generateInvoice(task)}
-                                          className="flex items-center gap-1 bg-blue-900/30 text-blue-500 hover:bg-blue-500 hover:text-white transition-colors px-2 py-1 rounded text-[10px] font-bold"
-                                          title="Скачать PDF Инвойс"
-                                        >
-                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                                          INVOICE
-                                        </button>
-
-                                        {/* КНОПКА WHATSAPP */}
-                                        {task.phone && (
-                                          <a href={`https://wa.me/${task.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 bg-green-900/30 text-green-500 hover:bg-green-500 hover:text-white transition-colors px-2 py-1 rounded text-[10px] font-bold">
-                                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.883-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51h-.57c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-                                            ЧАТ
-                                          </a>
-                                        )}
-                                      </div>
-                                    </div>
                 <input type="text" value={editingTask.phone} onChange={(e) => setEditingTask({...editingTask, phone: e.target.value})} className="w-full bg-[#0a0a0a] border border-gray-700 focus:border-purple-500 rounded p-2 text-white outline-none" placeholder="Например: +91 987 654 3210"/>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase">Объем</label>
-                  <input type="text" value={editingTask.volume} onChange={(e) => setEditingTask({...editingTask, volume: e.target.value})} className="w-full bg-[#0a0a0a] border border-gray-700 focus:border-purple-500 rounded p-2 text-white outline-none" placeholder="40 м³"/>
+                  <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase">Объем (только цифры)</label>
+                  <input type="number" value={editingTask.volume} onChange={(e) => setEditingTask({...editingTask, volume: e.target.value})} className="w-full bg-[#0a0a0a] border border-gray-700 focus:border-purple-500 rounded p-2 text-white outline-none" placeholder="40"/>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase">Цена</label>
-                  <input type="text" value={editingTask.price} onChange={(e) => setEditingTask({...editingTask, price: e.target.value})} className="w-full bg-[#0a0a0a] border border-gray-700 focus:border-purple-500 rounded p-2 text-white outline-none" placeholder="$260 CIF"/>
+                  <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase">Цена $ (только цифры)</label>
+                  <input type="number" value={editingTask.price} onChange={(e) => setEditingTask({...editingTask, price: e.target.value})} className="w-full bg-[#0a0a0a] border border-gray-700 focus:border-purple-500 rounded p-2 text-white outline-none" placeholder="260"/>
                 </div>
               </div>
               <div>
