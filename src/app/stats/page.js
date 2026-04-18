@@ -1,23 +1,42 @@
 "use client";
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "../../lib/firebase";
 
 export default function CommandCenter() {
-  // Моковые данные для трекинга (потом заменим на реальный API)
-  const [trackingData, setTrackingData] = useState({
-    containerId: "MSKU 1928374",
-    line: "Maersk",
-    status: "IN TRANSIT",
-    vessel: "MSC ALINA (Voyage 042W)",
-    departure: "Novorossiysk, RU (May 01)",
-    arrival: "Tuticorin, IND (May 22)",
-    progress: 45 // процент пути
-  });
+  const [activeContainer, setActiveContainer] = useState(null);
+
+  // Читаем базу CRM, чтобы найти сделку с вбитым номером контейнера
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "erp", "crm"), (docSnap) => {
+      if (docSnap.exists()) {
+        const crmData = docSnap.data();
+        // Ищем первую задачу, у которой заполнен containerId
+        const taskWithContainer = Object.values(crmData.tasks).find(task => task.containerId && task.containerId.trim() !== "");
+        
+        if (taskWithContainer) {
+          setActiveContainer({
+            id: taskWithContainer.containerId,
+            client: taskWithContainer.client,
+            line: "Maersk", // Пока хардкод, потом будем определять по первым 4 буквам
+            status: "IN TRANSIT",
+            vessel: "MSC ALINA (Voyage 042W)",
+            departure: "Novorossiysk, RU",
+            arrival: "Tuticorin, IND",
+            progress: 45
+          });
+        } else {
+          setActiveContainer(null); // Нет контейнеров для отслеживания
+        }
+      }
+    });
+    return () => unsub();
+  }, []);
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#0a0a0a] text-gray-300 font-sans selection:bg-blue-500/30">
       
-      {/* МЕНЮ */}
       <aside className="w-full md:w-64 bg-[#111] border-b md:border-b-0 md:border-r border-gray-800 flex flex-col shrink-0">
         <div className="p-4 md:p-6 border-b border-gray-800 flex justify-between items-center md:block">
           <div><h1 className="text-lg md:text-xl font-black text-white tracking-widest">RU-TIMBER</h1><p className="text-[10px] text-blue-500 mt-1 uppercase tracking-widest font-mono hidden md:block">Strategic Command</p></div>
@@ -30,13 +49,11 @@ export default function CommandCenter() {
         </nav>
       </aside>
 
-      {/* СВОДКА */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto">
         <header className="mb-6 md:mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div><h2 className="text-xl md:text-2xl font-bold text-white uppercase tracking-wider">Глобальная сводка</h2></div>
         </header>
 
-        {/* МЕТРИКИ */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           <div className="bg-[#111] p-4 border border-gray-800 rounded-lg"><h3 className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-2">Активные сделки</h3><div className="text-2xl md:text-3xl font-light text-white">1</div></div>
           <div className="bg-[#111] p-4 border border-gray-800 rounded-lg"><h3 className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mb-2">Объем в работе</h3><div className="text-2xl md:text-3xl font-light text-white">40 м³</div></div>
@@ -46,44 +63,56 @@ export default function CommandCenter() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           
-          {/* LIVE TRACKING (НОВЫЙ БЛОК) */}
+          {/* LIVE TRACKING */}
           <div className="bg-[#111] p-4 md:p-6 border border-gray-800 rounded-lg flex flex-col">
             <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-2">
               <h3 className="text-white text-xs md:text-sm font-bold uppercase tracking-widest">Live Tracking</h3>
-              <span className="flex items-center gap-2 text-[10px] font-mono text-blue-500 bg-blue-900/20 px-2 py-1 rounded">
-                <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span></span>
-                GPS ACTIVE
-              </span>
+              {activeContainer ? (
+                <span className="flex items-center gap-2 text-[10px] font-mono text-blue-500 bg-blue-900/20 px-2 py-1 rounded">
+                  <span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span></span>
+                  GPS ACTIVE
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono text-gray-500">STANDBY</span>
+              )}
             </div>
             
-            <div className="flex-1 bg-[#0a0a0a] border border-gray-800 p-4 rounded-lg">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <p className="text-gray-500 text-[10px] font-mono uppercase">Контейнер</p>
-                  <p className="text-white font-bold text-lg">{trackingData.containerId}</p>
-                  <p className="text-blue-400 text-xs font-mono mt-1">{trackingData.line} • {trackingData.vessel}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-gray-500 text-[10px] font-mono uppercase">Статус</p>
-                  <p className="text-green-500 font-bold uppercase tracking-wider">{trackingData.status}</p>
-                </div>
-              </div>
-
-              {/* Шкала пути */}
-              <div className="relative pt-6 pb-2">
-                <div className="flex justify-between text-[10px] font-mono text-gray-400 mb-2">
-                  <span>{trackingData.departure}</span>
-                  <span>{trackingData.arrival}</span>
-                </div>
-                <div className="w-full bg-gray-800 rounded-full h-2 relative">
-                  <div className="bg-blue-500 h-2 rounded-full relative" style={{ width: `${trackingData.progress}%` }}>
-                    {/* Иконка корабля */}
-                    <div className="absolute -right-3 -top-3 bg-[#111] border border-blue-500 rounded-full p-1 shadow-[0_0_10px_rgba(59,130,246,0.5)]">
-                      <svg className="w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M2 12h20v2H2v-2zm18-2H4l2-6h12l2 6z"/></svg>
+            <div className="flex-1 bg-[#0a0a0a] border border-gray-800 p-4 rounded-lg flex flex-col justify-center">
+              {activeContainer ? (
+                <>
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <p className="text-gray-500 text-[10px] font-mono uppercase">Контейнер ({activeContainer.client})</p>
+                      <p className="text-white font-bold text-lg tracking-widest">{activeContainer.id}</p>
+                      <p className="text-blue-400 text-xs font-mono mt-1">{activeContainer.line} • {activeContainer.vessel}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-gray-500 text-[10px] font-mono uppercase">Статус</p>
+                      <p className="text-green-500 font-bold uppercase tracking-wider">{activeContainer.status}</p>
                     </div>
                   </div>
+
+                  <div className="relative pt-6 pb-2">
+                    <div className="flex justify-between text-[10px] font-mono text-gray-400 mb-2">
+                      <span>{activeContainer.departure}</span>
+                      <span>{activeContainer.arrival}</span>
+                    </div>
+                    <div className="w-full bg-gray-800 rounded-full h-2 relative">
+                      <div className="bg-blue-500 h-2 rounded-full relative transition-all duration-1000" style={{ width: `${activeContainer.progress}%` }}>
+                        <div className="absolute -right-3 -top-3 bg-[#111] border border-blue-500 rounded-full p-1 shadow-[0_0_10px_rgba(59,130,246,0.5)]">
+                          <svg className="w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 24 24"><path d="M2 12h20v2H2v-2zm18-2H4l2-6h12l2 6z"/></svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="text-center text-gray-600 font-mono text-xs">
+                  <svg className="w-8 h-8 mx-auto mb-2 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                  <p>Ожидание номера контейнера...</p>
+                  <p className="text-[9px] mt-1">Добавьте номер в карточку сделки (CRM)</p>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 

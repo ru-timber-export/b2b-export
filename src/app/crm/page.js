@@ -119,7 +119,7 @@ export default function CRMDashboard() {
 
   // --- ЛОГИКА РЕДАКТИРОВАНИЯ И ДОБАВЛЕНИЯ ---
   const handleAddNew = () => {
-    setEditingTask({ id: `task-${Date.now()}`, client: "", phone: "", volume: "", price: "", status: "", checklist: exportDocumentChecklist, isNew: true });
+    setEditingTask({ id: `task-${Date.now()}`, client: "", phone: "", volume: "", price: "", status: "", containerId: "", checklist: exportDocumentChecklist, isNew: true });
     setIsEditing(true);
   };
 
