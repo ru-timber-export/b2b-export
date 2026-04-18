@@ -132,7 +132,7 @@ function InvoiceContent() {
           </div>
 
           {/* РЕКВИЗИТЫ И ПЕЧАТЬ */}
-          <div className="flex justify-between items-end">
+          <div className="flex justify-between items-end mt-8">
             <div>
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Bank Details:</h3>
               <p className="text-slate-800 font-mono text-sm">Bank Name: [To be provided]</p>
@@ -140,40 +140,27 @@ function InvoiceContent() {
               <p className="text-slate-800 font-mono text-sm">Account No: [XXX]</p>
             </div>
             
-            <div className="text-center relative w-64 h-40">
-              <p className="text-slate-500 mb-2 absolute bottom-0 left-0">Authorized Signature</p>
-              <div className="w-48 border-b border-slate-400 absolute bottom-6 left-0"></div>
+            <div className="text-center relative w-72 h-48">
+              <p className="text-slate-500 mb-2 absolute bottom-0 left-8">Authorized Signature</p>
+              <div className="w-56 border-b border-slate-800 absolute bottom-8 left-0"></div>
               
-              {/* ВАША ПОДПИСЬ (картинка из папки public) */}
-              {/* mix-blend-multiply убирает белый фон у картинки, делая её прозрачной */}
+              {/* ВАША ПОДПИСЬ (теперь ищет .jpg) */}
               <img 
-                src="/signature.png" 
+                src="/signature.jpg" 
                 alt="Signature" 
-                className="absolute bottom-4 left-4 w-40 h-auto z-10 mix-blend-multiply opacity-90"
-                onError={(e) => e.target.style.display = 'none'} // Скроет, если вы забыли добавить картинку
+                className="absolute bottom-6 left-4 w-48 h-auto z-10 mix-blend-multiply"
               />
               
-              {/* РЕАЛИСТИЧНАЯ ПЕЧАТЬ С ЧЕРНИЛАМИ */}
-              <div 
-                className="absolute bottom-2 right-0 w-32 h-32 border-[3px] border-blue-800 rounded-full flex flex-col items-center justify-center opacity-80 rotate-[-15deg] mix-blend-multiply z-0"
-                style={{
-                  boxShadow: 'inset 0 0 6px rgba(30,58,138,0.4), 0 0 4px rgba(30,58,138,0.3)',
-                  borderStyle: 'dashed solid solid solid' // Имитация непропечатанного края
-                }}
-              >
-                <span className="text-[11px] font-black text-blue-800 tracking-widest uppercase mt-2">RU-Timber</span>
-                <span className="text-[9px] font-bold text-blue-800 tracking-widest border-t border-b border-blue-800 my-1 px-3 py-0.5" style={{ textShadow: '0px 0px 1px rgba(30,58,138,0.5)' }}>EXPORT</span>
-                <span className="text-[7px] text-blue-800 font-mono tracking-widest">APPROVED</span>
-                
-                {/* Имитация пятен чернил внутри печати */}
-                <div className="absolute w-full h-full rounded-full bg-[radial-gradient(circle,rgba(30,58,138,0.1)_0%,transparent_70%)] pointer-events-none"></div>
+              {/* СТРОГАЯ КОРПОРАТИВНАЯ ПЕЧАТЬ */}
+              <div className="absolute bottom-0 right-0 w-36 h-36 border-[4px] border-double border-blue-700 rounded-full flex flex-col items-center justify-center opacity-90 rotate-[-10deg] mix-blend-multiply z-0 bg-blue-50/30">
+                <div className="w-28 h-28 border-[1px] border-blue-700 rounded-full flex flex-col items-center justify-center">
+                  <span className="text-[14px] font-black text-blue-700 tracking-widest uppercase mt-1">RU-TIMBER</span>
+                  <span className="text-[10px] font-bold text-blue-700 tracking-widest border-t border-b border-blue-700 my-1 px-4 py-0.5">EXPORT</span>
+                  <span className="text-[8px] text-blue-700 font-mono tracking-widest">LLC SIBERIA</span>
+                </div>
               </div>
             </div>
           </div>
-
-        </div>
-      </div>
-    </div>
   );
 }
 
