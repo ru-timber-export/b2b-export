@@ -57,7 +57,6 @@ function InvoiceContent() {
   return (
     <div className="min-h-screen bg-slate-200 p-2 md:p-8 font-sans">
       
-      {/* ПАНЕЛЬ УПРАВЛЕНИЯ */}
       <div className="max-w-4xl mx-auto mb-6 flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
         <Link href="/crm" className="text-slate-500 hover:text-slate-800 font-bold text-sm flex items-center gap-2 transition-colors">
           &larr; Назад в CRM
@@ -75,13 +74,9 @@ function InvoiceContent() {
         </div>
       </div>
 
-      {/* КОНТЕЙНЕР ДЛЯ МОБИЛЬНЫХ */}
       <div className="w-full overflow-x-auto pb-8 print:overflow-visible print:pb-0">
-        
-        {/* ЛИСТ А4 */}
         <div className="min-w-[800px] max-w-4xl mx-auto bg-white p-12 shadow-2xl print:shadow-none print:p-0 relative">
           
-          {/* ШАПКА */}
           <div className="flex justify-between items-start mb-12 border-b-2 border-slate-100 pb-8">
             <div>
               <h1 className="text-4xl font-black text-orange-500 tracking-wider">RU-TIMBER EXPORT</h1>
@@ -96,14 +91,12 @@ function InvoiceContent() {
             </div>
           </div>
 
-          {/* КЛИЕНТ */}
           <div className="mb-12">
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Bill To:</h3>
             <p className="text-xl font-bold text-slate-800">{task.client}</p>
             <p className="text-slate-600 mt-1">Phone: {task.phone || "N/A"}</p>
           </div>
 
-          {/* ТАБЛИЦА ТОВАРОВ */}
           <table className="w-full mb-12 text-left border-collapse">
             <thead>
               <tr className="bg-slate-900 text-white">
@@ -127,7 +120,6 @@ function InvoiceContent() {
             </tbody>
           </table>
 
-          {/* ИТОГО */}
           <div className="flex justify-end mb-16">
             <div className="w-64">
               <div className="flex justify-between py-2 border-b-2 border-slate-800">
@@ -137,7 +129,6 @@ function InvoiceContent() {
             </div>
           </div>
 
-          {/* РЕКВИЗИТЫ И ПЕЧАТЬ */}
           <div className="flex justify-between items-end mt-8">
             <div>
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-2">Bank Details:</h3>
@@ -150,15 +141,18 @@ function InvoiceContent() {
               <p className="text-slate-500 mb-2 absolute bottom-0 left-8">Authorized Signature</p>
               <div className="w-56 border-b border-slate-800 absolute bottom-8 left-0"></div>
               
-              {/* ВАША ПОДПИСЬ С ФИЛЬТРАМИ (отбеливание бумаги) */}
-              <img 
-                src="/sign.jpg" 
-                alt="Signature" 
-                className="absolute bottom-6 left-4 w-48 h-auto z-10 mix-blend-multiply"
-                style={{ filter: 'grayscale(100%) contrast(200%) brightness(120%)' }}
-              />
+              <div className="absolute bottom-6 left-4 w-48 h-auto z-10" style={{ mixBlendMode: 'multiply' }}>
+                <img 
+                  src="/sign.jpg" 
+                  alt="Signature" 
+                  className="w-full h-auto"
+                  style={{ 
+                    filter: 'grayscale(100%) contrast(200%) brightness(120%)',
+                    WebkitFilter: 'grayscale(100%) contrast(200%) brightness(120%)'
+                  }}
+                />
+              </div>
               
-              {/* СТРОГАЯ КОРПОРАТИВНАЯ ПЕЧАТЬ */}
               <div className="absolute bottom-0 right-0 w-36 h-36 border-[4px] border-double border-blue-700 rounded-full flex flex-col items-center justify-center opacity-90 rotate-[-10deg] mix-blend-multiply z-0 bg-blue-50/30">
                 <div className="w-28 h-28 border-[1px] border-blue-700 rounded-full flex flex-col items-center justify-center">
                   <span className="text-[14px] font-black text-blue-700 tracking-widest uppercase mt-1">RU-TIMBER</span>
