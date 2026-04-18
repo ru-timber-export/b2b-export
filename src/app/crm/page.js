@@ -1,4 +1,9 @@
 "use client";
+import dynamic from 'next/dynamic';
+
+const InvoiceGenerator = dynamic(() => import('../../components/Invoice'), {
+  ssr: false
+});
 import { useState, useEffect } from "react";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
