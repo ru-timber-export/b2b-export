@@ -1,34 +1,40 @@
 "use client";
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import Link from "next/link";
 
 function InvoiceContent() {
-  const searchParams = useSearchParams();
-  const taskId = searchParams.get("id");
   const [task, setTask] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [taskId, setTaskId] = useState(null);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get("id");
+    setTaskId(id);
+
     const fetchTask = async () => {
-      if (!taskId) return;
+      if (!id) {
+        setLoading(false);
+        return;
+      }
       const docSnap = await getDoc(doc(db, "erp", "crm"));
       if (docSnap.exists()) {
         const crmData = docSnap.data();
-        setTask(crmData.tasks[taskId]);
+        setTask(crmData.tasks[id]);
       }
       setLoading(false);
     };
     fetchTask();
-  }, [taskId]);
+  }, []);
 
   const handlePrint = () => {
     window.print();
   };
 
   const handleWhatsApp = () => {
+    if (!taskId || !task) return;
     const invoiceNumber = `INV-${new Date().getFullYear()}-${taskId.slice(-4)}`;
     const totalAmount = (Number(task.price) * Number(task.volume)).toLocaleString();
     const link = window.location.href;
@@ -39,8 +45,8 @@ function InvoiceContent() {
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  if (loading) return <div className="h-screen bg-slate-100 flex items-center justify-center text-slate-500">Загрузка данных инвойса...</div>;
-  if (!task) return <div className="h-screen bg-slate-100 flex items-center justify-center text-red-500">Сделка не найдена</div>;
+  if (loading) return <div className="h-screen bg-slate-100 flex items-center justify-center text-slate-500 font-mono">Loading Invoice Data...</div>;
+  if (!task) return <div className="h-screen bg-slate-100 flex items-center justify-center text-red-500 font-mono">Invoice Not Found</div>;
 
   const unitPrice = Number(task.price) || 0;
   const qty = Number(task.volume) || 0;
@@ -51,9 +57,9 @@ function InvoiceContent() {
   return (
     <div className="min-h-screen bg-slate-200 p-2 md:p-8 font-sans">
       
-      {/* ПАНЕЛЬ УПРАВЛЕНИЯ (Не печатается) */}
+      {/* ПАНЕЛЬ УПРАВЛЕНИЯ */}
       <div className="max-w-4xl mx-auto mb-6 flex flex-col md:flex-row justify-between items-center gap-4 print:hidden">
-        <Link href="/crm" className="text-slate-500 hover:text-slate-800 font-bold text-sm flex items-center gap-2">
+        <Link href="/crm" className="text-slate-500 hover:text-slate-800 font-bold text-sm flex items-center gap-2 transition-colors">
           &larr; Назад в CRM
         </Link>
         <div className="flex gap-3 w-full md:w-auto">
@@ -69,10 +75,10 @@ function InvoiceContent() {
         </div>
       </div>
 
-      {/* КОНТЕЙНЕР ДЛЯ МОБИЛЬНЫХ (чтобы лист не сжимался, а прокручивался) */}
+      {/* КОНТЕЙНЕР ДЛЯ МОБИЛЬНЫХ */}
       <div className="w-full overflow-x-auto pb-8 print:overflow-visible print:pb-0">
         
-        {/* ЛИСТ А4 (Сам Инвойс) - Жестко задаем минимальную ширину */}
+        {/* ЛИСТ А4 */}
         <div className="min-w-[800px] max-w-4xl mx-auto bg-white p-12 shadow-2xl print:shadow-none print:p-0 relative">
           
           {/* ШАПКА */}
@@ -144,11 +150,12 @@ function InvoiceContent() {
               <p className="text-slate-500 mb-2 absolute bottom-0 left-8">Authorized Signature</p>
               <div className="w-56 border-b border-slate-800 absolute bottom-8 left-0"></div>
               
-              {/* ВАША ПОДПИСЬ (теперь ищет .jpg) */}
+              {/* ВАША ПОДПИСЬ С ФИЛЬТРАМИ (отбеливание бумаги) */}
               <img 
                 src="/signature.jpg" 
                 alt="Signature" 
                 className="absolute bottom-6 left-4 w-48 h-auto z-10 mix-blend-multiply"
+                style={{ filter: 'grayscale(100%) contrast(200%) brightness(120%)' }}
               />
               
               {/* СТРОГАЯ КОРПОРАТИВНАЯ ПЕЧАТЬ */}
@@ -161,6 +168,10 @@ function InvoiceContent() {
               </div>
             </div>
           </div>
+
+        </div>
+      </div>
+    </div>
   );
 }
 
