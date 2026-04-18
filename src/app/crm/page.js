@@ -27,7 +27,7 @@ const initialData = {
   tasks: {
     "task-1": { 
       id: "task-1", client: "Nandha (IND)", phone: "919876543210", volume: "40 м³ (1x40HC)", 
-      price: "Ожидание CIF", status: "Отправлены фото с завода", checklist: exportDocumentChecklist
+      price: "Ожидание CIF", status: "Отправлены фото с завода", containerId: "", checklist: exportDocumentChecklist
     },
   },
   columnOrder: ["col-1", "col-2", "col-3", "col-4", "col-5"],
@@ -49,7 +49,6 @@ export default function CRMDashboard() {
     return () => unsub();
   }, []);
 
-  // --- ЛОГИКА ПЕРЕТАСКИВАНИЯ ---
   const onDragEnd = (result) => {
     const { destination, source, draggableId } = result;
     if (!destination) return;
@@ -117,7 +116,6 @@ export default function CRMDashboard() {
     return Math.round((checklist.filter(item => item.done).length / checklist.length) * 100);
   };
 
-  // --- ЛОГИКА РЕДАКТИРОВАНИЯ И ДОБАВЛЕНИЯ ---
   const handleAddNew = () => {
     setEditingTask({ id: `task-${Date.now()}`, client: "", phone: "", volume: "", price: "", status: "", containerId: "", checklist: exportDocumentChecklist, isNew: true });
     setIsEditing(true);
@@ -130,22 +128,17 @@ export default function CRMDashboard() {
 
   const handleSave = () => {
     if (!editingTask.client) { alert("Введите имя клиента"); return; }
-    
     let newData = { ...data };
-    
     if (editingTask.isNew) {
-      // Добавляем новую задачу
       const newTask = { ...editingTask };
       delete newTask.isNew;
       newData.tasks[newTask.id] = newTask;
-      newData.columns["col-1"].taskIds.unshift(newTask.id); // Добавляем в первую колонку
+      newData.columns["col-1"].taskIds.unshift(newTask.id);
     } else {
-      // Обновляем существующую
       const updatedTask = { ...editingTask };
       delete updatedTask.isNew;
       newData.tasks[updatedTask.id] = updatedTask;
     }
-
     setData(newData);
     setDoc(doc(db, "erp", "crm"), newData);
     setIsEditing(false);
@@ -153,15 +146,11 @@ export default function CRMDashboard() {
 
   const handleDelete = () => {
     if (!window.confirm("Удалить эту сделку навсегда?")) return;
-    
     let newData = { ...data };
     delete newData.tasks[editingTask.id];
-    
-    // Удаляем ID из колонки
     Object.keys(newData.columns).forEach(colId => {
       newData.columns[colId].taskIds = newData.columns[colId].taskIds.filter(id => id !== editingTask.id);
     });
-
     setData(newData);
     setDoc(doc(db, "erp", "crm"), newData);
     setIsEditing(false);
@@ -172,7 +161,6 @@ export default function CRMDashboard() {
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#0a0a0a] text-gray-300 font-sans selection:bg-purple-500/30 relative">
       
-      {/* МЕНЮ (Единое название "CRM (Сделки)") */}
       <aside className="w-full md:w-64 bg-[#111] border-b md:border-b-0 md:border-r border-gray-800 flex flex-col shrink-0">
         <div className="p-4 md:p-6 border-b border-gray-800 flex justify-between items-center md:block">
           <div><h1 className="text-lg md:text-xl font-black text-white tracking-widest">RU-TIMBER</h1><p className="text-[10px] text-purple-500 mt-1 uppercase tracking-widest font-mono hidden md:block">Export Control</p></div>
@@ -185,15 +173,10 @@ export default function CRMDashboard() {
         </nav>
       </aside>
 
-      {/* ДОСКА */}
       <main className="flex-1 p-4 md:p-8 overflow-x-auto flex flex-col">
         <header className="mb-6 md:mb-8 shrink-0 flex justify-between items-center">
-          <div>
-            <h2 className="text-xl md:text-2xl font-bold text-white uppercase tracking-wider">Контроль экспортных сделок</h2>
-          </div>
-          <button onClick={handleAddNew} className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-wider transition-colors shadow-[0_0_15px_rgba(147,51,234,0.3)]">
-            + Новая сделка
-          </button>
+          <div><h2 className="text-xl md:text-2xl font-bold text-white uppercase tracking-wider">Контроль экспортных сделок</h2></div>
+          <button onClick={handleAddNew} className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-wider transition-colors shadow-[0_0_15px_rgba(147,51,234,0.3)]">+ Новая сделка</button>
         </header>
 
         <DragDropContext onDragEnd={onDragEnd}>
@@ -218,7 +201,6 @@ export default function CRMDashboard() {
                               {(provided, snapshot) => (
                                 <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={`bg-[#0a0a0a] border ${snapshot.isDragging ? 'border-purple-500 shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'border-gray-700'} p-4 rounded group relative`}>
                                   
-                                  {/* Кнопка редактирования (появляется при наведении) */}
                                   <button onClick={() => handleEdit(task)} className="absolute top-2 right-2 text-gray-600 hover:text-white md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                   </button>
@@ -279,7 +261,6 @@ export default function CRMDashboard() {
         </DragDropContext>
       </main>
 
-      {/* МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ */}
       {isEditing && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#111] border border-gray-800 rounded-xl w-full max-w-md p-6 shadow-2xl">
@@ -292,7 +273,7 @@ export default function CRMDashboard() {
               </div>
               <div>
                 <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase">Телефон (WhatsApp)</label>
-                <input type="text" value={editingTask.phone} onChange={(e) => setEditingTask({...editingTask, phone: e.target.value})} className="w-full bg-[#0a0a0a] border border-gray-700 focus:border-purple-500 rounded p-2 text-white outline-none" placeholder="Только цифры: 919876543210"/>
+                <input type="text" value={editingTask.phone} onChange={(e) => setEditingTask({...editingTask, phone: e.target.value})} className="w-full bg-[#0a0a0a] border border-gray-700 focus:border-purple-500 rounded p-2 text-white outline-none" placeholder="Например: +91 987 654 3210"/>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -308,6 +289,10 @@ export default function CRMDashboard() {
                 <label className="block text-[10px] font-mono text-gray-500 mb-1 uppercase">Текущий статус (заметка)</label>
                 <input type="text" value={editingTask.status} onChange={(e) => setEditingTask({...editingTask, status: e.target.value})} className="w-full bg-[#0a0a0a] border border-gray-700 focus:border-purple-500 rounded p-2 text-white outline-none" placeholder="Ждем оплату..."/>
               </div>
+              <div>
+                <label className="block text-[10px] font-mono text-blue-500 mb-1 uppercase">Номер контейнера (для трекинга)</label>
+                <input type="text" value={editingTask.containerId || ""} onChange={(e) => setEditingTask({...editingTask, containerId: e.target.value.toUpperCase()})} className="w-full bg-[#0a0a0a] border border-blue-900/50 focus:border-blue-500 rounded p-2 text-white outline-none font-mono tracking-widest" placeholder="MSKU1234567"/>
+              </div>
             </div>
 
             <div className="flex justify-between mt-8 pt-4 border-t border-gray-800">
@@ -322,7 +307,6 @@ export default function CRMDashboard() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
