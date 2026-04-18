@@ -1,16 +1,9 @@
 "use client";
-import dynamic from 'next/dynamic';
-
-const InvoiceGenerator = dynamic(() => import('../../components/Invoice'), {
-  ssr: false
-});
 import { useState, useEffect } from "react";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import Link from "next/link";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { jsPDF } from "jspdf";
-import "jspdf-autotable";
 
 const exportDocumentChecklist = [
   { id: "doc1", text: "1. Контракт (Sales Contract)", done: false },
@@ -163,111 +156,10 @@ export default function CRMDashboard() {
     setIsEditing(false);
   };
 
-  // --- ГЕНЕРАТОР PDF ИНВОЙСОВ ---
-  const generateInvoice = (task) => {
-    try {
-      // Создаем документ с явным указанием формата
-      const doc = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4"
-      });
-      
-      doc.setFont("helvetica");
-      
-      // ШАПКА
-      doc.setFontSize(24);
-      doc.setTextColor(249, 115, 22);
-      doc.text("RU-TIMBER EXPORT", 14, 25);
-      
-      doc.setFontSize(10);
-      doc.setTextColor(100, 100, 100);
-      doc.text("Direct from Siberian Sawmills", 14, 32);
-      doc.text("Email: export@ru-timber.com", 14, 38);
-      doc.text("WhatsApp: +7 915 349 00 07", 14, 44);
-
-      const invoiceNumber = `INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)}`;
-      const date = new Date().toLocaleDateString('en-US');
-      
-      doc.setFontSize(16);
-      doc.setTextColor(0, 0, 0);
-      doc.text("COMMERCIAL INVOICE", 130, 25);
-      doc.setFontSize(10);
-      doc.text(`Invoice No: ${invoiceNumber}`, 130, 35);
-      doc.text(`Date: ${date}`, 130, 41);
-
-      // КЛИЕНТ
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text("BILL TO:", 14, 60);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Company: ${task.client || "Client"}`, 14, 67);
-      doc.text(`Phone: ${task.phone || "N/A"}`, 14, 73);
-
-      // ПАРСИНГ ЦИФР
-      const unitPrice = Number(task.price) || 0;
-      const qty = Number(task.volume) || 0;
-      const totalAmount = unitPrice * qty;
-
-      // ТАБЛИЦА
-      doc.autoTable({
-        startY: 85,
-        head: [['Description', 'Quantity (m3)', 'Unit Price (USD)', 'Total (USD)']],
-        body: [
-          [
-            'Russian Pine Sawn Timber\nGOST 8486-86 (KD 10-12%, AST)\nSize: 44x100/150x5980mm', 
-            qty.toString(), 
-            `$${unitPrice}`, 
-            `$${totalAmount.toLocaleString()}`
-          ],
-        ],
-        headStyles: { fillColor: [15, 23, 42] },
-        theme: 'grid',
-        styles: { fontSize: 10, cellPadding: 5 }
-      });
-
-      // ИТОГО
-      const finalY = doc.lastAutoTable.finalY || 120;
-      doc.setFontSize(12);
-      doc.setFont("helvetica", "bold");
-      doc.text(`TOTAL AMOUNT: $${totalAmount.toLocaleString()}`, 140, finalY + 15);
-
-      // РЕКВИЗИТЫ
-      doc.setFontSize(10);
-      doc.text("BANK DETAILS:", 14, finalY + 30);
-      doc.setFont("helvetica", "normal");
-      doc.text("Bank Name: [To be provided upon contract signing]", 14, finalY + 37);
-      doc.text("SWIFT: [XXX]", 14, finalY + 43);
-      doc.text("Account No: [XXX]", 14, finalY + 49);
-
-      // ПЕЧАТЬ
-      doc.text("Authorized Signature:", 140, finalY + 40);
-      doc.setDrawColor(0, 0, 0);
-      doc.line(140, finalY + 50, 190, finalY + 50);
-      
-      doc.setDrawColor(37, 99, 235);
-      doc.setLineWidth(1);
-      doc.circle(165, finalY + 50, 15);
-      doc.setTextColor(37, 99, 235);
-      doc.setFontSize(8);
-      doc.text("RU-TIMBER", 155, finalY + 48);
-      doc.text("EXPORT", 157, finalY + 52);
-
-      // Принудительное сохранение с безопасным именем файла
-      const safeName = (task.client || "Client").replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      doc.save(`Invoice_${safeName}.pdf`);
-      
-    } catch (error) {
-      console.error("Ошибка при генерации PDF:", error);
-      alert("Не удалось создать PDF. Проверьте консоль браузера.");
-    }
-  };
-
   if (!data) return <div className="h-screen bg-[#0a0a0a] flex items-center justify-center text-green-500 font-mono">LOADING SECURE DATA...</div>;
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-[#0a0a0a] text-gray-300 font-sans selection:bg-purple-500/30 relative">
-      
       <aside className="w-full md:w-64 bg-[#111] border-b md:border-b-0 md:border-r border-gray-800 flex flex-col shrink-0">
         <div className="p-4 md:p-6 border-b border-gray-800 flex justify-between items-center md:block">
           <div><h1 className="text-lg md:text-xl font-black text-white tracking-widest">RU-TIMBER</h1><p className="text-[10px] text-purple-500 mt-1 uppercase tracking-widest font-mono hidden md:block">Export Control</p></div>
@@ -321,10 +213,12 @@ export default function CRMDashboard() {
                                       <span className="text-[10px] font-mono text-purple-400 bg-purple-900/20 px-2 py-1 rounded">{task.volume} м³</span>
                                       
                                       <div className="flex gap-2">
-                                        <button onClick={() => generateInvoice(task)} className="flex items-center gap-1 bg-blue-900/30 text-blue-500 hover:bg-blue-500 hover:text-white transition-colors px-2 py-1 rounded text-[10px] font-bold" title="Скачать PDF Инвойс">
-                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                        {/* ВОТ ОНА - НОВАЯ КНОПКА-ССЫЛКА */}
+                                        <Link href={`/invoice?id=${task.id}`} className="flex items-center gap-1 bg-blue-900/30 text-blue-500 hover:bg-blue-500 hover:text-white transition-colors px-2 py-1 rounded text-[10px] font-bold">
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                                           INVOICE
-                                        </button>
+                                        </Link>
+
                                         {task.phone && (
                                           <a href={`https://wa.me/${task.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 bg-green-900/30 text-green-500 hover:bg-green-500 hover:text-white transition-colors px-2 py-1 rounded text-[10px] font-bold">
                                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.883-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51h-.57c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
