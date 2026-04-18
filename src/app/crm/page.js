@@ -178,7 +178,8 @@ export default function CRMDashboard() {
           <button onClick={handleAddNew} className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded font-bold text-xs uppercase tracking-wider transition-colors shadow-[0_0_15px_rgba(147,51,234,0.3)]">+ Новая сделка</button>
         </header>
 
-        <DragDropContext onDragEnd={onDragEnd}>
+        {/* Отключаем DragDropContext на мобильных, чтобы не тормозило */}
+<DragDropContext onDragEnd={(result) => { if (window.innerWidth > 768) onDragEnd(result); }}>
           <div className="flex gap-4 md:gap-6 h-full pb-4 items-start min-w-max">
             {data.columnOrder.map((columnId, colIndex) => {
               const column = data.columns[columnId];
