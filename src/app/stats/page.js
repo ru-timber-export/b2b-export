@@ -12,22 +12,42 @@ export default function CommandCenter() {
     const unsub = onSnapshot(doc(db, "erp", "crm"), (docSnap) => {
       if (docSnap.exists()) {
         const crmData = docSnap.data();
-        // Ищем первую задачу, у которой заполнен containerId
         const taskWithContainer = Object.values(crmData.tasks).find(task => task.containerId && task.containerId.trim() !== "");
         
         if (taskWithContainer) {
+          // УМНАЯ ЛОГИКА ОПРЕДЕЛЕНИЯ ПОРТА ПО ИМЕНИ КЛИЕНТА
+          let arrivalPort = "Tuticorin, IND";
+          let vesselName = "MSC ALINA (Voyage 042W)";
+          let shippingLine = "Maersk";
+          
+          const clientName = taskWithContainer.client.toLowerCase();
+          
+          if (clientName.includes("chn") || clientName.includes("china")) {
+            arrivalPort = "Shanghai, CHN";
+            vesselName = "COSCO SHIPPING (Voyage 881E)";
+            shippingLine = "COSCO";
+          } else if (clientName.includes("uae") || clientName.includes("dubai")) {
+            arrivalPort = "Jebel Ali, UAE";
+            vesselName = "HAPAG-LLOYD (Voyage 112S)";
+            shippingLine = "Hapag-Lloyd";
+          } else if (clientName.includes("egypt")) {
+            arrivalPort = "Alexandria, EGY";
+            vesselName = "CMA CGM (Voyage 339W)";
+            shippingLine = "CMA CGM";
+          }
+
           setActiveContainer({
             id: taskWithContainer.containerId,
             client: taskWithContainer.client,
-            line: "Maersk", // Пока хардкод, потом будем определять по первым 4 буквам
+            line: shippingLine,
             status: "IN TRANSIT",
-            vessel: "MSC ALINA (Voyage 042W)",
+            vessel: vesselName,
             departure: "Novorossiysk, RU",
-            arrival: "Tuticorin, IND",
-            progress: 45
+            arrival: arrivalPort,
+            progress: Math.floor(Math.random() * 40) + 30 // Случайный прогресс от 30% до 70%
           });
         } else {
-          setActiveContainer(null); // Нет контейнеров для отслеживания
+          setActiveContainer(null);
         }
       }
     });
