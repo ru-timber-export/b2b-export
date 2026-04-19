@@ -2,7 +2,6 @@
 import { useState } from "react";
 import Link from "next/link";
 
-// Популярные экспортные пресеты
 const PRESETS = [
   { label: "44 × 150 × 5980", t: 44, w: 150, l: 5980 },
   { label: "50 × 150 × 5980", t: 50, w: 150, l: 5980 },
@@ -11,35 +10,70 @@ const PRESETS = [
   { label: "50 × 200 × 5980", t: 50, w: 200, l: 5980 },
 ];
 
-// Плотность сосны по влажности
+// Породы древесины с плотностями для каждой влажности
+const SPECIES = [
+  {
+    id: "PINE",
+    label: "Pine",
+    ru: "Сосна",
+    icon: "🌲",
+    densities: { KD: 500, AD: 600, FRESH: 750 },
+    desc: "Most popular export. Light, easy to work.",
+  },
+  {
+    id: "SPRUCE",
+    label: "Spruce",
+    ru: "Ель",
+    icon: "🌲",
+    densities: { KD: 450, AD: 550, FRESH: 700 },
+    desc: "Lightest softwood. White color, premium.",
+  },
+  {
+    id: "LARCH",
+    label: "Larch",
+    ru: "Лиственница",
+    icon: "🌳",
+    densities: { KD: 650, AD: 750, FRESH: 900 },
+    desc: "Heavy & strong! Watch container weight.",
+  },
+  {
+    id: "CEDAR",
+    label: "Cedar",
+    ru: "Кедр",
+    icon: "🌲",
+    densities: { KD: 435, AD: 520, FRESH: 670 },
+    desc: "Aromatic, decorative. Premium grade.",
+  },
+  {
+    id: "BIRCH",
+    label: "Birch",
+    ru: "Берёза",
+    icon: "🌿",
+    densities: { KD: 640, AD: 720, FRESH: 880 },
+    desc: "Hardwood. Heavy, strong.",
+  },
+  {
+    id: "OAK",
+    label: "Oak",
+    ru: "Дуб",
+    icon: "🌳",
+    densities: { KD: 700, AD: 790, FRESH: 950 },
+    desc: "Heaviest! Premium hardwood.",
+  },
+  {
+    id: "ASPEN",
+    label: "Aspen",
+    ru: "Осина",
+    icon: "🌿",
+    densities: { KD: 450, AD: 530, FRESH: 680 },
+    desc: "Light, used for sauna lining.",
+  },
+];
+
 const MOISTURE_OPTIONS = [
-  {
-    id: "KD",
-    label: "KD",
-    fullName: "Kiln Dried",
-    range: "10-12%",
-    density: 550,
-    desc: "Chamber-dried. Premium export grade.",
-    color: "emerald",
-  },
-  {
-    id: "AD",
-    label: "AD",
-    fullName: "Air Dried",
-    range: "18-22%",
-    density: 650,
-    desc: "Transport moisture. Standard for shipping.",
-    color: "amber",
-  },
-  {
-    id: "FRESH",
-    label: "Fresh",
-    fullName: "Fresh Sawn",
-    range: "22-30%",
-    density: 750,
-    desc: "Freshly cut. Heaviest — watch overweight!",
-    color: "rose",
-  },
+  { id: "KD", label: "KD", fullName: "Kiln Dried", range: "10-12%", desc: "Chamber-dried. Premium." },
+  { id: "AD", label: "AD", fullName: "Air Dried", range: "18-22%", desc: "Standard for shipping." },
+  { id: "FRESH", label: "Fresh", fullName: "Fresh Sawn", range: "22-30%", desc: "Heaviest — watch overweight!" },
 ];
 
 export default function CalculatorPage() {
@@ -47,16 +81,22 @@ export default function CalculatorPage() {
   const [width, setWidth] = useState(150);
   const [length, setLength] = useState(5980);
   const [quantity, setQuantity] = useState(100);
+  const [species, setSpecies] = useState("PINE");
   const [moisture, setMoisture] = useState("KD");
 
   const volumePerBoard_m3 = (thickness * width * length) / 1_000_000_000;
   const totalVolume_m3 = volumePerBoard_m3 * quantity;
   const totalVolume_cft = totalVolume_m3 * 35.3147;
 
+  const selectedSpecies = SPECIES.find((s) => s.id === species);
   const selectedMoisture = MOISTURE_OPTIONS.find((m) => m.id === moisture);
-  const density = selectedMoisture.density;
+  const density = selectedSpecies.densities[moisture];
+
   const totalWeight_kg = totalVolume_m3 * density;
   const totalWeight_t = totalWeight_kg / 1000;
+
+  // Безопасная загрузка в 40ft HC по весу (лимит 26 580 кг)
+  const safeLoad_m3 = 26580 / density;
 
   const applyPreset = (preset) => {
     setThickness(preset.t);
@@ -69,6 +109,7 @@ export default function CalculatorPage() {
     setWidth(150);
     setLength(5980);
     setQuantity(100);
+    setSpecies("PINE");
     setMoisture("KD");
   };
 
@@ -93,7 +134,7 @@ export default function CalculatorPage() {
             Container Loading <span className="text-orange-500">Calculator</span>
           </h1>
           <p className="text-slate-300 text-sm">
-            Step 3 of build: moisture + weight ✅
+            Step 3.5: species selector added 🌲
           </p>
         </div>
       </header>
@@ -182,18 +223,59 @@ export default function CalculatorPage() {
           </button>
         </section>
 
+        {/* ПОРОДА */}
+        <section className="bg-white rounded-lg p-5 shadow-sm">
+          <h2 className="font-bold text-slate-900 mb-1 flex items-center gap-2">
+            <span className="text-orange-500">🌲</span> Wood Species
+          </h2>
+          <p className="text-xs text-slate-500 mb-4">
+            Density varies dramatically by species — affects weight and container capacity!
+          </p>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {SPECIES.map((s) => {
+              const isActive = species === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setSpecies(s.id)}
+                  className={`text-left p-3 rounded-lg border-2 transition ${
+                    isActive
+                      ? "border-orange-500 bg-orange-50 shadow-md"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="font-bold text-sm">{s.icon} {s.label}</div>
+                    {isActive && <span className="text-orange-500">✓</span>}
+                  </div>
+                  <div className="text-xs text-slate-500">{s.ru}</div>
+                  <div className="text-xs font-mono mt-1 text-slate-700">
+                    {s.densities[moisture]} kg/m³
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="text-xs text-slate-600 mt-3 italic">
+            {selectedSpecies.icon} <strong>{selectedSpecies.label}</strong> ({selectedSpecies.ru}): {selectedSpecies.desc}
+          </p>
+        </section>
+
         {/* ВЛАЖНОСТЬ */}
         <section className="bg-white rounded-lg p-5 shadow-sm">
           <h2 className="font-bold text-slate-900 mb-1 flex items-center gap-2">
             <span className="text-orange-500">💧</span> Moisture Content
           </h2>
           <p className="text-xs text-slate-500 mb-4">
-            Select the wood moisture — density (and weight!) depends on it.
+            Wood moisture affects density (and weight!).
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {MOISTURE_OPTIONS.map((m) => {
               const isActive = moisture === m.id;
+              const speciesDensity = selectedSpecies.densities[m.id];
               return (
                 <button
                   key={m.id}
@@ -211,7 +293,7 @@ export default function CalculatorPage() {
                   <div className="text-sm font-semibold text-slate-700">{m.fullName}</div>
                   <div className="text-xs text-slate-500 mb-2">Moisture: {m.range}</div>
                   <div className="text-xs font-mono bg-slate-100 inline-block px-2 py-1 rounded">
-                    {m.density} kg/m³
+                    {speciesDensity} kg/m³ ({selectedSpecies.label})
                   </div>
                   <p className="text-xs text-slate-600 mt-2">{m.desc}</p>
                 </button>
@@ -219,21 +301,18 @@ export default function CalculatorPage() {
             })}
           </div>
 
-          {moisture === "FRESH" && (
-            <div className="mt-4 bg-rose-50 border-l-4 border-rose-500 p-3 rounded text-xs text-slate-700">
-              ⚠️ <strong>Fresh wood is heavy!</strong> Max safe load for 40ft HC drops to ~35 m³ (weight limit).
-            </div>
-          )}
-          {moisture === "AD" && (
-            <div className="mt-4 bg-amber-50 border-l-4 border-amber-500 p-3 rounded text-xs text-slate-700">
-              ℹ️ Standard transport moisture. Max safe load for 40ft HC ≈ 40 m³.
-            </div>
-          )}
-          {moisture === "KD" && (
-            <div className="mt-4 bg-emerald-50 border-l-4 border-emerald-500 p-3 rounded text-xs text-slate-700">
-              ✅ Premium dried wood. Max safe load for 40ft HC ≈ 48 m³.
-            </div>
-          )}
+          {/* Динамическое предупреждение по безопасной загрузке */}
+          <div className={`mt-4 border-l-4 p-3 rounded text-xs text-slate-700 ${
+            safeLoad_m3 >= 45 ? "bg-emerald-50 border-emerald-500" :
+            safeLoad_m3 >= 38 ? "bg-amber-50 border-amber-500" :
+            "bg-rose-50 border-rose-500"
+          }`}>
+            {safeLoad_m3 >= 45 ? "✅" : safeLoad_m3 >= 38 ? "ℹ️" : "⚠️"}
+            {" "}
+            <strong>40ft HC safe load limit for {selectedSpecies.label} {selectedMoisture.label}:</strong>
+            {" "}~{safeLoad_m3.toFixed(1)} m³
+            {safeLoad_m3 < 38 && " — heavy material, watch overweight!"}
+          </div>
         </section>
 
         {/* РЕЗУЛЬТАТ */}
@@ -241,6 +320,10 @@ export default function CalculatorPage() {
           <h2 className="font-bold mb-4 flex items-center gap-2">
             <span className="text-orange-500">📊</span> Calculation Result
           </h2>
+
+          <div className="mb-3 text-xs text-slate-400">
+            {selectedSpecies.icon} {selectedSpecies.label} ({selectedSpecies.ru}) · {selectedMoisture.label} · {density} kg/m³
+          </div>
 
           {/* Объём */}
           <div className="mb-5">
@@ -263,9 +346,7 @@ export default function CalculatorPage() {
 
           {/* Вес */}
           <div className="border-t border-slate-700 pt-5">
-            <div className="text-xs text-slate-400 uppercase tracking-wider mb-2">
-              Total Weight ({selectedMoisture.label} · {density} kg/m³)
-            </div>
+            <div className="text-xs text-slate-400 uppercase tracking-wider mb-2">Total Weight</div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="text-3xl md:text-4xl font-black font-mono text-orange-500">
@@ -304,7 +385,7 @@ export default function CalculatorPage() {
         </section>
 
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded text-sm text-slate-700">
-          ℹ️ <strong>Next step:</strong> 40ft HC container capacity check — weight & volume bars with safety zones
+          ℹ️ <strong>Next step:</strong> 40ft HC container capacity check — visual bars with safety zones
         </div>
       </main>
 
