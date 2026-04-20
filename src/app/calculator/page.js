@@ -10,118 +10,47 @@ const PRESETS_SIZES = [
   { label: "50 × 200 × 5980", t: 50, w: 200, l: 5980 },
 ];
 
-// END-USE PRESETS with legal protection
 const END_USE_PRESETS = [
-  {
-    id: "CONSTRUCTION",
-    label: "Construction",
-    ru: "Строительство",
-    icon: "🏗️",
-    color: "amber",
-    recommendedSizes: "50×150, 50×200, 100×100",
-    recommendedSpecies: "PINE",
-    recommendedSpeciesLabel: "Pine or Pine+Spruce mix",
-    allowedMoisture: ["KD", "AD"],
-    defaultMoisture: "AD",
-    grade: "2-3 grade (structural)",
-    disclaimer:
-      "INTENDED USE: CONSTRUCTION / STRUCTURAL. Not suitable for visible interior finish, furniture, or direct ground contact without treatment. Pressure treatment required for outdoor use.",
-  },
-  {
-    id: "FURNITURE",
-    label: "Furniture",
-    ru: "Мебель",
-    icon: "🪑",
-    color: "emerald",
-    recommendedSizes: "25×100, 32×150, 50×200",
-    recommendedSpecies: "PINE",
-    recommendedSpeciesLabel: "Pine, Birch, Oak",
-    allowedMoisture: ["KD"],
-    defaultMoisture: "KD",
-    grade: "1st (Select)",
-    disclaimer:
-      "INTENDED USE: FURNITURE PRODUCTION. Grade: 1st (Select). Moisture: KD 8-12%. Not suitable for construction, outdoor exposure, or direct ground contact. Complaints on suitability within 7 days of delivery.",
-  },
-  {
-    id: "PACKAGING",
-    label: "Packaging / Pallets",
-    ru: "Упаковка / Паллеты",
-    icon: "📦",
-    color: "slate",
-    recommendedSizes: "22×100, 25×75, 25×100",
-    recommendedSpecies: "PINE_SPRUCE_50",
-    recommendedSpeciesLabel: "Pine+Spruce mix, SPF",
-    allowedMoisture: ["AD"],
-    defaultMoisture: "AD",
-    grade: "3-4 grade",
-    disclaimer:
-      "INTENDED USE: PACKAGING / PALLETS. Grade: 3-4. Moisture: AD 18-22%. ISPM-15 heat treatment available on request. Not for structural or decorative use.",
-  },
-  {
-    id: "INTERIOR",
-    label: "Interior / Lining",
-    ru: "Отделка / Вагонка",
-    icon: "🏠",
-    color: "emerald",
-    recommendedSizes: "14×96, 20×96, 14×120",
-    recommendedSpecies: "PINE",
-    recommendedSpeciesLabel: "Pine, Cedar, Aspen",
-    allowedMoisture: ["KD"],
-    defaultMoisture: "KD",
-    grade: "1-2 grade",
-    disclaimer:
-      "INTENDED USE: INTERIOR LINING / CLADDING. Moisture: KD. Not suitable for outdoor exposure, load-bearing, or wet areas without treatment.",
-  },
-  {
-    id: "SAUNA",
-    label: "Sauna",
-    ru: "Баня",
-    icon: "🛁",
-    color: "emerald",
-    recommendedSizes: "15×90, 20×90, 14×90",
-    recommendedSpecies: "ASPEN",
-    recommendedSpeciesLabel: "Aspen, Cedar, Lime",
-    allowedMoisture: ["KD"],
-    defaultMoisture: "KD",
-    grade: "1st (Select)",
-    disclaimer:
-      "INTENDED USE: SAUNA INTERIOR. Grade: 1st (Select). No resin-releasing species. Moisture: KD. Not for structural use.",
-  },
-  {
-    id: "DECKING",
-    label: "Decking",
-    ru: "Террасная доска",
-    icon: "🪵",
-    color: "amber",
-    recommendedSizes: "28×145, 45×145",
-    recommendedSpecies: "LARCH",
-    recommendedSpeciesLabel: "Larch, Oak (naturally durable)",
-    allowedMoisture: ["AD"],
-    defaultMoisture: "AD",
-    grade: "Select",
-    disclaimer:
-      "INTENDED USE: OUTDOOR DECKING. Moisture: AD. Natural durability (Larch/Oak) recommended. Regular oiling/maintenance required. Seller not liable for weathering-related complaints.",
-  },
-  {
-    id: "INDUSTRIAL",
-    label: "Industrial / Formwork",
-    ru: "Опалубка / Технические",
-    icon: "🏭",
-    color: "amber",
-    recommendedSizes: "25×150, 50×200",
-    recommendedSpecies: "PINE",
-    recommendedSpeciesLabel: "Pine, Spruce",
-    allowedMoisture: ["AD"],
-    defaultMoisture: "AD",
-    grade: "4 grade / technical",
-    disclaimer:
-      "INTENDED USE: INDUSTRIAL / FORMWORK. Moisture: AD 18-22% minimum (fresh-sawn not exported due to mold/fungi risk in container). Grade: technical. Not for visible construction, furniture, or interior use.",
-  },
+  { id: "CONSTRUCTION", label: "Construction", ru: "Строительство", icon: "🏗️",
+    recommendedSizes: "50×150, 50×200, 100×100", recommendedSpecies: "PINE",
+    recommendedSpeciesLabel: "Pine or Pine+Spruce mix", allowedMoisture: ["KD","AD"],
+    defaultMoisture: "AD", grade: "2-3 grade (structural)",
+    disclaimer: "INTENDED USE: CONSTRUCTION / STRUCTURAL. Not suitable for visible interior finish, furniture, or direct ground contact without treatment." },
+  { id: "FURNITURE", label: "Furniture", ru: "Мебель", icon: "🪑",
+    recommendedSizes: "25×100, 32×150, 50×200", recommendedSpecies: "PINE",
+    recommendedSpeciesLabel: "Pine, Birch, Oak", allowedMoisture: ["KD"],
+    defaultMoisture: "KD", grade: "1st (Select)",
+    disclaimer: "INTENDED USE: FURNITURE PRODUCTION. Grade: 1st (Select). Moisture: KD 8-12%. Not suitable for construction or outdoor exposure." },
+  { id: "PACKAGING", label: "Packaging", ru: "Упаковка", icon: "📦",
+    recommendedSizes: "22×100, 25×75", recommendedSpecies: "PINE_SPRUCE_50",
+    recommendedSpeciesLabel: "Pine+Spruce mix, SPF", allowedMoisture: ["AD"],
+    defaultMoisture: "AD", grade: "3-4 grade",
+    disclaimer: "INTENDED USE: PACKAGING / PALLETS. Grade: 3-4. Moisture: AD 18-22%. ISPM-15 heat treatment on request." },
+  { id: "INTERIOR", label: "Interior", ru: "Отделка", icon: "🏠",
+    recommendedSizes: "14×96, 20×96", recommendedSpecies: "PINE",
+    recommendedSpeciesLabel: "Pine, Cedar, Aspen", allowedMoisture: ["KD"],
+    defaultMoisture: "KD", grade: "1-2 grade",
+    disclaimer: "INTENDED USE: INTERIOR LINING. Moisture: KD. Not for outdoor exposure or load-bearing." },
+  { id: "SAUNA", label: "Sauna", ru: "Баня", icon: "🛁",
+    recommendedSizes: "15×90, 20×90", recommendedSpecies: "ASPEN",
+    recommendedSpeciesLabel: "Aspen, Cedar, Lime", allowedMoisture: ["KD"],
+    defaultMoisture: "KD", grade: "1st (Select)",
+    disclaimer: "INTENDED USE: SAUNA INTERIOR. Grade: 1st. No resin-releasing species. Moisture: KD." },
+  { id: "DECKING", label: "Decking", ru: "Террасы", icon: "🪵",
+    recommendedSizes: "28×145, 45×145", recommendedSpecies: "LARCH",
+    recommendedSpeciesLabel: "Larch, Oak (naturally durable)", allowedMoisture: ["AD"],
+    defaultMoisture: "AD", grade: "Select",
+    disclaimer: "INTENDED USE: OUTDOOR DECKING. Moisture: AD. Natural durability required. Regular maintenance needed." },
+  { id: "INDUSTRIAL", label: "Industrial", ru: "Опалубка", icon: "🏭",
+    recommendedSizes: "25×150, 50×200", recommendedSpecies: "PINE",
+    recommendedSpeciesLabel: "Pine, Spruce", allowedMoisture: ["AD"],
+    defaultMoisture: "AD", grade: "4 grade / technical",
+    disclaimer: "INTENDED USE: INDUSTRIAL / FORMWORK. Moisture: AD 18-22% minimum (fresh-sawn not exported due to mold risk). Grade: technical." },
 ];
 
 const SPECIES = [
   { id: "PINE", label: "Pine", ru: "Сосна", icon: "🌲", isMix: false,
-    densities: { KD: 500, AD: 600, FRESH: 750 }, desc: "Most popular export. Redwood grade." },
+    densities: { KD: 500, AD: 600, FRESH: 750 }, desc: "Most popular export. Redwood." },
   { id: "SPRUCE", label: "Spruce", ru: "Ель", icon: "🌲", isMix: false,
     densities: { KD: 450, AD: 550, FRESH: 700 }, desc: "Lightest softwood. Whitewood." },
   { id: "PINE_SPRUCE_50", label: "Pine+Spruce 50/50", ru: "Сосна+Ель 50/50", icon: "🌲🌲", isMix: true,
@@ -133,11 +62,11 @@ const SPECIES = [
   { id: "LARCH", label: "Larch", ru: "Лиственница", icon: "🌳", isMix: false,
     densities: { KD: 650, AD: 750, FRESH: 900 }, desc: "Heavy & strong!" },
   { id: "CEDAR", label: "Cedar", ru: "Кедр", icon: "🌲", isMix: false,
-    densities: { KD: 435, AD: 520, FRESH: 670 }, desc: "Aromatic, decorative." },
+    densities: { KD: 435, AD: 520, FRESH: 670 }, desc: "Aromatic, premium." },
   { id: "BIRCH", label: "Birch", ru: "Берёза", icon: "🌿", isMix: false,
-    densities: { KD: 640, AD: 720, FRESH: 880 }, desc: "Hardwood. Heavy, strong." },
+    densities: { KD: 640, AD: 720, FRESH: 880 }, desc: "Hardwood. Heavy." },
   { id: "OAK", label: "Oak", ru: "Дуб", icon: "🌳", isMix: false,
-    densities: { KD: 700, AD: 790, FRESH: 950 }, desc: "Heaviest! Premium hardwood." },
+    densities: { KD: 700, AD: 790, FRESH: 950 }, desc: "Heaviest! Premium." },
   { id: "ASPEN", label: "Aspen", ru: "Осина", icon: "🌿", isMix: false,
     densities: { KD: 450, AD: 530, FRESH: 680 }, desc: "Light, sauna lining." },
   { id: "CUSTOM", label: "Custom Mix", ru: "Свой микс", icon: "🎛️", isMix: true, isCustom: true,
@@ -153,18 +82,39 @@ const MOISTURE_OPTIONS = [
 const PINE_DENSITIES = { KD: 500, AD: 600, FRESH: 750 };
 const SPRUCE_DENSITIES = { KD: 450, AD: 550, FRESH: 700 };
 
+// Лимиты 40ft HC контейнера
+const CONTAINER_40HC = {
+  maxVolume_m3: 76,       // физический объём
+  maxWeight_kg: 26580,    // полезная нагрузка (брутто 30480 - тара 3900)
+};
+
 export default function CalculatorPage() {
   const [thickness, setThickness] = useState(44);
   const [width, setWidth] = useState(150);
   const [length, setLength] = useState(5980);
-  const [quantity, setQuantity] = useState(100);
+  
+  // НОВОЕ: режим ввода
+  const [inputMode, setInputMode] = useState("volume"); // "volume" | "pieces"
+  const [quantity, setQuantity] = useState(100);        // если pieces
+  const [volumeInput, setVolumeInput] = useState(40);   // если volume (м³)
+  
   const [species, setSpecies] = useState("PINE");
   const [moisture, setMoisture] = useState("KD");
   const [pinePercent, setPinePercent] = useState(50);
   const [endUse, setEndUse] = useState(null);
 
   const volumePerBoard_m3 = (thickness * width * length) / 1_000_000_000;
-  const totalVolume_m3 = volumePerBoard_m3 * quantity;
+
+  // Расчёт в зависимости от режима
+  let actualQuantity, totalVolume_m3;
+  if (inputMode === "volume") {
+    totalVolume_m3 = Number(volumeInput) || 0;
+    actualQuantity = volumePerBoard_m3 > 0 ? Math.round(totalVolume_m3 / volumePerBoard_m3) : 0;
+  } else {
+    actualQuantity = Number(quantity) || 0;
+    totalVolume_m3 = volumePerBoard_m3 * actualQuantity;
+  }
+  
   const totalVolume_cft = totalVolume_m3 * 35.3147;
 
   const selectedSpecies = SPECIES.find((s) => s.id === species);
@@ -184,16 +134,24 @@ export default function CalculatorPage() {
   const totalWeight_t = totalWeight_kg / 1000;
   const safeLoad_m3 = 26580 / density;
 
-  // Apply End-Use preset
+  // ПРОВЕРКИ ПЕРЕВЕСА
+  const volumeOverload = totalVolume_m3 > CONTAINER_40HC.maxVolume_m3;
+  const weightOverload = totalWeight_kg > CONTAINER_40HC.maxWeight_kg;
+  const hasOverload = volumeOverload || weightOverload;
+  
+  const volumeOverBy = volumeOverload ? (totalVolume_m3 - CONTAINER_40HC.maxVolume_m3) : 0;
+  const weightOverBy = weightOverload ? (totalWeight_kg - CONTAINER_40HC.maxWeight_kg) : 0;
+  
+  const volumePercent = Math.min((totalVolume_m3 / CONTAINER_40HC.maxVolume_m3) * 100, 100);
+  const weightPercent = Math.min((totalWeight_kg / CONTAINER_40HC.maxWeight_kg) * 100, 100);
+
   const applyEndUse = (preset) => {
     setEndUse(preset.id);
     setSpecies(preset.recommendedSpecies);
     setMoisture(preset.defaultMoisture);
   };
 
-  // Check if current moisture is allowed for selected end-use
-  const moistureWarning =
-    selectedEndUse && !selectedEndUse.allowedMoisture.includes(moisture);
+  const moistureWarning = selectedEndUse && !selectedEndUse.allowedMoisture.includes(moisture);
 
   const applyPreset = (preset) => {
     setThickness(preset.t);
@@ -202,19 +160,24 @@ export default function CalculatorPage() {
   };
 
   const reset = () => {
-    setThickness(44);
-    setWidth(150);
-    setLength(5980);
-    setQuantity(100);
-    setSpecies("PINE");
-    setMoisture("KD");
-    setPinePercent(50);
-    setEndUse(null);
+    setThickness(44); setWidth(150); setLength(5980);
+    setQuantity(100); setVolumeInput(40); setInputMode("volume");
+    setSpecies("PINE"); setMoisture("KD"); setPinePercent(50); setEndUse(null);
   };
 
   const densityLabel = selectedSpecies.isCustom
     ? `Pine ${pinePercent}% + Spruce ${100 - pinePercent}%`
     : selectedSpecies.label;
+
+  // Обработчик для полей ввода (фикс "нуля")
+  const handleNumberInput = (setter) => (e) => {
+    const val = e.target.value;
+    if (val === "") {
+      setter("");
+    } else {
+      setter(Number(val));
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
@@ -237,36 +200,29 @@ export default function CalculatorPage() {
             Container Loading <span className="text-orange-500">Calculator</span>
           </h1>
           <p className="text-slate-300 text-sm">
-            Step 3.7: End-Use presets + legal protection 🛡️
+            Step 3.7.1: Volume mode + overload alerts 🚨
           </p>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
 
-        {/* END-USE PRESETS — НОВАЯ СЕКЦИЯ */}
+        {/* END-USE PRESETS */}
         <section className="bg-white rounded-lg p-5 shadow-sm border-2 border-orange-200">
           <h2 className="font-bold text-slate-900 mb-1 flex items-center gap-2">
             <span className="text-orange-500">🎯</span> What is it for? (End-Use)
           </h2>
           <p className="text-xs text-slate-500 mb-4">
-            Select intended application — auto-suggests correct species, moisture, grade.
-            Adds legal disclaimer to invoice.
+            Auto-suggests species, moisture, grade. Adds legal disclaimer to invoice.
           </p>
-
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {END_USE_PRESETS.map((p) => {
               const isActive = endUse === p.id;
               return (
-                <button
-                  key={p.id}
-                  onClick={() => applyEndUse(p)}
+                <button key={p.id} onClick={() => applyEndUse(p)}
                   className={`text-left p-3 rounded-lg border-2 transition ${
-                    isActive
-                      ? "border-orange-500 bg-orange-50 shadow-md"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}
-                >
+                    isActive ? "border-orange-500 bg-orange-50 shadow-md" : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}>
                   <div className="flex items-center justify-between mb-1">
                     <div className="font-bold text-sm">{p.icon} {p.label}</div>
                     {isActive && <span className="text-orange-500">✓</span>}
@@ -280,7 +236,6 @@ export default function CalculatorPage() {
 
           {selectedEndUse && (
             <div className="mt-4 space-y-3">
-              {/* Recommendations */}
               <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded text-xs text-slate-700">
                 ℹ️ <strong>Recommended for {selectedEndUse.label}:</strong><br/>
                 • Sizes: {selectedEndUse.recommendedSizes}<br/>
@@ -288,31 +243,19 @@ export default function CalculatorPage() {
                 • Moisture: {selectedEndUse.allowedMoisture.join(" or ")} only<br/>
                 • Grade: {selectedEndUse.grade}
               </div>
-
-              {/* Legal protection notice */}
               <div className="bg-emerald-50 border-l-4 border-emerald-500 p-3 rounded text-xs text-slate-700">
                 🛡️ <strong>Legal Protection Enabled</strong><br/>
-                This disclaimer will appear on invoice & contract:<br/>
                 <em className="text-slate-600 block mt-2 pl-2 border-l-2 border-emerald-300">
                   "{selectedEndUse.disclaimer}"
                 </em>
               </div>
-
-              {/* Warning if moisture doesn't match */}
               {moistureWarning && (
                 <div className="bg-rose-50 border-l-4 border-rose-500 p-3 rounded text-xs text-slate-700">
                   ⚠️ <strong>Moisture mismatch!</strong> For {selectedEndUse.label} use{" "}
                   {selectedEndUse.allowedMoisture.join(" or ")}, not {moisture}.
-                  {moisture === "FRESH" && (
-                    <> Fresh-sawn wood develops mold in containers during 25-35 day shipping to India — damages reputation!</>
-                  )}
                 </div>
               )}
-
-              <button
-                onClick={() => setEndUse(null)}
-                className="text-xs text-slate-500 hover:text-orange-500 underline"
-              >
+              <button onClick={() => setEndUse(null)} className="text-xs text-slate-500 hover:text-orange-500 underline">
                 ✕ Clear end-use selection
               </button>
             </div>
@@ -326,47 +269,92 @@ export default function CalculatorPage() {
           </h2>
           <div className="flex flex-wrap gap-2">
             {PRESETS_SIZES.map((p) => (
-              <button
-                key={p.label}
-                onClick={() => applyPreset(p)}
-                className="px-3 py-2 text-sm bg-slate-100 hover:bg-orange-500 hover:text-white rounded font-mono transition"
-              >
+              <button key={p.label} onClick={() => applyPreset(p)}
+                className="px-3 py-2 text-sm bg-slate-100 hover:bg-orange-500 hover:text-white rounded font-mono transition">
                 {p.label}
               </button>
             ))}
           </div>
         </section>
 
-        {/* DIMENSIONS */}
+        {/* DIMENSIONS + INPUT MODE */}
         <section className="bg-white rounded-lg p-5 shadow-sm">
           <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
             <span className="text-orange-500">📐</span> Board Dimensions
           </h2>
+          
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Thickness (mm)</label>
-              <input type="number" value={thickness} onChange={(e) => setThickness(Number(e.target.value) || 0)}
-                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" min="0" />
+              <input type="number" value={thickness} 
+                onChange={handleNumberInput(setThickness)}
+                onFocus={(e) => e.target.select()}
+                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
               <p className="text-xs text-slate-500 mt-1">{(thickness / 25.4).toFixed(2)}"</p>
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Width (mm)</label>
-              <input type="number" value={width} onChange={(e) => setWidth(Number(e.target.value) || 0)}
-                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" min="0" />
+              <input type="number" value={width}
+                onChange={handleNumberInput(setWidth)}
+                onFocus={(e) => e.target.select()}
+                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
               <p className="text-xs text-slate-500 mt-1">{(width / 25.4).toFixed(2)}"</p>
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Length (mm)</label>
-              <input type="number" value={length} onChange={(e) => setLength(Number(e.target.value) || 0)}
-                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" min="0" />
+              <input type="number" value={length}
+                onChange={handleNumberInput(setLength)}
+                onFocus={(e) => e.target.select()}
+                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
               <p className="text-xs text-slate-500 mt-1">{(length / 304.8).toFixed(2)} ft</p>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Quantity (pcs)</label>
-            <input type="number" value={quantity} onChange={(e) => setQuantity(Number(e.target.value) || 0)}
-              className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" min="0" />
+
+          {/* ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ВВОДА */}
+          <div className="mb-3">
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Input mode:</label>
+            <div className="inline-flex rounded-lg border-2 border-slate-200 p-1 bg-slate-50">
+              <button
+                onClick={() => setInputMode("volume")}
+                className={`px-4 py-2 rounded text-sm font-semibold transition ${
+                  inputMode === "volume" ? "bg-orange-500 text-white shadow" : "text-slate-600 hover:bg-slate-100"
+                }`}>
+                📦 Volume (m³)
+              </button>
+              <button
+                onClick={() => setInputMode("pieces")}
+                className={`px-4 py-2 rounded text-sm font-semibold transition ${
+                  inputMode === "pieces" ? "bg-orange-500 text-white shadow" : "text-slate-600 hover:bg-slate-100"
+                }`}>
+                🔢 Pieces
+              </button>
+            </div>
           </div>
+
+          {inputMode === "volume" ? (
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Total Volume (m³)</label>
+              <input type="number" value={volumeInput} step="0.1"
+                onChange={handleNumberInput(setVolumeInput)}
+                onFocus={(e) => e.target.select()}
+                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
+              <p className="text-xs text-slate-500 mt-1">
+                ≈ {actualQuantity.toLocaleString()} pcs · {(totalVolume_m3 * 35.3147).toFixed(0)} CFT
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1">Quantity (pcs)</label>
+              <input type="number" value={quantity}
+                onChange={handleNumberInput(setQuantity)}
+                onFocus={(e) => e.target.select()}
+                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
+              <p className="text-xs text-slate-500 mt-1">
+                = {totalVolume_m3.toFixed(2)} m³ · {(totalVolume_m3 * 35.3147).toFixed(0)} CFT
+              </p>
+            </div>
+          )}
+
           <button onClick={reset} className="mt-4 text-sm text-slate-500 hover:text-orange-500 underline">
             ↻ Reset all
           </button>
@@ -383,7 +371,6 @@ export default function CalculatorPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
             {SPECIES.filter(s => !s.isMix).map((s) => {
               const isActive = species === s.id;
-              const d = s.densities[moisture];
               return (
                 <button key={s.id} onClick={() => setSpecies(s.id)}
                   className={`text-left p-3 rounded-lg border-2 transition ${
@@ -394,13 +381,13 @@ export default function CalculatorPage() {
                     {isActive && <span className="text-orange-500">✓</span>}
                   </div>
                   <div className="text-xs text-slate-500">{s.ru}</div>
-                  <div className="text-xs font-mono mt-1 text-slate-700">{d} kg/m³</div>
+                  <div className="text-xs font-mono mt-1 text-slate-700">{s.densities[moisture]} kg/m³</div>
                 </button>
               );
             })}
           </div>
 
-          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">🌲🌲 Mixed bundles (GOST allowed)</div>
+          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">🌲🌲 Mixed bundles</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {SPECIES.filter(s => s.isMix).map((s) => {
               const isActive = species === s.id;
@@ -455,7 +442,7 @@ export default function CalculatorPage() {
           <h2 className="font-bold text-slate-900 mb-1 flex items-center gap-2">
             <span className="text-orange-500">💧</span> Moisture Content
           </h2>
-          <p className="text-xs text-slate-500 mb-4">Fresh-sawn NOT recommended for export — mold risk in 25-35 day shipping.</p>
+          <p className="text-xs text-slate-500 mb-4">Fresh-sawn NOT recommended for export — mold risk.</p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {MOISTURE_OPTIONS.map((m) => {
@@ -490,9 +477,7 @@ export default function CalculatorPage() {
 
           {moisture === "FRESH" && (
             <div className="mt-4 bg-rose-50 border-l-4 border-rose-500 p-3 rounded text-xs text-slate-700">
-              ⚠️ <strong>Fresh-sawn is NOT recommended for export!</strong><br/>
-              During 25-35 day shipping to India, fresh wood develops mold, fungi, and warps in the container.
-              This damages reputation and triggers returns. Use AD or KD instead.
+              ⚠️ <strong>Fresh-sawn is NOT recommended for export!</strong> Mold develops in containers during 25-35 day shipping.
             </div>
           )}
 
@@ -506,6 +491,46 @@ export default function CalculatorPage() {
             {" "}~{safeLoad_m3.toFixed(1)} m³
           </div>
         </section>
+
+        {/* 🚨 НОВОЕ: OVERLOAD ALERT */}
+        {hasOverload && (
+          <section className="bg-rose-600 text-white rounded-lg p-5 shadow-lg border-4 border-rose-700 animate-pulse">
+            <h2 className="font-black text-xl mb-3 flex items-center gap-2">
+              🚨 CONTAINER OVERLOAD!
+            </h2>
+            <p className="text-sm mb-4 text-rose-100">
+              Your cargo EXCEEDS 40ft HC limits. Split into multiple containers or reduce quantity!
+            </p>
+            <div className="space-y-2">
+              {weightOverload && (
+                <div className="bg-rose-700 rounded p-3">
+                  <div className="text-xs uppercase tracking-wider text-rose-200">⚖️ Weight overload</div>
+                  <div className="font-mono text-lg">
+                    {totalWeight_kg.toLocaleString("en-US", {maximumFractionDigits: 0})} kg / {CONTAINER_40HC.maxWeight_kg.toLocaleString()} kg max
+                  </div>
+                  <div className="text-sm font-bold text-amber-300">
+                    ⚠️ OVER BY +{weightOverBy.toLocaleString("en-US", {maximumFractionDigits: 0})} kg
+                  </div>
+                </div>
+              )}
+              {volumeOverload && (
+                <div className="bg-rose-700 rounded p-3">
+                  <div className="text-xs uppercase tracking-wider text-rose-200">📦 Volume overload</div>
+                  <div className="font-mono text-lg">
+                    {totalVolume_m3.toFixed(2)} m³ / {CONTAINER_40HC.maxVolume_m3} m³ max
+                  </div>
+                  <div className="text-sm font-bold text-amber-300">
+                    ⚠️ OVER BY +{volumeOverBy.toFixed(2)} m³
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="mt-3 text-xs text-rose-100">
+              💡 <strong>Tip:</strong> Russian customs fines for overweight = $500–$2 000. 
+              Split the order: you'll need {Math.ceil(Math.max(totalWeight_kg/CONTAINER_40HC.maxWeight_kg, totalVolume_m3/CONTAINER_40HC.maxVolume_m3))} containers.
+            </div>
+          </section>
+        )}
 
         {/* RESULT */}
         <section className="bg-slate-900 text-white rounded-lg p-6 shadow-lg">
@@ -529,6 +554,18 @@ export default function CalculatorPage() {
                 <div className="text-sm text-slate-400">CFT</div>
               </div>
             </div>
+            {/* Шкала объёма */}
+            <div className="mt-3">
+              <div className="flex justify-between text-xs text-slate-400 mb-1">
+                <span>40ft HC capacity</span>
+                <span className={volumeOverload ? "text-rose-400 font-bold" : ""}>{volumePercent.toFixed(0)}%</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2">
+                <div className={`h-2 rounded-full transition-all ${
+                  volumeOverload ? "bg-rose-500" : volumePercent > 90 ? "bg-amber-500" : "bg-emerald-500"
+                }`} style={{width: `${volumePercent}%`}}></div>
+              </div>
+            </div>
           </div>
 
           <div className="border-t border-slate-700 pt-5">
@@ -545,12 +582,24 @@ export default function CalculatorPage() {
                 <div className="text-sm text-slate-400">tonnes</div>
               </div>
             </div>
+            {/* Шкала веса */}
+            <div className="mt-3">
+              <div className="flex justify-between text-xs text-slate-400 mb-1">
+                <span>Weight limit</span>
+                <span className={weightOverload ? "text-rose-400 font-bold" : ""}>{weightPercent.toFixed(0)}%</span>
+              </div>
+              <div className="w-full bg-slate-800 rounded-full h-2">
+                <div className={`h-2 rounded-full transition-all ${
+                  weightOverload ? "bg-rose-500" : weightPercent > 90 ? "bg-amber-500" : "bg-emerald-500"
+                }`} style={{width: `${weightPercent}%`}}></div>
+              </div>
+            </div>
           </div>
 
           <div className="mt-5 pt-5 border-t border-slate-700 grid grid-cols-2 gap-3 text-sm">
             <div><div className="text-xs text-slate-400 uppercase">Per board vol.</div><div className="font-mono">{volumePerBoard_m3.toFixed(4)} m³</div></div>
             <div><div className="text-xs text-slate-400 uppercase">Per board weight</div><div className="font-mono">{(volumePerBoard_m3 * density).toFixed(2)} kg</div></div>
-            <div><div className="text-xs text-slate-400 uppercase">Quantity</div><div className="font-mono">{quantity.toLocaleString()} pcs</div></div>
+            <div><div className="text-xs text-slate-400 uppercase">Quantity</div><div className="font-mono">{actualQuantity.toLocaleString()} pcs</div></div>
             <div><div className="text-xs text-slate-400 uppercase">Density</div><div className="font-mono">{density} kg/m³</div></div>
           </div>
 
@@ -563,7 +612,7 @@ export default function CalculatorPage() {
         </section>
 
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded text-sm text-slate-700">
-          ℹ️ <strong>Next step (3.8):</strong> memory — remember last calculation after page reload
+          ℹ️ <strong>Next (3.8):</strong> memory (LocalStorage) — remember last calc after reload
         </div>
       </main>
 
