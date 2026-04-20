@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
+import { useDeal } from "../context/DealContext";
 
 const PRESETS_SIZES = [
   { label: "44 × 150 × 5980", t: 44, w: 150, l: 5980 },
@@ -87,73 +88,14 @@ const CONTAINER_40HC = {
   maxWeight_kg: 26580,
 };
 
-const STORAGE_KEY = "ru-timber-calculator-v1";
-
-const DEFAULTS = {
-  thickness: 44, width: 150, length: 5980,
-  inputMode: "volume", quantity: 100, volumeInput: 40,
-  species: "PINE", moisture: "KD", pinePercent: 50, endUse: null,
-};
-
 export default function CalculatorPage() {
-  const [thickness, setThickness] = useState(DEFAULTS.thickness);
-  const [width, setWidth] = useState(DEFAULTS.width);
-  const [length, setLength] = useState(DEFAULTS.length);
-  const [inputMode, setInputMode] = useState(DEFAULTS.inputMode);
-  const [quantity, setQuantity] = useState(DEFAULTS.quantity);
-  const [volumeInput, setVolumeInput] = useState(DEFAULTS.volumeInput);
-  const [species, setSpecies] = useState(DEFAULTS.species);
-  const [moisture, setMoisture] = useState(DEFAULTS.moisture);
-  const [pinePercent, setPinePercent] = useState(DEFAULTS.pinePercent);
-  const [endUse, setEndUse] = useState(DEFAULTS.endUse);
+  const { deal, updateField, updateFields, resetDeal, clearMemory, hasMemory } = useDeal();
 
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [hasMemory, setHasMemory] = useState(false);
-
-  // LOAD from LocalStorage on mount
-  useEffect(() => {
-    try {
-      if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const data = JSON.parse(saved);
-          if (data.thickness !== undefined) setThickness(data.thickness);
-          if (data.width !== undefined) setWidth(data.width);
-          if (data.length !== undefined) setLength(data.length);
-          if (data.inputMode !== undefined) setInputMode(data.inputMode);
-          if (data.quantity !== undefined) setQuantity(data.quantity);
-          if (data.volumeInput !== undefined) setVolumeInput(data.volumeInput);
-          if (data.species !== undefined) setSpecies(data.species);
-          if (data.moisture !== undefined) setMoisture(data.moisture);
-          if (data.pinePercent !== undefined) setPinePercent(data.pinePercent);
-          if (data.endUse !== undefined) setEndUse(data.endUse);
-          setHasMemory(true);
-        }
-      }
-    } catch (e) {
-      console.warn("Failed to load calculator state:", e);
-    }
-    setIsLoaded(true);
-  }, []);
-
-  // SAVE to LocalStorage on change
-  useEffect(() => {
-    if (!isLoaded) return;
-    try {
-      if (typeof window !== "undefined") {
-        const data = {
-          thickness, width, length,
-          inputMode, quantity, volumeInput,
-          species, moisture, pinePercent, endUse,
-          savedAt: new Date().toISOString(),
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      }
-    } catch (e) {
-      console.warn("Failed to save calculator state:", e);
-    }
-  }, [thickness, width, length, inputMode, quantity, volumeInput,
-      species, moisture, pinePercent, endUse, isLoaded]);
+  // Удобные алиасы
+  const {
+    thickness, width, length, inputMode, quantity, volumeInput,
+    species, moisture, pinePercent, endUse,
+  } = deal;
 
   const volumePerBoard_m3 = (thickness * width * length) / 1_000_000_000;
 
@@ -193,59 +135,34 @@ export default function CalculatorPage() {
   const volumePercent = Math.min((totalVolume_m3 / CONTAINER_40HC.maxVolume_m3) * 100, 100);
   const weightPercent = Math.min((totalWeight_kg / CONTAINER_40HC.maxWeight_kg) * 100, 100);
 
+  // Сохраняем расчётный объём в контекст для pricing-страницы
+  useEffect(() => {
+    updateField("computedVolume_m3", totalVolume_m3);
+    updateField("computedWeight_kg", totalWeight_kg);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalVolume_m3, totalWeight_kg]);
+
   const applyEndUse = (preset) => {
-    setEndUse(preset.id);
-    setSpecies(preset.recommendedSpecies);
-    setMoisture(preset.defaultMoisture);
+    updateFields({
+      endUse: preset.id,
+      species: preset.recommendedSpecies,
+      moisture: preset.defaultMoisture,
+    });
   };
 
   const moistureWarning = selectedEndUse && !selectedEndUse.allowedMoisture.includes(moisture);
 
   const applyPreset = (preset) => {
-    setThickness(preset.t);
-    setWidth(preset.w);
-    setLength(preset.l);
-  };
-
-  const reset = () => {
-    setThickness(DEFAULTS.thickness);
-    setWidth(DEFAULTS.width);
-    setLength(DEFAULTS.length);
-    setQuantity(DEFAULTS.quantity);
-    setVolumeInput(DEFAULTS.volumeInput);
-    setInputMode(DEFAULTS.inputMode);
-    setSpecies(DEFAULTS.species);
-    setMoisture(DEFAULTS.moisture);
-    setPinePercent(DEFAULTS.pinePercent);
-    setEndUse(DEFAULTS.endUse);
-    setHasMemory(false);
-  };
-
-  const clearMemory = () => {
-    try {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-      reset();
-      if (typeof window !== "undefined") {
-        alert("Memory cleared! Calculator reset to defaults.");
-      }
-    } catch (e) {
-      console.warn("Failed to clear:", e);
-    }
+    updateFields({ thickness: preset.t, width: preset.w, length: preset.l });
   };
 
   const densityLabel = selectedSpecies.isCustom
     ? `Pine ${pinePercent}% + Spruce ${100 - pinePercent}%`
     : selectedSpecies.label;
 
-  const handleNumberInput = (setter) => (e) => {
+  const handleNumberInput = (key) => (e) => {
     const val = e.target.value;
-    if (val === "") {
-      setter(0);
-    } else {
-      setter(Number(val));
-    }
+    updateField(key, val === "" ? 0 : Number(val));
   };
 
   return (
@@ -257,7 +174,7 @@ export default function CalculatorPage() {
             <span className="font-black text-xl tracking-widest">RU-TIMBER</span>
           </Link>
           <div className="flex gap-4 text-sm">
-            <Link href="/calculator/pricing" className="text-slate-300 hover:text-orange-500">💰 Pricing</Link>
+            <Link href="/calculator/pricing" className="text-slate-300 hover:text-orange-500">💰 Pricing →</Link>
             <Link href="/" className="text-slate-300 hover:text-orange-500">← Back</Link>
           </div>
         </div>
@@ -266,17 +183,17 @@ export default function CalculatorPage() {
       <header className="bg-slate-900 text-white py-8 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="inline-block bg-orange-500 text-white px-3 py-1 rounded text-xs font-bold tracking-widest mb-3">
-            FREE TOOL
+            STEP 3.10 · CONNECTED
           </div>
           <h1 className="text-3xl md:text-4xl font-black mb-2">
             Container Loading <span className="text-orange-500">Calculator</span>
           </h1>
           <p className="text-slate-300 text-sm">
-            Step 3.8: Memory enabled 💾 (auto-saves in browser)
+            🔗 Connected to Pricing — volume auto-flows between pages
           </p>
           {hasMemory && (
             <div className="mt-3 inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 px-3 py-1 rounded-full text-xs">
-              ✅ Previous calculation restored from memory
+              ✅ Deal restored from memory
             </div>
           )}
         </div>
@@ -289,9 +206,7 @@ export default function CalculatorPage() {
           <h2 className="font-bold text-slate-900 mb-1 flex items-center gap-2">
             <span className="text-orange-500">🎯</span> What is it for? (End-Use)
           </h2>
-          <p className="text-xs text-slate-500 mb-4">
-            Auto-suggests species, moisture, grade. Adds legal disclaimer to invoice.
-          </p>
+          <p className="text-xs text-slate-500 mb-4">Auto-suggests species, moisture, grade.</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {END_USE_PRESETS.map((p) => {
               const isActive = endUse === p.id;
@@ -332,7 +247,7 @@ export default function CalculatorPage() {
                   {selectedEndUse.allowedMoisture.join(" or ")}, not {moisture}.
                 </div>
               )}
-              <button onClick={() => setEndUse(null)} className="text-xs text-slate-500 hover:text-orange-500 underline">
+              <button onClick={() => updateField("endUse", null)} className="text-xs text-slate-500 hover:text-orange-500 underline">
                 ✕ Clear end-use selection
               </button>
             </div>
@@ -348,15 +263,11 @@ export default function CalculatorPage() {
             {PRESETS_SIZES.map((p) => {
               const isActive = thickness === p.t && width === p.w && length === p.l;
               return (
-                <button
-                  key={p.label}
-                  onClick={() => applyPreset(p)}
+                <button key={p.label} onClick={() => applyPreset(p)}
                   className={`px-3 py-2 text-sm rounded font-mono transition-all active:scale-95 ${
-                    isActive
-                      ? "bg-orange-500 text-white shadow-md ring-2 ring-orange-300"
-                      : "bg-slate-100 text-slate-700 hover:bg-orange-500 hover:text-white"
-                  }`}
-                >
+                    isActive ? "bg-orange-500 text-white shadow-md ring-2 ring-orange-300"
+                    : "bg-slate-100 text-slate-700 hover:bg-orange-500 hover:text-white"
+                  }`}>
                   {isActive && "✓ "}{p.label}
                 </button>
               );
@@ -377,7 +288,7 @@ export default function CalculatorPage() {
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Thickness (mm)</label>
               <input type="number" value={thickness}
-                onChange={handleNumberInput(setThickness)}
+                onChange={handleNumberInput("thickness")}
                 onFocus={(e) => e.target.select()}
                 className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
               <p className="text-xs text-slate-500 mt-1">{(thickness / 25.4).toFixed(2)}&quot;</p>
@@ -385,7 +296,7 @@ export default function CalculatorPage() {
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Width (mm)</label>
               <input type="number" value={width}
-                onChange={handleNumberInput(setWidth)}
+                onChange={handleNumberInput("width")}
                 onFocus={(e) => e.target.select()}
                 className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
               <p className="text-xs text-slate-500 mt-1">{(width / 25.4).toFixed(2)}&quot;</p>
@@ -393,7 +304,7 @@ export default function CalculatorPage() {
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Length (mm)</label>
               <input type="number" value={length}
-                onChange={handleNumberInput(setLength)}
+                onChange={handleNumberInput("length")}
                 onFocus={(e) => e.target.select()}
                 className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
               <p className="text-xs text-slate-500 mt-1">{(length / 304.8).toFixed(2)} ft</p>
@@ -403,20 +314,14 @@ export default function CalculatorPage() {
           <div className="mb-3">
             <label className="block text-sm font-semibold text-slate-700 mb-2">Input mode:</label>
             <div className="inline-flex rounded-lg border-2 border-slate-200 p-1 bg-slate-50">
-              <button
-                onClick={() => setInputMode("volume")}
+              <button onClick={() => updateField("inputMode", "volume")}
                 className={`px-4 py-2 rounded text-sm font-semibold transition-all active:scale-95 ${
                   inputMode === "volume" ? "bg-orange-500 text-white shadow" : "text-slate-600 hover:bg-slate-100"
-                }`}>
-                📦 Volume (m³)
-              </button>
-              <button
-                onClick={() => setInputMode("pieces")}
+                }`}>📦 Volume (m³)</button>
+              <button onClick={() => updateField("inputMode", "pieces")}
                 className={`px-4 py-2 rounded text-sm font-semibold transition-all active:scale-95 ${
                   inputMode === "pieces" ? "bg-orange-500 text-white shadow" : "text-slate-600 hover:bg-slate-100"
-                }`}>
-                🔢 Pieces
-              </button>
+                }`}>🔢 Pieces</button>
             </div>
           </div>
 
@@ -424,7 +329,7 @@ export default function CalculatorPage() {
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Total Volume (m³)</label>
               <input type="number" value={volumeInput} step="0.1"
-                onChange={handleNumberInput(setVolumeInput)}
+                onChange={handleNumberInput("volumeInput")}
                 onFocus={(e) => e.target.select()}
                 className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
               <p className="text-xs text-slate-500 mt-1">
@@ -435,7 +340,7 @@ export default function CalculatorPage() {
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Quantity (pcs)</label>
               <input type="number" value={quantity}
-                onChange={handleNumberInput(setQuantity)}
+                onChange={handleNumberInput("quantity")}
                 onFocus={(e) => e.target.select()}
                 className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
               <p className="text-xs text-slate-500 mt-1">
@@ -445,7 +350,7 @@ export default function CalculatorPage() {
           )}
 
           <div className="mt-4 flex flex-wrap gap-4">
-            <button onClick={reset} className="text-sm text-slate-500 hover:text-orange-500 underline">
+            <button onClick={resetDeal} className="text-sm text-slate-500 hover:text-orange-500 underline">
               ↻ Reset all
             </button>
             <button onClick={clearMemory} className="text-sm text-rose-500 hover:text-rose-700 underline">
@@ -466,7 +371,7 @@ export default function CalculatorPage() {
             {SPECIES.filter(s => !s.isMix).map((s) => {
               const isActive = species === s.id;
               return (
-                <button key={s.id} onClick={() => setSpecies(s.id)}
+                <button key={s.id} onClick={() => updateField("species", s.id)}
                   className={`text-left p-3 rounded-lg border-2 transition-all active:scale-95 ${
                     isActive ? "border-orange-500 bg-orange-50 shadow-md" : "border-slate-200 bg-white hover:border-slate-300"
                   }`}>
@@ -489,7 +394,7 @@ export default function CalculatorPage() {
                 ? Math.round((PINE_DENSITIES[moisture] * pinePercent + SPRUCE_DENSITIES[moisture] * (100 - pinePercent)) / 100)
                 : s.densities[moisture];
               return (
-                <button key={s.id} onClick={() => setSpecies(s.id)}
+                <button key={s.id} onClick={() => updateField("species", s.id)}
                   className={`text-left p-3 rounded-lg border-2 transition-all active:scale-95 ${
                     isActive ? "border-orange-500 bg-orange-50 shadow-md" : "border-slate-200 bg-white hover:border-slate-300"
                   }`}>
@@ -514,7 +419,7 @@ export default function CalculatorPage() {
                   <div className="text-xs text-slate-500">Pine</div>
                 </div>
                 <input type="range" min="0" max="100" step="5" value={pinePercent}
-                  onChange={(e) => setPinePercent(Number(e.target.value))} className="flex-1 accent-orange-500" />
+                  onChange={(e) => updateField("pinePercent", Number(e.target.value))} className="flex-1 accent-orange-500" />
                 <div className="text-center">
                   <div className="text-2xl font-black text-slate-500">{100 - pinePercent}%</div>
                   <div className="text-xs text-slate-500">Spruce</div>
@@ -549,7 +454,7 @@ export default function CalculatorPage() {
                 mDensity = selectedSpecies.densities[m.id];
               }
               return (
-                <button key={m.id} onClick={() => setMoisture(m.id)}
+                <button key={m.id} onClick={() => updateField("moisture", m.id)}
                   className={`text-left p-4 rounded-lg border-2 transition-all active:scale-95 relative ${
                     isActive ? "border-orange-500 bg-orange-50 shadow-md"
                     : blocked ? "border-rose-200 bg-rose-50/50 opacity-60"
@@ -589,12 +494,8 @@ export default function CalculatorPage() {
         {/* OVERLOAD ALERT */}
         {hasOverload && (
           <section className="bg-rose-600 text-white rounded-lg p-5 shadow-lg border-4 border-rose-700 animate-pulse">
-            <h2 className="font-black text-xl mb-3 flex items-center gap-2">
-              🚨 CONTAINER OVERLOAD!
-            </h2>
-            <p className="text-sm mb-4 text-rose-100">
-              Your cargo EXCEEDS 40ft HC limits. Split into multiple containers or reduce quantity!
-            </p>
+            <h2 className="font-black text-xl mb-3 flex items-center gap-2">🚨 CONTAINER OVERLOAD!</h2>
+            <p className="text-sm mb-4 text-rose-100">Your cargo EXCEEDS 40ft HC limits. Split into multiple containers!</p>
             <div className="space-y-2">
               {weightOverload && (
                 <div className="bg-rose-700 rounded p-3">
@@ -621,7 +522,7 @@ export default function CalculatorPage() {
             </div>
             <div className="mt-3 text-xs text-rose-100">
               💡 <strong>Tip:</strong> Russian customs fines for overweight = $500-$2000.
-              Split the order: you&apos;ll need {Math.ceil(Math.max(totalWeight_kg/CONTAINER_40HC.maxWeight_kg, totalVolume_m3/CONTAINER_40HC.maxVolume_m3))} containers.
+              Split: need {Math.ceil(Math.max(totalWeight_kg/CONTAINER_40HC.maxWeight_kg, totalVolume_m3/CONTAINER_40HC.maxVolume_m3))} containers.
             </div>
           </section>
         )}
@@ -701,11 +602,15 @@ export default function CalculatorPage() {
               <div className="text-xs text-slate-300 italic leading-relaxed">{selectedEndUse.disclaimer}</div>
             </div>
           )}
-        </section>
 
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded text-sm text-slate-700">
-          ℹ️ <strong>Next (3.9):</strong> Pricing calculator — $/m³ with CBM and CFT
-        </div>
+          {/* CTA to Pricing */}
+          <div className="mt-5 pt-5 border-t border-slate-700">
+            <Link href="/calculator/pricing"
+              className="block bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-all active:scale-95">
+              💰 Continue to Pricing → (volume auto-transfers)
+            </Link>
+          </div>
+        </section>
       </main>
 
       <footer className="bg-slate-900 text-slate-400 text-center py-6 text-xs">

@@ -1,20 +1,18 @@
-import { Inter } from "next/font/google";
-import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"] });
+import { DealProvider } from "./context/DealContext";
 
 export const metadata = {
-  title: "RU-TIMBER EXPORT | Premium Russian Sawn Timber",
-  description: "Direct supplier of high-quality Pinus Sylvestris and Siberian Spruce from Russia.",
+  title: "RU-TIMBER Export | Premium Russian Sawn Timber",
+  description: "Russian sawn timber export to India, UAE, China. Pine, Spruce, Larch. FOB/CIF delivery. Direct from mill.",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        {children}
-        <Analytics />
+      <body>
+        <DealProvider>
+          {children}
+        </DealProvider>
       </body>
     </html>
   );
