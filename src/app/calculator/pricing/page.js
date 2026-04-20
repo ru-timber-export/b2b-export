@@ -77,7 +77,14 @@ export default function PricingPage() {
 
   const handleNumberInput = (key) => (e) => {
     const val = e.target.value;
-    updateField(key, val === "" ? 0 : Number(val));
+    if (val === "") {
+      updateField(key, "");
+    } else {
+      const num = Number(val);
+      if (!isNaN(num)) {
+        updateField(key, num);
+      }
+    }
   };
 
   return (
