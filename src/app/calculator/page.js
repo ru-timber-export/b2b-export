@@ -268,13 +268,26 @@ export default function CalculatorPage() {
             <span className="text-orange-500">⚡</span> Quick Size Presets
           </h2>
           <div className="flex flex-wrap gap-2">
-            {PRESETS_SIZES.map((p) => (
-              <button key={p.label} onClick={() => applyPreset(p)}
-                className="px-3 py-2 text-sm bg-slate-100 hover:bg-orange-500 hover:text-white rounded font-mono transition">
-                {p.label}
-              </button>
-            ))}
+            {PRESETS_SIZES.map((p) => {
+              const isActive = thickness === p.t && width === p.w && length === p.l;
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => applyPreset(p)}
+                  className={`px-3 py-2 text-sm rounded font-mono transition-all active:scale-95 ${
+                    isActive
+                      ? "bg-orange-500 text-white shadow-md ring-2 ring-orange-300"
+                      : "bg-slate-100 text-slate-700 hover:bg-orange-500 hover:text-white"
+                  }`}
+                >
+                  {isActive && "✓ "}{p.label}
+                </button>
+              );
+            })}
           </div>
+          <p className="text-xs text-slate-500 mt-2">
+            ℹ️ Standard export sizes for 40ft HC container (length 5980mm optimal)
+          </p>
         </section>
 
         {/* DIMENSIONS + INPUT MODE */}
