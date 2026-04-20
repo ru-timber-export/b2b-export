@@ -256,7 +256,10 @@ export default function CalculatorPage() {
             <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center font-black text-xl">R</div>
             <span className="font-black text-xl tracking-widest">RU-TIMBER</span>
           </Link>
-          <Link href="/" className="text-sm text-slate-300 hover:text-orange-500">← Back</Link>
+          <div className="flex gap-4 text-sm">
+            <Link href="/calculator/pricing" className="text-slate-300 hover:text-orange-500">💰 Pricing</Link>
+            <Link href="/" className="text-slate-300 hover:text-orange-500">← Back</Link>
+          </div>
         </div>
       </nav>
 
