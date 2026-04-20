@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 const PRESETS_SIZES = [
@@ -88,20 +88,72 @@ const CONTAINER_40HC = {
   maxWeight_kg: 26580,    // полезная нагрузка (брутто 30480 - тара 3900)
 };
 
-export default function CalculatorPage() {
-  const [thickness, setThickness] = useState(44);
-  const [width, setWidth] = useState(150);
-  const [length, setLength] = useState(5980);
+// Ключ для LocalStorage
+  const STORAGE_KEY = "ru-timber-calculator-v1";
+
+  // Дефолтные значения
+  const DEFAULTS = {
+    thickness: 44, width: 150, length: 5980,
+    inputMode: "volume", quantity: 100, volumeInput: 40,
+    species: "PINE", moisture: "KD", pinePercent: 50, endUse: null,
+  };
+
+  // Инициализация состояний (сначала дефолты, потом загрузим из памяти)
+  const [thickness, setThickness] = useState(DEFAULTS.thickness);
+  const [width, setWidth] = useState(DEFAULTS.width);
+  const [length, setLength] = useState(DEFAULTS.length);
+  const [inputMode, setInputMode] = useState(DEFAULTS.inputMode);
+  const [quantity, setQuantity] = useState(DEFAULTS.quantity);
+  const [volumeInput, setVolumeInput] = useState(DEFAULTS.volumeInput);
+  const [species, setSpecies] = useState(DEFAULTS.species);
+  const [moisture, setMoisture] = useState(DEFAULTS.moisture);
+  const [pinePercent, setPinePercent] = useState(DEFAULTS.pinePercent);
+  const [endUse, setEndUse] = useState(DEFAULTS.endUse);
   
-  // НОВОЕ: режим ввода
-  const [inputMode, setInputMode] = useState("volume"); // "volume" | "pieces"
-  const [quantity, setQuantity] = useState(100);        // если pieces
-  const [volumeInput, setVolumeInput] = useState(40);   // если volume (м³)
-  
-  const [species, setSpecies] = useState("PINE");
-  const [moisture, setMoisture] = useState("KD");
-  const [pinePercent, setPinePercent] = useState(50);
-  const [endUse, setEndUse] = useState(null);
+  // Флаг: данные загружены из памяти
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasMemory, setHasMemory] = useState(false);
+
+  // ЗАГРУЗКА из LocalStorage при первом открытии страницы
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const data = JSON.parse(saved);
+        setThickness(data.thickness ?? DEFAULTS.thickness);
+        setWidth(data.width ?? DEFAULTS.width);
+        setLength(data.length ?? DEFAULTS.length);
+        setInputMode(data.inputMode ?? DEFAULTS.inputMode);
+        setQuantity(data.quantity ?? DEFAULTS.quantity);
+        setVolumeInput(data.volumeInput ?? DEFAULTS.volumeInput);
+        setSpecies(data.species ?? DEFAULTS.species);
+        setMoisture(data.moisture ?? DEFAULTS.moisture);
+        setPinePercent(data.pinePercent ?? DEFAULTS.pinePercent);
+        setEndUse(data.endUse ?? DEFAULTS.endUse);
+        setHasMemory(true);
+      }
+    } catch (e) {
+      console.warn("Failed to load calculator state:", e);
+    }
+    setIsLoaded(true);
+  }, []);
+
+  // СОХРАНЕНИЕ в LocalStorage при каждом изменении
+  useEffect(() => {
+    if (!isLoaded) return; // не сохраняем до первой загрузки
+    try {
+      const data = {
+        thickness, width, length,
+        inputMode, quantity, volumeInput,
+        species, moisture, pinePercent, endUse,
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+      console.warn("Failed to save calculator state:", e);
+    }
+  }, [thickness, width, length, inputMode, quantity, volumeInput, 
+      species, moisture, pinePercent, endUse, isLoaded]);
 
   const volumePerBoard_m3 = (thickness * width * length) / 1_000_000_000;
 
@@ -160,9 +212,27 @@ export default function CalculatorPage() {
   };
 
   const reset = () => {
-    setThickness(44); setWidth(150); setLength(5980);
-    setQuantity(100); setVolumeInput(40); setInputMode("volume");
-    setSpecies("PINE"); setMoisture("KD"); setPinePercent(50); setEndUse(null);
+    setThickness(DEFAULTS.thickness);
+    setWidth(DEFAULTS.width);
+    setLength(DEFAULTS.length);
+    setQuantity(DEFAULTS.quantity);
+    setVolumeInput(DEFAULTS.volumeInput);
+    setInputMode(DEFAULTS.inputMode);
+    setSpecies(DEFAULTS.species);
+    setMoisture(DEFAULTS.moisture);
+    setPinePercent(DEFAULTS.pinePercent);
+    setEndUse(DEFAULTS.endUse);
+    setHasMemory(false);
+  };
+  
+  const clearMemory = () => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      reset();
+      alert("Memory cleared! Calculator reset to defaults.");
+    } catch (e) {
+      console.warn("Failed to clear:", e);
+    }
   };
 
   const densityLabel = selectedSpecies.isCustom
@@ -200,8 +270,13 @@ export default function CalculatorPage() {
             Container Loading <span className="text-orange-500">Calculator</span>
           </h1>
           <p className="text-slate-300 text-sm">
-            Step 3.7.1: Volume mode + overload alerts 🚨
+            Step 3.8: Memory enabled 💾 (auto-saves in browser)
           </p>
+          {hasMemory && (
+            <div className="mt-3 inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 px-3 py-1 rounded-full text-xs">
+              ✅ Previous calculation restored from memory
+            </div>
+          )}
         </div>
       </header>
 
@@ -368,9 +443,14 @@ export default function CalculatorPage() {
             </div>
           )}
 
-          <button onClick={reset} className="mt-4 text-sm text-slate-500 hover:text-orange-500 underline">
-            ↻ Reset all
-          </button>
+          <div className="mt-4 flex flex-wrap gap-4">
+            <button onClick={reset} className="text-sm text-slate-500 hover:text-orange-500 underline">
+              ↻ Reset all
+            </button>
+            <button onClick={clearMemory} className="text-sm text-rose-500 hover:text-rose-700 underline">
+              🗑️ Clear saved memory
+            </button>
+          </div>
         </section>
 
         {/* SPECIES */}
