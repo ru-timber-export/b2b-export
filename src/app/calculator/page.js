@@ -82,23 +82,20 @@ const MOISTURE_OPTIONS = [
 const PINE_DENSITIES = { KD: 500, AD: 600, FRESH: 750 };
 const SPRUCE_DENSITIES = { KD: 450, AD: 550, FRESH: 700 };
 
-// Лимиты 40ft HC контейнера
 const CONTAINER_40HC = {
-  maxVolume_m3: 76,       // физический объём
-  maxWeight_kg: 26580,    // полезная нагрузка (брутто 30480 - тара 3900)
+  maxVolume_m3: 76,
+  maxWeight_kg: 26580,
 };
 
-// Ключ для LocalStorage
-  const STORAGE_KEY = "ru-timber-calculator-v1";
+const STORAGE_KEY = "ru-timber-calculator-v1";
 
-  // Дефолтные значения
-  const DEFAULTS = {
-    thickness: 44, width: 150, length: 5980,
-    inputMode: "volume", quantity: 100, volumeInput: 40,
-    species: "PINE", moisture: "KD", pinePercent: 50, endUse: null,
-  };
+const DEFAULTS = {
+  thickness: 44, width: 150, length: 5980,
+  inputMode: "volume", quantity: 100, volumeInput: 40,
+  species: "PINE", moisture: "KD", pinePercent: 50, endUse: null,
+};
 
-  // Инициализация состояний (сначала дефолты, потом загрузим из памяти)
+export default function CalculatorPage() {
   const [thickness, setThickness] = useState(DEFAULTS.thickness);
   const [width, setWidth] = useState(DEFAULTS.width);
   const [length, setLength] = useState(DEFAULTS.length);
@@ -109,28 +106,29 @@ const CONTAINER_40HC = {
   const [moisture, setMoisture] = useState(DEFAULTS.moisture);
   const [pinePercent, setPinePercent] = useState(DEFAULTS.pinePercent);
   const [endUse, setEndUse] = useState(DEFAULTS.endUse);
-  
-  // Флаг: данные загружены из памяти
+
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasMemory, setHasMemory] = useState(false);
 
-  // ЗАГРУЗКА из LocalStorage при первом открытии страницы
+  // LOAD from LocalStorage on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const data = JSON.parse(saved);
-        setThickness(data.thickness ?? DEFAULTS.thickness);
-        setWidth(data.width ?? DEFAULTS.width);
-        setLength(data.length ?? DEFAULTS.length);
-        setInputMode(data.inputMode ?? DEFAULTS.inputMode);
-        setQuantity(data.quantity ?? DEFAULTS.quantity);
-        setVolumeInput(data.volumeInput ?? DEFAULTS.volumeInput);
-        setSpecies(data.species ?? DEFAULTS.species);
-        setMoisture(data.moisture ?? DEFAULTS.moisture);
-        setPinePercent(data.pinePercent ?? DEFAULTS.pinePercent);
-        setEndUse(data.endUse ?? DEFAULTS.endUse);
-        setHasMemory(true);
+      if (typeof window !== "undefined") {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const data = JSON.parse(saved);
+          if (data.thickness !== undefined) setThickness(data.thickness);
+          if (data.width !== undefined) setWidth(data.width);
+          if (data.length !== undefined) setLength(data.length);
+          if (data.inputMode !== undefined) setInputMode(data.inputMode);
+          if (data.quantity !== undefined) setQuantity(data.quantity);
+          if (data.volumeInput !== undefined) setVolumeInput(data.volumeInput);
+          if (data.species !== undefined) setSpecies(data.species);
+          if (data.moisture !== undefined) setMoisture(data.moisture);
+          if (data.pinePercent !== undefined) setPinePercent(data.pinePercent);
+          if (data.endUse !== undefined) setEndUse(data.endUse);
+          setHasMemory(true);
+        }
       }
     } catch (e) {
       console.warn("Failed to load calculator state:", e);
@@ -138,26 +136,27 @@ const CONTAINER_40HC = {
     setIsLoaded(true);
   }, []);
 
-  // СОХРАНЕНИЕ в LocalStorage при каждом изменении
+  // SAVE to LocalStorage on change
   useEffect(() => {
-    if (!isLoaded) return; // не сохраняем до первой загрузки
+    if (!isLoaded) return;
     try {
-      const data = {
-        thickness, width, length,
-        inputMode, quantity, volumeInput,
-        species, moisture, pinePercent, endUse,
-        savedAt: new Date().toISOString(),
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      if (typeof window !== "undefined") {
+        const data = {
+          thickness, width, length,
+          inputMode, quantity, volumeInput,
+          species, moisture, pinePercent, endUse,
+          savedAt: new Date().toISOString(),
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
     } catch (e) {
       console.warn("Failed to save calculator state:", e);
     }
-  }, [thickness, width, length, inputMode, quantity, volumeInput, 
+  }, [thickness, width, length, inputMode, quantity, volumeInput,
       species, moisture, pinePercent, endUse, isLoaded]);
 
   const volumePerBoard_m3 = (thickness * width * length) / 1_000_000_000;
 
-  // Расчёт в зависимости от режима
   let actualQuantity, totalVolume_m3;
   if (inputMode === "volume") {
     totalVolume_m3 = Number(volumeInput) || 0;
@@ -166,7 +165,7 @@ const CONTAINER_40HC = {
     actualQuantity = Number(quantity) || 0;
     totalVolume_m3 = volumePerBoard_m3 * actualQuantity;
   }
-  
+
   const totalVolume_cft = totalVolume_m3 * 35.3147;
 
   const selectedSpecies = SPECIES.find((s) => s.id === species);
@@ -186,14 +185,11 @@ const CONTAINER_40HC = {
   const totalWeight_t = totalWeight_kg / 1000;
   const safeLoad_m3 = 26580 / density;
 
-  // ПРОВЕРКИ ПЕРЕВЕСА
   const volumeOverload = totalVolume_m3 > CONTAINER_40HC.maxVolume_m3;
   const weightOverload = totalWeight_kg > CONTAINER_40HC.maxWeight_kg;
   const hasOverload = volumeOverload || weightOverload;
-  
   const volumeOverBy = volumeOverload ? (totalVolume_m3 - CONTAINER_40HC.maxVolume_m3) : 0;
   const weightOverBy = weightOverload ? (totalWeight_kg - CONTAINER_40HC.maxWeight_kg) : 0;
-  
   const volumePercent = Math.min((totalVolume_m3 / CONTAINER_40HC.maxVolume_m3) * 100, 100);
   const weightPercent = Math.min((totalWeight_kg / CONTAINER_40HC.maxWeight_kg) * 100, 100);
 
@@ -224,12 +220,16 @@ const CONTAINER_40HC = {
     setEndUse(DEFAULTS.endUse);
     setHasMemory(false);
   };
-  
+
   const clearMemory = () => {
     try {
-      localStorage.removeItem(STORAGE_KEY);
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(STORAGE_KEY);
+      }
       reset();
-      alert("Memory cleared! Calculator reset to defaults.");
+      if (typeof window !== "undefined") {
+        alert("Memory cleared! Calculator reset to defaults.");
+      }
     } catch (e) {
       console.warn("Failed to clear:", e);
     }
@@ -239,11 +239,10 @@ const CONTAINER_40HC = {
     ? `Pine ${pinePercent}% + Spruce ${100 - pinePercent}%`
     : selectedSpecies.label;
 
-  // Обработчик для полей ввода (фикс "нуля")
   const handleNumberInput = (setter) => (e) => {
     const val = e.target.value;
     if (val === "") {
-      setter("");
+      setter(0);
     } else {
       setter(Number(val));
     }
@@ -295,7 +294,7 @@ const CONTAINER_40HC = {
               const isActive = endUse === p.id;
               return (
                 <button key={p.id} onClick={() => applyEndUse(p)}
-                  className={`text-left p-3 rounded-lg border-2 transition ${
+                  className={`text-left p-3 rounded-lg border-2 transition-all active:scale-95 ${
                     isActive ? "border-orange-500 bg-orange-50 shadow-md" : "border-slate-200 bg-white hover:border-slate-300"
                   }`}>
                   <div className="flex items-center justify-between mb-1">
@@ -321,7 +320,7 @@ const CONTAINER_40HC = {
               <div className="bg-emerald-50 border-l-4 border-emerald-500 p-3 rounded text-xs text-slate-700">
                 🛡️ <strong>Legal Protection Enabled</strong><br/>
                 <em className="text-slate-600 block mt-2 pl-2 border-l-2 border-emerald-300">
-                  "{selectedEndUse.disclaimer}"
+                  &quot;{selectedEndUse.disclaimer}&quot;
                 </em>
               </div>
               {moistureWarning && (
@@ -370,15 +369,15 @@ const CONTAINER_40HC = {
           <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
             <span className="text-orange-500">📐</span> Board Dimensions
           </h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Thickness (mm)</label>
-              <input type="number" value={thickness} 
+              <input type="number" value={thickness}
                 onChange={handleNumberInput(setThickness)}
                 onFocus={(e) => e.target.select()}
                 className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
-              <p className="text-xs text-slate-500 mt-1">{(thickness / 25.4).toFixed(2)}"</p>
+              <p className="text-xs text-slate-500 mt-1">{(thickness / 25.4).toFixed(2)}&quot;</p>
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Width (mm)</label>
@@ -386,7 +385,7 @@ const CONTAINER_40HC = {
                 onChange={handleNumberInput(setWidth)}
                 onFocus={(e) => e.target.select()}
                 className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
-              <p className="text-xs text-slate-500 mt-1">{(width / 25.4).toFixed(2)}"</p>
+              <p className="text-xs text-slate-500 mt-1">{(width / 25.4).toFixed(2)}&quot;</p>
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1">Length (mm)</label>
@@ -398,20 +397,19 @@ const CONTAINER_40HC = {
             </div>
           </div>
 
-          {/* ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА ВВОДА */}
           <div className="mb-3">
             <label className="block text-sm font-semibold text-slate-700 mb-2">Input mode:</label>
             <div className="inline-flex rounded-lg border-2 border-slate-200 p-1 bg-slate-50">
               <button
                 onClick={() => setInputMode("volume")}
-                className={`px-4 py-2 rounded text-sm font-semibold transition ${
+                className={`px-4 py-2 rounded text-sm font-semibold transition-all active:scale-95 ${
                   inputMode === "volume" ? "bg-orange-500 text-white shadow" : "text-slate-600 hover:bg-slate-100"
                 }`}>
                 📦 Volume (m³)
               </button>
               <button
                 onClick={() => setInputMode("pieces")}
-                className={`px-4 py-2 rounded text-sm font-semibold transition ${
+                className={`px-4 py-2 rounded text-sm font-semibold transition-all active:scale-95 ${
                   inputMode === "pieces" ? "bg-orange-500 text-white shadow" : "text-slate-600 hover:bg-slate-100"
                 }`}>
                 🔢 Pieces
@@ -459,14 +457,14 @@ const CONTAINER_40HC = {
             <span className="text-orange-500">🌲</span> Wood Species
           </h2>
           <p className="text-xs text-slate-500 mb-4">GOST 8486: Pine+Spruce can be mixed. Larch/Cedar — separate.</p>
-          
+
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pure species</div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
             {SPECIES.filter(s => !s.isMix).map((s) => {
               const isActive = species === s.id;
               return (
                 <button key={s.id} onClick={() => setSpecies(s.id)}
-                  className={`text-left p-3 rounded-lg border-2 transition ${
+                  className={`text-left p-3 rounded-lg border-2 transition-all active:scale-95 ${
                     isActive ? "border-orange-500 bg-orange-50 shadow-md" : "border-slate-200 bg-white hover:border-slate-300"
                   }`}>
                   <div className="flex items-center justify-between mb-1">
@@ -489,7 +487,7 @@ const CONTAINER_40HC = {
                 : s.densities[moisture];
               return (
                 <button key={s.id} onClick={() => setSpecies(s.id)}
-                  className={`text-left p-3 rounded-lg border-2 transition ${
+                  className={`text-left p-3 rounded-lg border-2 transition-all active:scale-95 ${
                     isActive ? "border-orange-500 bg-orange-50 shadow-md" : "border-slate-200 bg-white hover:border-slate-300"
                   }`}>
                   <div className="flex items-center justify-between mb-1">
@@ -536,7 +534,7 @@ const CONTAINER_40HC = {
             <span className="text-orange-500">💧</span> Moisture Content
           </h2>
           <p className="text-xs text-slate-500 mb-4">Fresh-sawn NOT recommended for export — mold risk.</p>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {MOISTURE_OPTIONS.map((m) => {
               const isActive = moisture === m.id;
@@ -549,7 +547,7 @@ const CONTAINER_40HC = {
               }
               return (
                 <button key={m.id} onClick={() => setMoisture(m.id)}
-                  className={`text-left p-4 rounded-lg border-2 transition relative ${
+                  className={`text-left p-4 rounded-lg border-2 transition-all active:scale-95 relative ${
                     isActive ? "border-orange-500 bg-orange-50 shadow-md"
                     : blocked ? "border-rose-200 bg-rose-50/50 opacity-60"
                     : "border-slate-200 bg-white hover:border-slate-300"
@@ -585,7 +583,7 @@ const CONTAINER_40HC = {
           </div>
         </section>
 
-        {/* 🚨 НОВОЕ: OVERLOAD ALERT */}
+        {/* OVERLOAD ALERT */}
         {hasOverload && (
           <section className="bg-rose-600 text-white rounded-lg p-5 shadow-lg border-4 border-rose-700 animate-pulse">
             <h2 className="font-black text-xl mb-3 flex items-center gap-2">
@@ -619,8 +617,8 @@ const CONTAINER_40HC = {
               )}
             </div>
             <div className="mt-3 text-xs text-rose-100">
-              💡 <strong>Tip:</strong> Russian customs fines for overweight = $500–$2 000. 
-              Split the order: you'll need {Math.ceil(Math.max(totalWeight_kg/CONTAINER_40HC.maxWeight_kg, totalVolume_m3/CONTAINER_40HC.maxVolume_m3))} containers.
+              💡 <strong>Tip:</strong> Russian customs fines for overweight = $500-$2000.
+              Split the order: you&apos;ll need {Math.ceil(Math.max(totalWeight_kg/CONTAINER_40HC.maxWeight_kg, totalVolume_m3/CONTAINER_40HC.maxVolume_m3))} containers.
             </div>
           </section>
         )}
@@ -647,7 +645,6 @@ const CONTAINER_40HC = {
                 <div className="text-sm text-slate-400">CFT</div>
               </div>
             </div>
-            {/* Шкала объёма */}
             <div className="mt-3">
               <div className="flex justify-between text-xs text-slate-400 mb-1">
                 <span>40ft HC capacity</span>
@@ -675,7 +672,6 @@ const CONTAINER_40HC = {
                 <div className="text-sm text-slate-400">tonnes</div>
               </div>
             </div>
-            {/* Шкала веса */}
             <div className="mt-3">
               <div className="flex justify-between text-xs text-slate-400 mb-1">
                 <span>Weight limit</span>
@@ -705,7 +701,7 @@ const CONTAINER_40HC = {
         </section>
 
         <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded text-sm text-slate-700">
-          ℹ️ <strong>Next (3.8):</strong> memory (LocalStorage) — remember last calc after reload
+          ℹ️ <strong>Next (3.9):</strong> Pricing calculator — $/m³ with CBM and CFT
         </div>
       </main>
 
