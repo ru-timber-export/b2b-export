@@ -95,9 +95,10 @@ export default function PricingPage() {
             <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center font-black text-xl">R</div>
             <span className="font-black text-xl tracking-widest">RU-TIMBER</span>
           </Link>
-          <div className="flex gap-4 text-sm">
-            <Link href="/calculator" className="text-slate-300 hover:text-orange-500">← 📦 Volume</Link>
-            <Link href="/" className="text-slate-300 hover:text-orange-500">Home</Link>
+          <div className="flex gap-3 text-sm flex-wrap">
+            <Link href="/calculator" className="text-slate-300 hover:text-orange-500">📦 Volume</Link>
+            <Link href="/calculator/container" className="text-slate-300 hover:text-orange-500">🚢 3D</Link>
+            <Link href="/" className="text-slate-300 hover:text-orange-500">← Home</Link>
           </div>
         </div>
       </nav>
