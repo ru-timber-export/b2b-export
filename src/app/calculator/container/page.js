@@ -73,22 +73,16 @@ export default function ContainerPage() {
         </div>
       </nav>
 
-      <header className="bg-slate-900 text-white py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="inline-block bg-orange-500 text-white px-3 py-1 rounded text-xs font-bold tracking-widest mb-3">
-            STEP 4A · LOADING PLAN
+      {/* Header */}
+      <header className="bg-slate-900 text-white px-4 py-3 sticky top-0 z-40">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <Link href="/" className="text-sm">← Home</Link>
+          <div className="text-xs font-mono hidden sm:block">STEP 4A · LOADING</div>
+          <div className="flex gap-1 text-xs">
+            <Link href="/calculator" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📐 Volume</Link>
+            <Link href="/calculator/pricing" className="bg-slate-700 px-2 py-1 rounded active:scale-95">💰 Pricing</Link>
+            <Link href="/calculator/quotation" className="bg-emerald-600 px-2 py-1 rounded active:scale-95">📄 Quote</Link>
           </div>
-          <h1 className="text-3xl md:text-4xl font-black mb-2">
-            Container <span className="text-orange-500">Loading Plan</span>
-          </h1>
-          <p className="text-slate-300 text-sm">
-            🚢 Technical 2D schematics · 40ft High Cube
-          </p>
-          {hasMemory && (
-            <div className="mt-3 inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 px-3 py-1 rounded-full text-xs">
-              ✅ Deal loaded from memory
-            </div>
-          )}
         </div>
       </header>
 

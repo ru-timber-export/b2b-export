@@ -129,10 +129,11 @@ export default function PricingPage() {
       <header className="bg-slate-900 text-white px-4 py-3 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link href="/" className="text-sm">← Home</Link>
-          <div className="text-xs font-mono">STEP 3.11 · PRICING</div>
-          <div className="flex gap-2 text-xs">
+          <div className="text-xs font-mono hidden sm:block">STEP 3.11 · PRICING</div>
+          <div className="flex gap-1 text-xs">
             <Link href="/calculator" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📐 Volume</Link>
             <Link href="/calculator/container" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📦 3D</Link>
+            <Link href="/calculator/quotation" className="bg-emerald-600 px-2 py-1 rounded active:scale-95">📄 Quote</Link>
           </div>
         </div>
       </header>
@@ -397,11 +398,18 @@ export default function PricingPage() {
             </div>
           </div>
 
-          <Link
+         <Link
             href="/calculator/container"
             className="block w-full mt-5 bg-orange-500 text-white text-center py-3 rounded-lg font-bold active:scale-95"
           >
             📦 Continue to 3D View →
+          </Link>
+
+          <Link
+            href="/calculator/quotation"
+            className="block w-full mt-2 bg-emerald-600 text-white text-center py-3 rounded-lg font-bold active:scale-95"
+          >
+            📄 Generate Commercial Quotation →
           </Link>
         </section>
 
