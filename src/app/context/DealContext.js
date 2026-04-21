@@ -1,114 +1,130 @@
 "use client";
+
 import { createContext, useContext, useState, useEffect } from "react";
 
-const STORAGE_KEY = "ru-timber-current-deal-v2";
+const DealContext = createContext();
+
+const STORAGE_KEY = "ru-timber-current-deal-v3";
+
+// 💰 Таблица цен по породам (апрель 2026)
+export const SPECIES_BASE_PRICES = {
+  pine: 160,
+  spruce: 155,
+  "pine-spruce-50-50": 150,
+  "pine-spruce-70-30": 158,
+  spf: 152,
+  larch: 285,
+  cedar: 250,
+  birch: 195,
+  oak: 580,
+  aspen: 140,
+  custom: 160,
+};
+
+// 💧 Надбавка за сушку
+export const DRYING_SURCHARGE = {
+  fresh: 0,
+  ad: 15,
+  kd: 35,
+};
+
+// 📦 Надбавка за упаковку
+export const PACKAGING_SURCHARGE = {
+  none: 0,
+  crate: 8,
+  shrink: 18,
+};
+
+// 🚢 Пресеты фрахта (Vladivostok как приоритет)
+export const FREIGHT_PRESETS = {
+  "vlv-chennai": { label: "Vladivostok → Chennai (India)", rate: 2500, port: "Vladivostok" },
+  "vlv-shanghai": { label: "Vladivostok → Shanghai (China)", rate: 1000, port: "Vladivostok" },
+  "nvr-mumbai": { label: "Novorossiysk → Mumbai (India)", rate: 2000, port: "Novorossiysk" },
+  "nvr-dubai": { label: "Novorossiysk → Dubai (UAE)", rate: 1700, port: "Novorossiysk" },
+  "nvr-alexandria": { label: "Novorossiysk → Alexandria (Egypt)", rate: 1600, port: "Novorossiysk" },
+  "nvr-istanbul": { label: "Novorossiysk → Istanbul (Turkey)", rate: 1400, port: "Novorossiysk" },
+};
+
+// 💼 Рекомендуемая маржа по странам
+export const COUNTRY_MARGINS = {
+  india: 18,
+  china: 15,
+  uae: 25,
+  egypt: 20,
+  turkey: 17,
+};
 
 const DEAL_DEFAULTS = {
-  // === Step 3.8: Volume Calculator ===
+  // Volume
   thickness: 44,
   width: 150,
   length: 5980,
+  species: "pine-spruce-50-50",
+  moisture: "kd",
+  packaging: "crate",
+  endUse: "construction",
   inputMode: "volume",
-  quantity: 100,
-  volumeInput: 40,
-  species: "PINE",
-  moisture: "KD",
-  pinePercent: 50,
-  endUse: null,
+  totalVolume: 50,
+  totalPieces: 1267,
 
-  // === Step 3.9: Pricing Calculator ===
-  // Raw material: $/m³ (цена пилорамы за кубометр)
-  costRawMaterial_per_m3: 180,
-  // Остальное: $/контейнер (реалистичная логика!)
-  costLogisticsRU_per_container: 1500,
-  costFOB_per_container: 400,
-  costCIF_per_container: 2500,
+  // Pricing
+  incoterm: "cif",
+  margin: 18,
+  usdRubRate: 76.25,
+  freightRoute: "vlv-chennai",
 
-  incoterms: "CIF",
-  marginPercent: 25,
-  usdRub: 95,
+  // Per-container costs (fallback, если не берём из пресета)
+  mill_logistics: 1500,
+  port_fees: 400,
+  freight_insurance: 2500,
+
+  // Обработка для 0% пошлины
+  profileProcessing: false,
+
+  // Last update
+  lastUpdate: null,
 };
-
-const DealContext = createContext(null);
 
 export function DealProvider({ children }) {
   const [deal, setDeal] = useState(DEAL_DEFAULTS);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [hasMemory, setHasMemory] = useState(false);
 
-  // LOAD from LocalStorage on mount
   useEffect(() => {
+    if (typeof window === "undefined") return;
     try {
-      if (typeof window !== "undefined") {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const data = JSON.parse(saved);
-          setDeal((prev) => ({ ...prev, ...data }));
-          setHasMemory(true);
-        }
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setDeal({ ...DEAL_DEFAULTS, ...parsed });
       }
     } catch (e) {
-      console.warn("Failed to load deal:", e);
+      console.error("LocalStorage read error:", e);
     }
     setIsLoaded(true);
   }, []);
 
-  // SAVE to LocalStorage on change
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || typeof window === "undefined") return;
     try {
-      if (typeof window !== "undefined") {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          ...deal,
-          savedAt: new Date().toISOString(),
-        }));
-      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(deal));
     } catch (e) {
-      console.warn("Failed to save deal:", e);
+      console.error("LocalStorage write error:", e);
     }
   }, [deal, isLoaded]);
 
-  // Обновить одно поле
-  const updateField = (key, value) => {
-    setDeal((prev) => ({ ...prev, [key]: value }));
+  const updateDeal = (updates) => {
+    setDeal((prev) => ({ ...prev, ...updates, lastUpdate: Date.now() }));
   };
 
-  // Обновить несколько полей (для пресетов)
-  const updateFields = (patch) => {
-    setDeal((prev) => ({ ...prev, ...patch }));
-  };
-
-  // Сброс
   const resetDeal = () => {
     setDeal(DEAL_DEFAULTS);
-    setHasMemory(false);
-  };
-
-  // Полная очистка памяти
-  const clearMemory = () => {
-    try {
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(STORAGE_KEY);
-      }
-      setDeal(DEAL_DEFAULTS);
-      setHasMemory(false);
-    } catch (e) {
-      console.warn("Failed to clear:", e);
+    if (typeof window !== "undefined") {
+      localStorage.removeItem(STORAGE_KEY);
     }
   };
 
   return (
-    <DealContext.Provider
-      value={{
-        deal,
-        updateField,
-        updateFields,
-        resetDeal,
-        clearMemory,
-        isLoaded,
-        hasMemory,
-      }}
-    >
+    <DealContext.Provider value={{ deal, updateDeal, resetDeal, isLoaded }}>
       {children}
     </DealContext.Provider>
   );
@@ -116,8 +132,6 @@ export function DealProvider({ children }) {
 
 export function useDeal() {
   const ctx = useContext(DealContext);
-  if (!ctx) {
-    throw new Error("useDeal must be used within DealProvider");
-  }
+  if (!ctx) throw new Error("useDeal must be used inside DealProvider");
   return ctx;
 }

@@ -1,487 +1,414 @@
 "use client";
-import Link from "next/link";
-import { useDeal } from "../../context/DealContext";
 
-const INCOTERMS_CONFIG = {
-  EXW: { label: "EXW", fullName: "Ex Works", description: "Самовывоз с пилорамы",
-    includes: ["raw"], icon: "🏭" },
-  FCA: { label: "FCA", fullName: "Free Carrier", description: "+ доставка до порта РФ",
-    includes: ["raw", "logisticsRU"], icon: "🚚" },
-  FOB: { label: "FOB", fullName: "Free On Board", description: "+ погрузка на судно",
-    includes: ["raw", "logisticsRU", "fob"], icon: "⚓" },
-  CIF: { label: "CIF", fullName: "Cost, Insurance, Freight", description: "+ фрахт + страховка",
-    includes: ["raw", "logisticsRU", "fob", "cif"], icon: "🚢" },
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import {
+  useDeal,
+  SPECIES_BASE_PRICES,
+  DRYING_SURCHARGE,
+  PACKAGING_SURCHARGE,
+  FREIGHT_PRESETS,
+  COUNTRY_MARGINS,
+} from "../../context/DealContext";
+
+const Tooltip = ({ text }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-block ml-1">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-300 active:scale-95"
+      >
+        ℹ
+      </button>
+      {open && (
+        <span
+          onClick={() => setOpen(false)}
+          className="absolute z-50 left-0 top-6 w-64 bg-slate-900 text-white text-xs p-3 rounded-lg shadow-xl leading-relaxed"
+        >
+          {text}
+        </span>
+      )}
+    </span>
+  );
 };
 
-const CFT_PER_M3 = 35.3147;
-
 export default function PricingPage() {
-  const { deal, updateField, resetDeal, clearMemory, hasMemory } = useDeal();
+  const { deal, updateDeal, isLoaded } = useDeal();
+  const [cbrLoading, setCbrLoading] = useState(false);
+  const [cbrDate, setCbrDate] = useState(null);
+  const [cbrError, setCbrError] = useState(false);
 
-  const {
-    costRawMaterial_per_m3,
-    costLogisticsRU_per_container,
-    costFOB_per_container,
-    costCIF_per_container,
-    incoterms,
-    marginPercent,
-    usdRub,
-    computedVolume_m3,
-  } = deal;
+  // 💱 Автозагрузка курса ЦБ РФ
+  const fetchCBR = async () => {
+    setCbrLoading(true);
+    setCbrError(false);
+    try {
+      const res = await fetch("https://www.cbr-xml-daily.ru/daily_json.js");
+      const data = await res.json();
+      const usd = data.Valute?.USD?.Value;
+      const date = data.Date;
+      if (usd) {
+        updateDeal({ usdRubRate: parseFloat(usd.toFixed(2)) });
+        setCbrDate(new Date(date).toLocaleDateString("ru-RU"));
+      }
+    } catch (e) {
+      console.error("CBR API error:", e);
+      setCbrError(true);
+    } finally {
+      setCbrLoading(false);
+    }
+  };
 
-  // Объём из калькулятора объёма (Step 3.8)
-  // Если пользователь ещё не заходил туда — 0, покажем предупреждение
-  const volumeM3 = Number(computedVolume_m3) || 0;
-  const hasVolume = volumeM3 > 0;
+  useEffect(() => {
+    if (isLoaded) fetchCBR();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded]);
 
-  const selectedIncoterms = INCOTERMS_CONFIG[incoterms];
-  const includes = selectedIncoterms.includes;
-  const isItemIncluded = (key) => includes.includes(key);
-
-  // === РАСЧЁТЫ (правка Gemini: правильная логика per-container → per-m³) ===
-
-  // Raw material: уже в $/м³
-  const rawPerM3 = isItemIncluded("raw") ? (Number(costRawMaterial_per_m3) || 0) : 0;
-
-  // Логистика: $/контейнер → делим на объём → получаем $/м³
-  const logRUPerContainer = Number(costLogisticsRU_per_container) || 0;
-  const fobPerContainer = Number(costFOB_per_container) || 0;
-  const cifPerContainer = Number(costCIF_per_container) || 0;
-
-  const logRUPerM3 = volumeM3 > 0 && isItemIncluded("logisticsRU")
-    ? logRUPerContainer / volumeM3 : 0;
-  const fobPerM3 = volumeM3 > 0 && isItemIncluded("fob")
-    ? fobPerContainer / volumeM3 : 0;
-  const cifPerM3 = volumeM3 > 0 && isItemIncluded("cif")
-    ? cifPerContainer / volumeM3 : 0;
-
-  const costPerM3_USD = rawPerM3 + logRUPerM3 + fobPerM3 + cifPerM3;
-
-  // Маржа
-  const marginMultiplier = 1 + (Number(marginPercent) || 0) / 100;
-  const pricePerM3_USD = costPerM3_USD * marginMultiplier;
-  const profitPerM3_USD = pricePerM3_USD - costPerM3_USD;
-  const pricePerCFT_USD = pricePerM3_USD / CFT_PER_M3;
-
-  // Итого по контейнеру
-  const totalCost_USD = costPerM3_USD * volumeM3;
-  const totalPrice_USD = pricePerM3_USD * volumeM3;
-  const totalProfit_USD = profitPerM3_USD * volumeM3;
-
-  // В рублях
-  const rate = Number(usdRub) || 0;
-  const totalPrice_RUB = totalPrice_USD * rate;
-  const totalProfit_RUB = totalProfit_USD * rate;
-
-  const totalVolume_CFT = volumeM3 * CFT_PER_M3;
-
-  const handleNumberInput = (key) => (e) => {
-    const val = e.target.value;
-    if (val === "") {
-      updateField(key, "");
+  const handleNum = (field) => (e) => {
+    const v = e.target.value;
+    if (v === "") {
+      updateDeal({ [field]: "" });
     } else {
-      const num = Number(val);
-      if (!isNaN(num)) {
-        updateField(key, num);
+      const num = parseFloat(v);
+      if (!isNaN(num) && num >= 0) {
+        updateDeal({ [field]: num });
       }
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
-      <nav className="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-lg">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center font-black text-xl">R</div>
-            <span className="font-black text-xl tracking-widest">RU-TIMBER</span>
-          </Link>
-          <div className="flex gap-3 text-sm flex-wrap">
-            <Link href="/calculator" className="text-slate-300 hover:text-orange-500">📦 Volume</Link>
-            <Link href="/calculator/container" className="text-slate-300 hover:text-orange-500">🚢 3D</Link>
-            <Link href="/" className="text-slate-300 hover:text-orange-500">← Home</Link>
-          </div>
-        </div>
-      </nav>
+  const species = deal.species || "pine-spruce-50-50";
+  const moisture = deal.moisture || "kd";
+  const packaging = deal.packaging || "crate";
+  const incoterm = deal.incoterm || "cif";
+  const totalVol = deal.totalVolume === "" ? 0 : parseFloat(deal.totalVolume) || 50;
+  const margin = deal.margin === "" ? 0 : parseFloat(deal.margin) || 18;
+  const rate = deal.usdRubRate === "" ? 76.25 : parseFloat(deal.usdRubRate) || 76.25;
 
-      <header className="bg-slate-900 text-white py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="inline-block bg-orange-500 text-white px-3 py-1 rounded text-xs font-bold tracking-widest mb-3">
-            STEP 3.10 · PRICING
+  // Пресет фрахта
+  const freightPreset = FREIGHT_PRESETS[deal.freightRoute] || FREIGHT_PRESETS["vlv-chennai"];
+
+  // 💰 Расчёт mill price (EXW по-честному)
+  const speciesBase = SPECIES_BASE_PRICES[species] || 160;
+  const dryingAdd = DRYING_SURCHARGE[moisture] || 0;
+  const packAdd = PACKAGING_SURCHARGE[packaging] || 0;
+  const millPrice = speciesBase + dryingAdd + packAdd;
+
+  // Честный расчёт по шагам Incoterms
+  const loadFactory = 6; // FCA завод: +$6/m³ (погрузка на пилораме)
+  const landTransport = totalVol > 0 ? 1500 / totalVol : 0; // FCA порт: фура/жд до порта
+  const portFees = totalVol > 0 ? 400 / totalVol : 0; // FOB: THC + B/L
+  const ocean = totalVol > 0 ? freightPreset.rate / totalVol : 0; // CIF: фрахт
+  const insurance = 0.011 * (millPrice + loadFactory + landTransport + portFees + ocean); // страховка 1.1%
+
+  // Сумма по выбранному Incoterm
+  let totalCost = millPrice;
+  if (incoterm === "fca-factory") totalCost = millPrice + loadFactory;
+  if (incoterm === "fca-port") totalCost = millPrice + loadFactory + landTransport;
+  if (incoterm === "fob") totalCost = millPrice + loadFactory + landTransport + portFees;
+  if (incoterm === "cif") totalCost = millPrice + loadFactory + landTransport + portFees + ocean + insurance;
+
+  // 0% пошлины при камерной сушке или обработке 4409
+  const dutyFree = moisture === "kd" || deal.profileProcessing;
+  const duty = dutyFree ? 0 : totalCost * 0.065;
+  const totalCostWithDuty = totalCost + duty;
+
+  const sellPricePerM3 = totalCostWithDuty * (1 + margin / 100);
+  const profitPerM3 = sellPricePerM3 - totalCostWithDuty;
+  const totalAmount = sellPricePerM3 * totalVol;
+  const totalProfit = profitPerM3 * totalVol;
+
+  if (!isLoaded) {
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>;
+  }
+
+  return (
+    <main className="min-h-screen bg-slate-50 pb-20">
+      {/* Header */}
+      <header className="bg-slate-900 text-white px-4 py-3 sticky top-0 z-40">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <Link href="/" className="text-sm">← Home</Link>
+          <div className="text-xs font-mono">STEP 3.11 · PRICING</div>
+          <div className="flex gap-2 text-xs">
+            <Link href="/calculator" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📐 Volume</Link>
+            <Link href="/calculator/container" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📦 3D</Link>
           </div>
-          <h1 className="text-3xl md:text-4xl font-black mb-2">
-            Pricing <span className="text-orange-500">Calculator</span>
-          </h1>
-          <p className="text-slate-300 text-sm">
-            🔗 Connected to Volume Calculator · per-container costs → per-m³ pricing
-          </p>
-          {hasMemory && (
-            <div className="mt-3 inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 px-3 py-1 rounded-full text-xs">
-              ✅ Deal restored from memory
-            </div>
-          )}
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-4xl mx-auto p-4 space-y-6">
+        {/* Title */}
+        <div className="bg-white rounded-xl p-5 shadow-sm">
+          <h1 className="text-2xl font-black text-slate-900">Pricing Calculator</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            💰 Honest cost breakdown · EXW → FCA → FOB → CIF
+          </p>
+        </div>
 
-        {/* VOLUME SNAPSHOT from Step 3.8 */}
-        <section className={`rounded-lg p-5 shadow-sm border-2 ${
-          hasVolume ? "bg-emerald-50 border-emerald-300" : "bg-amber-50 border-amber-400"
-        }`}>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="font-bold text-slate-900 mb-1 flex items-center gap-2">
-                <span>{hasVolume ? "🔗" : "⚠️"}</span>
-                Volume from Step 3.8
-              </h2>
-              {hasVolume ? (
-                <>
-                  <div className="text-3xl font-black font-mono text-orange-500">
-                    {volumeM3.toFixed(2)} m³
-                  </div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    = {totalVolume_CFT.toFixed(0)} CFT · auto-synced from Volume Calculator
-                  </div>
-                </>
-              ) : (
-                <div className="text-sm text-slate-700">
-                  No volume calculated yet. Set dimensions in Volume Calculator first.
-                </div>
-              )}
-            </div>
-            <Link href="/calculator"
-              className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold py-2 px-4 rounded transition-all active:scale-95 whitespace-nowrap">
-              📦 Edit Volume →
-            </Link>
-          </div>
+        {/* Volume info */}
+        <section className="bg-white rounded-xl p-5 shadow-sm">
+          <div className="text-xs text-slate-500">Volume from Step 3.10 (auto-synced)</div>
+          <div className="text-3xl font-black text-slate-900 mt-1">{totalVol.toFixed(2)} m³</div>
+          <Link href="/calculator" className="text-xs text-orange-500 mt-1 inline-block active:scale-95">
+            ✏ Edit Volume →
+          </Link>
         </section>
 
-        {/* INCOTERMS SELECTOR */}
-        <section className="bg-white rounded-lg p-5 shadow-sm border-2 border-orange-200">
-          <h2 className="font-bold text-slate-900 mb-1 flex items-center gap-2">
-            <span className="text-orange-500">🚢</span> Incoterms (Delivery Basis)
+        {/* Freight Route */}
+        <section className="bg-white rounded-xl p-5 shadow-sm">
+          <h2 className="font-bold text-slate-800 flex items-center">
+            🚢 Freight Route
+            <Tooltip text="Выберите направление отгрузки. Ставки фрахта ALL-IN (все сборы включены), апрель 2026. Приоритет: Владивосток → Ченнай (Индия)." />
           </h2>
-          <p className="text-xs text-slate-500 mb-4">
-            Cumulative: each adds previous costs. Dim items below = excluded.
-          </p>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {Object.values(INCOTERMS_CONFIG).map((ic) => {
-              const isActive = incoterms === ic.label;
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+            {Object.entries(FREIGHT_PRESETS).map(([key, val]) => {
+              const active = deal.freightRoute === key;
               return (
-                <button key={ic.label} onClick={() => updateField("incoterms", ic.label)}
-                  className={`text-left p-3 rounded-lg border-2 transition-all active:scale-95 ${
-                    isActive ? "border-orange-500 bg-orange-50 shadow-md" : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="font-black text-sm">{ic.icon} {ic.label}</div>
-                    {isActive && <span className="text-orange-500">✓</span>}
-                  </div>
-                  <div className="text-xs font-semibold text-slate-700">{ic.fullName}</div>
-                  <div className="text-xs text-slate-500 mt-1">{ic.description}</div>
+                <button
+                  key={key}
+                  onClick={() => updateDeal({ freightRoute: key })}
+                  className={`p-3 rounded-lg text-left text-xs transition-all active:scale-95 ${
+                    active ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  <div className="font-bold">{val.label}</div>
+                  <div className="opacity-75 mt-1">${val.rate}/40HC</div>
                 </button>
               );
             })}
           </div>
         </section>
 
-        {/* COSTS — РЕАЛИСТИЧНЫЕ ЕДИНИЦЫ */}
-        <section className="bg-white rounded-lg p-5 shadow-sm">
-          <h2 className="font-bold text-slate-900 mb-1 flex items-center gap-2">
-            <span className="text-orange-500">💵</span> Cost Breakdown
+        {/* Incoterms */}
+        <section className="bg-white rounded-xl p-5 shadow-sm">
+          <h2 className="font-bold text-slate-800 flex items-center">
+            📜 Incoterms (Delivery Basis)
+            <Tooltip text="Международные условия поставки. EXW = товар на складе. FCA завод = +погрузка в фуру. FCA порт = +доставка. FOB = +погрузка на судно. CIF = +фрахт и страховка до порта клиента. Каждый шаг добавляет стоимость." />
           </h2>
-          <p className="text-xs text-slate-500 mb-4">
-            Raw material — per m³. Logistics — per container (auto-converted to m³).
-          </p>
-
-          <div className="space-y-3">
-            {/* Raw material — $/m³ */}
-            <div className={`p-4 rounded-lg border-2 transition ${
-              isItemIncluded("raw") ? "border-emerald-200 bg-emerald-50/30" : "border-slate-200 bg-slate-50 opacity-50"
-            }`}>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-semibold text-slate-700">
-                  🌲 Raw material (mill price)
-                </label>
-                <span className="text-xs font-bold">
-                  {isItemIncluded("raw") ? "✅ included" : "⊘ excluded"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-slate-400 text-lg">$</span>
-                <input type="number" value={costRawMaterial_per_m3}
-                  onChange={handleNumberInput("costRawMaterial_per_m3")}
-                  onFocus={(e) => e.target.select()}
-                  className="flex-1 px-3 py-2 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
-                <span className="text-slate-500 text-sm font-bold">/ m³</span>
-              </div>
-              <p className="text-xs text-slate-500">Mill price per cubic meter</p>
-            </div>
-
-            {/* Logistics RU — $/container */}
-            <div className={`p-4 rounded-lg border-2 transition ${
-              isItemIncluded("logisticsRU") ? "border-emerald-200 bg-emerald-50/30" : "border-slate-200 bg-slate-50 opacity-50"
-            }`}>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-semibold text-slate-700">
-                  🚚 RU logistics (mill → port)
-                </label>
-                <span className="text-xs font-bold">
-                  {isItemIncluded("logisticsRU") ? "✅ included" : "⊘ excluded"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-slate-400 text-lg">$</span>
-                <input type="number" value={costLogisticsRU_per_container}
-                  onChange={handleNumberInput("costLogisticsRU_per_container")}
-                  onFocus={(e) => e.target.select()}
-                  className="flex-1 px-3 py-2 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
-                <span className="text-slate-500 text-sm font-bold">/ 40HC</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-500">Truck/rail to port</span>
-                <span className="font-mono font-bold text-slate-700">
-                  = ${logRUPerM3.toFixed(2)} / m³
-                </span>
-              </div>
-            </div>
-
-            {/* FOB — $/container */}
-            <div className={`p-4 rounded-lg border-2 transition ${
-              isItemIncluded("fob") ? "border-emerald-200 bg-emerald-50/30" : "border-slate-200 bg-slate-50 opacity-50"
-            }`}>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-semibold text-slate-700">
-                  ⚓ Port & loading (FOB fees)
-                </label>
-                <span className="text-xs font-bold">
-                  {isItemIncluded("fob") ? "✅ included" : "⊘ excluded"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-slate-400 text-lg">$</span>
-                <input type="number" value={costFOB_per_container}
-                  onChange={handleNumberInput("costFOB_per_container")}
-                  onFocus={(e) => e.target.select()}
-                  className="flex-1 px-3 py-2 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
-                <span className="text-slate-500 text-sm font-bold">/ 40HC</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-500">THC + B/L + doc fees</span>
-                <span className="font-mono font-bold text-slate-700">
-                  = ${fobPerM3.toFixed(2)} / m³
-                </span>
-              </div>
-            </div>
-
-            {/* CIF — $/container */}
-            <div className={`p-4 rounded-lg border-2 transition ${
-              isItemIncluded("cif") ? "border-emerald-200 bg-emerald-50/30" : "border-slate-200 bg-slate-50 opacity-50"
-            }`}>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-semibold text-slate-700">
-                  🚢 Freight + Insurance (ocean)
-                </label>
-                <span className="text-xs font-bold">
-                  {isItemIncluded("cif") ? "✅ included" : "⊘ excluded"}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-slate-400 text-lg">$</span>
-                <input type="number" value={costCIF_per_container}
-                  onChange={handleNumberInput("costCIF_per_container")}
-                  onFocus={(e) => e.target.select()}
-                  className="flex-1 px-3 py-2 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
-                <span className="text-slate-500 text-sm font-bold">/ 40HC</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-500">Ocean freight + cargo insurance</span>
-                <span className="font-mono font-bold text-slate-700">
-                  = ${cifPerM3.toFixed(2)} / m³
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 bg-slate-900 text-white rounded-lg p-3 flex justify-between items-center">
-            <div className="text-xs text-slate-400 uppercase tracking-wider">Total Cost ({incoterms})</div>
-            <div className="text-right">
-              <div className="text-2xl font-black font-mono text-orange-500">
-                ${costPerM3_USD.toFixed(2)}<span className="text-xs text-slate-400"> / m³</span>
-              </div>
-              <div className="text-xs text-slate-400 font-mono">
-                = ${totalCost_USD.toLocaleString("en-US", { maximumFractionDigits: 0 })} / container
-              </div>
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">
+            {[
+              { id: "exw", label: "EXW", ru: "Самовывоз", include: [] },
+              { id: "fca-factory", label: "FCA завод", ru: "+погрузка", include: ["load"] },
+              { id: "fca-port", label: "FCA порт", ru: "+фура", include: ["load", "land"] },
+              { id: "fob", label: "FOB", ru: "+судно", include: ["load", "land", "port"] },
+              { id: "cif", label: "CIF ⭐", ru: "+фрахт+страх.", include: ["load", "land", "port", "ocean"] },
+            ].map((t) => (
+              <button
+                key={t.id}
+                onClick={() => updateDeal({ incoterm: t.id })}
+                className={`p-2 rounded-lg text-xs transition-all active:scale-95 ${
+                  deal.incoterm === t.id ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                <div className="font-bold">{t.label}</div>
+                <div className="opacity-75 text-[10px] mt-1">{t.ru}</div>
+              </button>
+            ))}
           </div>
         </section>
 
-        {/* MARGIN + RATE */}
-        <section className="bg-white rounded-lg p-5 shadow-sm">
-          <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <span className="text-orange-500">📊</span> Margin & Exchange Rate
+        {/* Cost Breakdown */}
+        <section className="bg-white rounded-xl p-5 shadow-sm">
+          <h2 className="font-bold text-slate-800 flex items-center">
+            💵 Cost Breakdown
+            <Tooltip text="Честная себестоимость по компонентам. Меняется при смене Incoterms." />
+          </h2>
+          <div className="mt-4 space-y-2 text-sm">
+            <div className="flex justify-between border-b py-2">
+              <span className="flex items-center">
+                🌲 Mill price ({species} {moisture} {packaging})
+                <Tooltip text={`Заводская цена = База породы ($${speciesBase}) + Сушка ($${dryingAdd}) + Упаковка ($${packAdd})`} />
+              </span>
+              <span className="font-mono font-bold">${millPrice.toFixed(2)}/m³</span>
+            </div>
+
+            {["fca-factory", "fca-port", "fob", "cif"].includes(incoterm) && (
+              <div className="flex justify-between py-2 border-b text-slate-600">
+                <span>🏭 Factory loading (погрузка в фуру)</span>
+                <span className="font-mono">+${loadFactory.toFixed(2)}/m³</span>
+              </div>
+            )}
+
+            {["fca-port", "fob", "cif"].includes(incoterm) && (
+              <div className="flex justify-between py-2 border-b text-slate-600">
+                <span>🚛 Land transport (до порта РФ)</span>
+                <span className="font-mono">+${landTransport.toFixed(2)}/m³</span>
+              </div>
+            )}
+
+            {["fob", "cif"].includes(incoterm) && (
+              <div className="flex justify-between py-2 border-b text-slate-600">
+                <span>⚓ Port & THC + B/L</span>
+                <span className="font-mono">+${portFees.toFixed(2)}/m³</span>
+              </div>
+            )}
+
+            {incoterm === "cif" && (
+              <>
+                <div className="flex justify-between py-2 border-b text-slate-600">
+                  <span>🌊 Ocean freight ({freightPreset.label.split("→")[1]?.trim()})</span>
+                  <span className="font-mono">+${ocean.toFixed(2)}/m³</span>
+                </div>
+                <div className="flex justify-between py-2 border-b text-slate-600">
+                  <span>🛡 Insurance (1.1%)</span>
+                  <span className="font-mono">+${insurance.toFixed(2)}/m³</span>
+                </div>
+              </>
+            )}
+
+            {/* Пошлина */}
+            <div className={`flex justify-between py-2 border-b ${dutyFree ? "text-emerald-600" : "text-rose-600"}`}>
+              <span className="flex items-center">
+                🛃 Export duty {dutyFree ? "(0% — KD/4409)" : "(6.5% — AD raw)"}
+                <Tooltip text="Экспортная пошлина РФ. 0% если: камерная сушка (KD) ИЛИ обработка по коду 4409 (фаска/паз)." />
+              </span>
+              <span className="font-mono">+${duty.toFixed(2)}/m³</span>
+            </div>
+
+            <div className="flex justify-between py-3 border-t-2 border-slate-900">
+              <span className="font-bold">TOTAL COST ({incoterm.toUpperCase()})</span>
+              <span className="font-mono font-black text-slate-900">${totalCostWithDuty.toFixed(2)}/m³</span>
+            </div>
+          </div>
+
+          {/* Profile processing checkbox */}
+          <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={deal.profileProcessing}
+                onChange={(e) => updateDeal({ profileProcessing: e.target.checked })}
+                className="mt-1"
+              />
+              <div className="text-xs text-slate-700">
+                <div className="font-bold flex items-center">
+                  ⚙ Profile processing (HS 4409 — fаска/паз)
+                  <Tooltip text="Лёгкая фаска 2×2мм переводит товар в код ТН ВЭД 4409 → 0% экспортной пошлины. Особенно выгодно для AD доски. Стоимость обработки ~$4/m³, экономия пошлины ~$12/m³." />
+                </div>
+                <div className="opacity-75 mt-1">
+                  Для AD-доски: фаска 2×2мм → 0% пошлины РФ. Экономия ~$7/m³ чистыми.
+                </div>
+              </div>
+            </label>
+          </div>
+        </section>
+
+        {/* Margin + Rate */}
+        <section className="bg-white rounded-xl p-5 shadow-sm">
+          <h2 className="font-bold text-slate-800 flex items-center">
+            💼 Margin & Exchange Rate
+            <Tooltip text="Ваша наценка к себестоимости. Меняется по рынку." />
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Country margin presets */}
+          <div className="mt-3">
+            <div className="text-xs text-slate-500 mb-2">Quick margin by country:</div>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(COUNTRY_MARGINS).map(([country, m]) => (
+                <button
+                  key={country}
+                  onClick={() => updateDeal({ margin: m })}
+                  className={`px-3 py-2 rounded-lg text-xs transition-all active:scale-95 ${
+                    deal.margin === m ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {country === "india" && "🇮🇳 India"}
+                  {country === "china" && "🇨🇳 China"}
+                  {country === "uae" && "🇦🇪 UAE"}
+                  {country === "egypt" && "🇪🇬 Egypt"}
+                  {country === "turkey" && "🇹🇷 Turkey"}
+                  {" "}{m}%
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 mt-4">
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Margin (%)</label>
-              <input type="number" value={marginPercent} step="1"
-                onChange={handleNumberInput("marginPercent")}
+              <label className="text-xs text-slate-500 flex items-center">
+                Margin (%)
+                <Tooltip text="Типично 15-30%. Индия/Китай: 15-18% (чувствительны к цене). ОАЭ/Саудовская Аравия: 25-30% (премиум)." />
+              </label>
+              <input
+                type="number"
+                value={deal.margin}
+                onChange={handleNum("margin")}
                 onFocus={(e) => e.target.select()}
-                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
-              <p className="text-xs text-slate-500 mt-1">
-                Profit: ${profitPerM3_USD.toFixed(2)} / m³
-              </p>
+                className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-lg font-bold"
+              />
+              <div className="text-xs text-emerald-600 mt-1">Profit: ${profitPerM3.toFixed(2)}/m³</div>
             </div>
-
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">USD / RUB rate</label>
-              <input type="number" value={usdRub} step="0.5"
-                onChange={handleNumberInput("usdRub")}
+              <label className="text-xs text-slate-500 flex items-center">
+                USD / RUB
+                <Tooltip text="Курс ЦБ РФ автоматически. Кнопка 🔄 обновит курс." />
+              </label>
+              <input
+                type="number"
+                value={deal.usdRubRate}
+                onChange={handleNum("usdRubRate")}
                 onFocus={(e) => e.target.select()}
-                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
-              <p className="text-xs text-slate-500 mt-1">₽ per $1</p>
-            </div>
-          </div>
-
-          <div className="mt-4 bg-amber-50 border-l-4 border-amber-500 p-3 rounded text-xs text-slate-700">
-            💡 <strong>Tip:</strong> Typical export margin 15-30%. First deals: try 18-22%.
-          </div>
-
-          <div className="mt-4 flex flex-wrap gap-4">
-            <button onClick={resetDeal} className="text-sm text-slate-500 hover:text-orange-500 underline">
-              ↻ Reset all
-            </button>
-            <button onClick={clearMemory} className="text-sm text-rose-500 hover:text-rose-700 underline">
-              🗑️ Clear saved memory
-            </button>
-          </div>
-        </section>
-
-        {/* RESULT */}
-        <section className="bg-slate-900 text-white rounded-lg p-6 shadow-lg">
-          <h2 className="font-bold mb-4 flex items-center gap-2">
-            <span className="text-orange-500">💰</span> Final Pricing
-          </h2>
-          <div className="mb-4 text-xs text-slate-400">
-            {selectedIncoterms.icon} {selectedIncoterms.label} · Margin {marginPercent}% · {volumeM3.toFixed(2)} m³ ({totalVolume_CFT.toFixed(0)} CFT) · ₽{rate}/$
-          </div>
-
-          {!hasVolume && (
-            <div className="bg-amber-500/20 border border-amber-500/50 text-amber-200 p-3 rounded mb-4 text-sm">
-              ⚠️ Volume is 0. Go to <Link href="/calculator" className="underline font-bold">Volume Calculator</Link> and set dimensions first.
-            </div>
-          )}
-
-          {/* Price per unit */}
-          <div className="mb-5">
-            <div className="text-xs text-slate-400 uppercase tracking-wider mb-2">Selling Price per unit</div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-3xl md:text-4xl font-black font-mono text-orange-500">
-                  ${pricePerM3_USD.toFixed(2)}
-                </div>
-                <div className="text-sm text-slate-400">/ m³ (CBM)</div>
-              </div>
-              <div>
-                <div className="text-3xl md:text-4xl font-black font-mono">
-                  ${pricePerCFT_USD.toFixed(2)}
-                </div>
-                <div className="text-sm text-slate-400">/ CFT 🇮🇳</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Total deal */}
-          <div className="border-t border-slate-700 pt-5 mb-5">
-            <div className="text-xs text-slate-400 uppercase tracking-wider mb-2">Total Deal Amount ({incoterms})</div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-3xl md:text-4xl font-black font-mono text-orange-500">
-                  ${totalPrice_USD.toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                </div>
-                <div className="text-sm text-slate-400">USD</div>
-              </div>
-              <div>
-                <div className="text-3xl md:text-4xl font-black font-mono">
-                  ₽{totalPrice_RUB.toLocaleString("ru-RU", { maximumFractionDigits: 0 })}
-                </div>
-                <div className="text-sm text-slate-400">RUB</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Profit */}
-          <div className="border-t border-slate-700 pt-5">
-            <div className="text-xs text-slate-400 uppercase tracking-wider mb-2">Your Profit</div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-2xl md:text-3xl font-black font-mono text-emerald-400">
-                  +${totalProfit_USD.toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                </div>
-                <div className="text-sm text-slate-400">USD</div>
-              </div>
-              <div>
-                <div className="text-2xl md:text-3xl font-black font-mono text-emerald-400">
-                  +₽{totalProfit_RUB.toLocaleString("ru-RU", { maximumFractionDigits: 0 })}
-                </div>
-                <div className="text-sm text-slate-400">RUB</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Breakdown */}
-          <div className="mt-5 pt-5 border-t border-slate-700">
-            <div className="text-xs text-slate-400 uppercase tracking-wider mb-3">Breakdown (per m³)</div>
-            <div className="space-y-1 text-sm font-mono">
-              {isItemIncluded("raw") && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">🌲 Raw material</span>
-                  <span>${rawPerM3.toFixed(2)}</span>
-                </div>
-              )}
-              {isItemIncluded("logisticsRU") && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">🚚 RU logistics <span className="text-xs">(${logRUPerContainer}/cnt ÷ {volumeM3.toFixed(1)}m³)</span></span>
-                  <span>${logRUPerM3.toFixed(2)}</span>
-                </div>
-              )}
-              {isItemIncluded("fob") && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">⚓ Port & loading <span className="text-xs">(${fobPerContainer}/cnt)</span></span>
-                  <span>${fobPerM3.toFixed(2)}</span>
-                </div>
-              )}
-              {isItemIncluded("cif") && (
-                <div className="flex justify-between">
-                  <span className="text-slate-400">🚢 Freight + Ins. <span className="text-xs">(${cifPerContainer}/cnt)</span></span>
-                  <span>${cifPerM3.toFixed(2)}</span>
-                </div>
-              )}
-              <div className="flex justify-between pt-2 border-t border-slate-700">
-                <span className="text-slate-400">Total cost</span>
-                <span>${costPerM3_USD.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-emerald-400">
-                <span>+ Margin {marginPercent}%</span>
-                <span>+${profitPerM3_USD.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between font-black text-orange-500 pt-2 border-t border-slate-700">
-                <span>= SELLING PRICE</span>
-                <span>${pricePerM3_USD.toFixed(2)} / m³</span>
+                className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-lg font-bold"
+              />
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  onClick={fetchCBR}
+                  disabled={cbrLoading}
+                  className="text-xs text-orange-500 active:scale-95"
+                >
+                  {cbrLoading ? "⏳ Загрузка..." : "🔄 Обновить ЦБ"}
+                </button>
+                {cbrDate && !cbrError && (
+                  <span className="text-[10px] text-slate-400">ЦБ РФ: {cbrDate}</span>
+                )}
+                {cbrError && (
+                  <span className="text-[10px] text-rose-500">⚠ Ошибка загрузки</span>
+                )}
               </div>
             </div>
           </div>
         </section>
 
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded text-sm text-slate-700">
-          ℹ️ <strong>Next (Step 4):</strong> 3D Container visualizer + PDF quotation export
+        {/* Final pricing */}
+        <section className="bg-slate-900 text-white rounded-xl p-5 shadow-lg">
+          <h2 className="font-bold">💎 Final Pricing</h2>
+          <div className="text-xs opacity-60 mt-1">
+            {incoterm.toUpperCase()} · Margin {margin}% · {totalVol.toFixed(2)} m³ · ₽{rate}/$
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs opacity-60">SELLING PRICE PER m³</div>
+              <div className="text-3xl font-black">${sellPricePerM3.toFixed(2)}</div>
+              <div className="text-xs opacity-60">≈ ₽{(sellPricePerM3 * rate).toFixed(0)}</div>
+            </div>
+            <div>
+              <div className="text-xs opacity-60">TOTAL DEAL ({incoterm.toUpperCase()})</div>
+              <div className="text-3xl font-black">${totalAmount.toFixed(0)}</div>
+              <div className="text-xs opacity-60">≈ ₽{(totalAmount * rate).toFixed(0)}</div>
+            </div>
+          </div>
+
+          <div className="mt-4 p-3 bg-emerald-900/50 rounded-lg">
+            <div className="text-xs opacity-75">YOUR PROFIT</div>
+            <div className="text-2xl font-black text-emerald-400">
+              +${totalProfit.toFixed(0)} <span className="text-sm opacity-75">(+₽{(totalProfit * rate).toFixed(0)})</span>
+            </div>
+          </div>
+
+          <Link
+            href="/calculator/container"
+            className="block w-full mt-5 bg-orange-500 text-white text-center py-3 rounded-lg font-bold active:scale-95"
+          >
+            📦 Continue to 3D View →
+          </Link>
+        </section>
+
+        <div className="text-center text-xs text-slate-400">
+          Powered by RU-TIMBER Export · +7 915 349 00 07
         </div>
-      </main>
-
-      <footer className="bg-slate-900 text-slate-400 text-center py-6 text-xs">
-        Powered by RU-TIMBER Export | Contact: +7 915 349 00 07
-      </footer>
-    </div>
+      </div>
+    </main>
   );
 }

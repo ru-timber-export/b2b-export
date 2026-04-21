@@ -1,622 +1,504 @@
 "use client";
-import { useEffect } from "react";
+
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useDeal } from "../context/DealContext";
+import { useDeal, SPECIES_BASE_PRICES } from "../context/DealContext";
 
-const PRESETS_SIZES = [
-  { label: "44 × 150 × 5980", t: 44, w: 150, l: 5980 },
-  { label: "50 × 150 × 5980", t: 50, w: 150, l: 5980 },
-  { label: "25 × 100 × 5980", t: 25, w: 100, l: 5980 },
-  { label: "32 × 100 × 5980", t: 32, w: 100, l: 5980 },
-  { label: "50 × 200 × 5980", t: 50, w: 200, l: 5980 },
-];
-
-const END_USE_PRESETS = [
-  { id: "CONSTRUCTION", label: "Construction", ru: "Строительство", icon: "🏗️",
-    recommendedSizes: "50×150, 50×200, 100×100", recommendedSpecies: "PINE",
-    recommendedSpeciesLabel: "Pine or Pine+Spruce mix", allowedMoisture: ["KD","AD"],
-    defaultMoisture: "AD", grade: "2-3 grade (structural)",
-    disclaimer: "INTENDED USE: CONSTRUCTION / STRUCTURAL. Not suitable for visible interior finish, furniture, or direct ground contact without treatment." },
-  { id: "FURNITURE", label: "Furniture", ru: "Мебель", icon: "🪑",
-    recommendedSizes: "25×100, 32×150, 50×200", recommendedSpecies: "PINE",
-    recommendedSpeciesLabel: "Pine, Birch, Oak", allowedMoisture: ["KD"],
-    defaultMoisture: "KD", grade: "1st (Select)",
-    disclaimer: "INTENDED USE: FURNITURE PRODUCTION. Grade: 1st (Select). Moisture: KD 8-12%. Not suitable for construction or outdoor exposure." },
-  { id: "PACKAGING", label: "Packaging", ru: "Упаковка", icon: "📦",
-    recommendedSizes: "22×100, 25×75", recommendedSpecies: "PINE_SPRUCE_50",
-    recommendedSpeciesLabel: "Pine+Spruce mix, SPF", allowedMoisture: ["AD"],
-    defaultMoisture: "AD", grade: "3-4 grade",
-    disclaimer: "INTENDED USE: PACKAGING / PALLETS. Grade: 3-4. Moisture: AD 18-22%. ISPM-15 heat treatment on request." },
-  { id: "INTERIOR", label: "Interior", ru: "Отделка", icon: "🏠",
-    recommendedSizes: "14×96, 20×96", recommendedSpecies: "PINE",
-    recommendedSpeciesLabel: "Pine, Cedar, Aspen", allowedMoisture: ["KD"],
-    defaultMoisture: "KD", grade: "1-2 grade",
-    disclaimer: "INTENDED USE: INTERIOR LINING. Moisture: KD. Not for outdoor exposure or load-bearing." },
-  { id: "SAUNA", label: "Sauna", ru: "Баня", icon: "🛁",
-    recommendedSizes: "15×90, 20×90", recommendedSpecies: "ASPEN",
-    recommendedSpeciesLabel: "Aspen, Cedar, Lime", allowedMoisture: ["KD"],
-    defaultMoisture: "KD", grade: "1st (Select)",
-    disclaimer: "INTENDED USE: SAUNA INTERIOR. Grade: 1st. No resin-releasing species. Moisture: KD." },
-  { id: "DECKING", label: "Decking", ru: "Террасы", icon: "🪵",
-    recommendedSizes: "28×145, 45×145", recommendedSpecies: "LARCH",
-    recommendedSpeciesLabel: "Larch, Oak (naturally durable)", allowedMoisture: ["AD"],
-    defaultMoisture: "AD", grade: "Select",
-    disclaimer: "INTENDED USE: OUTDOOR DECKING. Moisture: AD. Natural durability required. Regular maintenance needed." },
-  { id: "INDUSTRIAL", label: "Industrial", ru: "Опалубка", icon: "🏭",
-    recommendedSizes: "25×150, 50×200", recommendedSpecies: "PINE",
-    recommendedSpeciesLabel: "Pine, Spruce", allowedMoisture: ["AD"],
-    defaultMoisture: "AD", grade: "4 grade / technical",
-    disclaimer: "INTENDED USE: INDUSTRIAL / FORMWORK. Moisture: AD 18-22% minimum (fresh-sawn not exported due to mold risk). Grade: technical." },
-];
-
-const SPECIES = [
-  { id: "PINE", label: "Pine", ru: "Сосна", icon: "🌲", isMix: false,
-    densities: { KD: 500, AD: 600, FRESH: 750 }, desc: "Most popular export. Redwood." },
-  { id: "SPRUCE", label: "Spruce", ru: "Ель", icon: "🌲", isMix: false,
-    densities: { KD: 450, AD: 550, FRESH: 700 }, desc: "Lightest softwood. Whitewood." },
-  { id: "PINE_SPRUCE_50", label: "Pine+Spruce 50/50", ru: "Сосна+Ель 50/50", icon: "🌲🌲", isMix: true,
-    densities: { KD: 475, AD: 575, FRESH: 725 }, desc: "GOST 8486 mixed softwood." },
-  { id: "PINE_SPRUCE_70", label: "Pine+Spruce 70/30", ru: "Сосна+Ель 70/30", icon: "🌲🌲", isMix: true,
-    densities: { KD: 485, AD: 585, FRESH: 735 }, desc: "Pine-dominant mix." },
-  { id: "SPF", label: "SPF / Whitewood", ru: "Ель+Пихта", icon: "🌲🌲", isMix: true,
-    densities: { KD: 440, AD: 540, FRESH: 690 }, desc: "Spruce+Fir. Export staple." },
-  { id: "LARCH", label: "Larch", ru: "Лиственница", icon: "🌳", isMix: false,
-    densities: { KD: 650, AD: 750, FRESH: 900 }, desc: "Heavy & strong!" },
-  { id: "CEDAR", label: "Cedar", ru: "Кедр", icon: "🌲", isMix: false,
-    densities: { KD: 435, AD: 520, FRESH: 670 }, desc: "Aromatic, premium." },
-  { id: "BIRCH", label: "Birch", ru: "Берёза", icon: "🌿", isMix: false,
-    densities: { KD: 640, AD: 720, FRESH: 880 }, desc: "Hardwood. Heavy." },
-  { id: "OAK", label: "Oak", ru: "Дуб", icon: "🌳", isMix: false,
-    densities: { KD: 700, AD: 790, FRESH: 950 }, desc: "Heaviest! Premium." },
-  { id: "ASPEN", label: "Aspen", ru: "Осина", icon: "🌿", isMix: false,
-    densities: { KD: 450, AD: 530, FRESH: 680 }, desc: "Light, sauna lining." },
-  { id: "CUSTOM", label: "Custom Mix", ru: "Свой микс", icon: "🎛️", isMix: true, isCustom: true,
-    desc: "Set your own Pine/Spruce ratio." },
-];
-
-const MOISTURE_OPTIONS = [
-  { id: "KD", label: "KD", fullName: "Kiln Dried", range: "10-12%", desc: "Chamber-dried. Premium." },
-  { id: "AD", label: "AD", fullName: "Air Dried", range: "18-22%", desc: "Standard for shipping." },
-  { id: "FRESH", label: "Fresh", fullName: "Fresh Sawn", range: "22-30%", desc: "⚠️ NOT for export!" },
-];
-
-const PINE_DENSITIES = { KD: 500, AD: 600, FRESH: 750 };
-const SPRUCE_DENSITIES = { KD: 450, AD: 550, FRESH: 700 };
-
-const CONTAINER_40HC = {
-  maxVolume_m3: 76,
-  maxWeight_kg: 26580,
+// 🇷🇺 Подсказки
+const Tooltip = ({ text }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-block ml-1">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-300 active:scale-95"
+      >
+        ℹ
+      </button>
+      {open && (
+        <span
+          onClick={() => setOpen(false)}
+          className="absolute z-50 left-0 top-6 w-64 bg-slate-900 text-white text-xs p-3 rounded-lg shadow-xl leading-relaxed"
+        >
+          {text}
+        </span>
+      )}
+    </span>
+  );
 };
 
+// Плотности
+const DENSITIES = {
+  pine: { kd: 475, ad: 575, fresh: 725 },
+  spruce: { kd: 425, ad: 515, fresh: 650 },
+  "pine-spruce-50-50": { kd: 450, ad: 545, fresh: 687 },
+  "pine-spruce-70-30": { kd: 460, ad: 557, fresh: 702 },
+  spf: { kd: 415, ad: 505, fresh: 635 },
+  larch: { kd: 620, ad: 720, fresh: 850 },
+  cedar: { kd: 410, ad: 500, fresh: 620 },
+  birch: { kd: 610, ad: 710, fresh: 850 },
+  oak: { kd: 670, ad: 770, fresh: 900 },
+  aspen: { kd: 420, ad: 510, fresh: 640 },
+};
+
+const SPECIES_LIST = [
+  { id: "pine", label: "Pine", ru: "Сосна", pure: true },
+  { id: "spruce", label: "Spruce", ru: "Ель", pure: true },
+  { id: "larch", label: "Larch", ru: "Лиственница", pure: true },
+  { id: "cedar", label: "Cedar", ru: "Кедр", pure: true },
+  { id: "birch", label: "Birch", ru: "Берёза", pure: true },
+  { id: "oak", label: "Oak", ru: "Дуб", pure: true },
+  { id: "aspen", label: "Aspen", ru: "Осина", pure: true },
+  { id: "pine-spruce-50-50", label: "Pine+Spruce 50/50", ru: "Сосна+Ель 50/50", pure: false },
+  { id: "pine-spruce-70-30", label: "Pine+Spruce 70/30", ru: "Сосна+Ель 70/30", pure: false },
+  { id: "spf", label: "SPF / Whitewood", ru: "Ель+Пихта", pure: false },
+];
+
+const LENGTH_PRESETS = [
+  { mm: 3000, label: "3000", status: "yellow", note: "Мебель, короткая" },
+  { mm: 4000, label: "4000", status: "yellow", note: "Мебель / строительство" },
+  { mm: 5100, label: "5100", status: "green", note: "Тяжёлые породы (дуб)" },
+  { mm: 5950, label: "5950", status: "green", note: "Запас по весу" },
+  { mm: 5980, label: "5980 ⭐", status: "green", note: "Экспорт-стандарт" },
+  { mm: 6000, label: "6000", status: "red", note: "НЕ влезает в 40HC!" },
+];
+
+const SIZE_PRESETS = [
+  { t: 22, w: 100, tag: "Упаковка" },
+  { t: 25, w: 100, tag: "Универсал" },
+  { t: 32, w: 100, tag: "Опалубка" },
+  { t: 44, w: 150, tag: "⭐ Экспорт" },
+  { t: 50, w: 150, tag: "Стропила" },
+  { t: 50, w: 200, tag: "Балки" },
+];
+
+const END_USES = [
+  { id: "construction", label: "🏗 Construction", ru: "Строительство", grade: "2-3 grade (structural)" },
+  { id: "furniture", label: "🪑 Furniture", ru: "Мебель", grade: "1st (Select)" },
+  { id: "packaging", label: "📦 Packaging", ru: "Упаковка", grade: "3-4 grade" },
+  { id: "interior", label: "🏠 Interior", ru: "Отделка", grade: "1-2 grade" },
+  { id: "sauna", label: "🧖 Sauna", ru: "Баня", grade: "1st (Select)" },
+  { id: "decking", label: "🌳 Decking", ru: "Террасы", grade: "Select" },
+  { id: "industrial", label: "🏭 Industrial", ru: "Опалубка", grade: "4 grade" },
+];
+
 export default function CalculatorPage() {
-  const { deal, updateField, updateFields, resetDeal, clearMemory, hasMemory } = useDeal();
+  const { deal, updateDeal, resetDeal, isLoaded } = useDeal();
 
-  // Удобные алиасы
-  const {
-    thickness, width, length, inputMode, quantity, volumeInput,
-    species, moisture, pinePercent, endUse,
-  } = deal;
+  const handleNum = (field) => (e) => {
+    const v = e.target.value;
+    if (v === "") {
+      updateDeal({ [field]: "" });
+    } else {
+      const num = parseFloat(v);
+      if (!isNaN(num) && num >= 0) {
+        updateDeal({ [field]: num });
+      }
+    }
+  };
 
-  const volumePerBoard_m3 = (thickness * width * length) / 1_000_000_000;
+  const species = deal.species || "pine-spruce-50-50";
+  const moisture = deal.moisture || "kd";
+  const density = DENSITIES[species]?.[moisture] || 475;
 
-  let actualQuantity, totalVolume_m3;
-  if (inputMode === "volume") {
-    totalVolume_m3 = Number(volumeInput) || 0;
-    actualQuantity = volumePerBoard_m3 > 0 ? Math.round(totalVolume_m3 / volumePerBoard_m3) : 0;
-  } else {
-    actualQuantity = Number(quantity) || 0;
-    totalVolume_m3 = volumePerBoard_m3 * actualQuantity;
+  const thickness = parseFloat(deal.thickness) || 0;
+  const width = parseFloat(deal.width) || 0;
+  const length = parseFloat(deal.length) || 0;
+  const boardVol = (thickness * width * length) / 1_000_000_000;
+  const boardWeight = boardVol * density;
+
+  const totalVol = deal.totalVolume === "" ? 0 : parseFloat(deal.totalVolume) || 0;
+  const pieces = boardVol > 0 ? Math.round(totalVol / boardVol) : 0;
+  const totalWeight = totalVol * density;
+
+  const MAX_VOL = 76;
+  const MAX_WEIGHT = 26580;
+  const volPct = Math.min((totalVol / MAX_VOL) * 100, 999);
+  const weightPct = Math.min((totalWeight / MAX_WEIGHT) * 100, 999);
+  const overloaded = totalVol > MAX_VOL || totalWeight > MAX_WEIGHT;
+
+  if (!isLoaded) {
+    return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>;
   }
-
-  const totalVolume_cft = totalVolume_m3 * 35.3147;
-
-  const selectedSpecies = SPECIES.find((s) => s.id === species);
-  const selectedMoisture = MOISTURE_OPTIONS.find((m) => m.id === moisture);
-  const selectedEndUse = END_USE_PRESETS.find((p) => p.id === endUse);
-
-  let density;
-  if (selectedSpecies.isCustom) {
-    const pineD = PINE_DENSITIES[moisture];
-    const spruceD = SPRUCE_DENSITIES[moisture];
-    density = Math.round((pineD * pinePercent + spruceD * (100 - pinePercent)) / 100);
-  } else {
-    density = selectedSpecies.densities[moisture];
-  }
-
-  const totalWeight_kg = totalVolume_m3 * density;
-  const totalWeight_t = totalWeight_kg / 1000;
-  const safeLoad_m3 = 26580 / density;
-
-  const volumeOverload = totalVolume_m3 > CONTAINER_40HC.maxVolume_m3;
-  const weightOverload = totalWeight_kg > CONTAINER_40HC.maxWeight_kg;
-  const hasOverload = volumeOverload || weightOverload;
-  const volumeOverBy = volumeOverload ? (totalVolume_m3 - CONTAINER_40HC.maxVolume_m3) : 0;
-  const weightOverBy = weightOverload ? (totalWeight_kg - CONTAINER_40HC.maxWeight_kg) : 0;
-  const volumePercent = Math.min((totalVolume_m3 / CONTAINER_40HC.maxVolume_m3) * 100, 100);
-  const weightPercent = Math.min((totalWeight_kg / CONTAINER_40HC.maxWeight_kg) * 100, 100);
-
-  // Сохраняем расчётный объём в контекст для pricing-страницы
-  useEffect(() => {
-    updateField("computedVolume_m3", totalVolume_m3);
-    updateField("computedWeight_kg", totalWeight_kg);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalVolume_m3, totalWeight_kg]);
-
-  const applyEndUse = (preset) => {
-    updateFields({
-      endUse: preset.id,
-      species: preset.recommendedSpecies,
-      moisture: preset.defaultMoisture,
-    });
-  };
-
-  const moistureWarning = selectedEndUse && !selectedEndUse.allowedMoisture.includes(moisture);
-
-  const applyPreset = (preset) => {
-    updateFields({ thickness: preset.t, width: preset.w, length: preset.l });
-  };
-
-  const densityLabel = selectedSpecies.isCustom
-    ? `Pine ${pinePercent}% + Spruce ${100 - pinePercent}%`
-    : selectedSpecies.label;
-
-  const handleNumberInput = (key) => (e) => {
-    const val = e.target.value;
-    updateField(key, val === "" ? 0 : Number(val));
-  };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
-      <nav className="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-lg">
-        <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center font-black text-xl">R</div>
-            <span className="font-black text-xl tracking-widest">RU-TIMBER</span>
-          </Link>
-          <div className="flex gap-3 text-sm flex-wrap">
-            <Link href="/calculator/container" className="text-slate-300 hover:text-orange-500">🚢 3D</Link>
-            <Link href="/calculator/pricing" className="text-slate-300 hover:text-orange-500">💰 Pricing</Link>
-            <Link href="/" className="text-slate-300 hover:text-orange-500">← Home</Link>
+    <main className="min-h-screen bg-slate-50 pb-20">
+      {/* Header */}
+      <header className="bg-slate-900 text-white px-4 py-3 sticky top-0 z-40">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <Link href="/" className="text-sm">← Home</Link>
+          <div className="text-xs font-mono">STEP 3.11 · CALCULATOR</div>
+          <div className="flex gap-2 text-xs">
+            <Link href="/calculator/pricing" className="bg-orange-500 px-2 py-1 rounded active:scale-95">💰 Pricing</Link>
+            <Link href="/calculator/container" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📦 3D</Link>
           </div>
-        </div>
-      </nav>
-
-      <header className="bg-slate-900 text-white py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="inline-block bg-orange-500 text-white px-3 py-1 rounded text-xs font-bold tracking-widest mb-3">
-            STEP 3.10 · CONNECTED
-          </div>
-          <h1 className="text-3xl md:text-4xl font-black mb-2">
-            Container Loading <span className="text-orange-500">Calculator</span>
-          </h1>
-          <p className="text-slate-300 text-sm">
-            🔗 Connected to Pricing — volume auto-flows between pages
-          </p>
-          {hasMemory && (
-            <div className="mt-3 inline-flex items-center gap-2 bg-emerald-500/20 border border-emerald-500/50 text-emerald-300 px-3 py-1 rounded-full text-xs">
-              ✅ Deal restored from memory
-            </div>
-          )}
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <div className="max-w-4xl mx-auto p-4 space-y-6">
+        {/* Title */}
+        <div className="bg-white rounded-xl p-5 shadow-sm">
+          <h1 className="text-2xl font-black text-slate-900">Container Loading Calculator</h1>
+          <p className="text-sm text-slate-500 mt-1">🔗 Connected to Pricing · auto-saved</p>
+        </div>
 
-        {/* END-USE PRESETS */}
-        <section className="bg-white rounded-lg p-5 shadow-sm border-2 border-orange-200">
-          <h2 className="font-bold text-slate-900 mb-1 flex items-center gap-2">
-            <span className="text-orange-500">🎯</span> What is it for? (End-Use)
+        {/* End-Use */}
+        <section className="bg-white rounded-xl p-5 shadow-sm">
+          <h2 className="font-bold text-slate-800 flex items-center">
+            🎯 End-Use Presets
+            <Tooltip text="Выбор назначения автоматически подставит породу, влажность и сорт. Помогает не запутаться с сортами ГОСТ." />
           </h2>
-          <p className="text-xs text-slate-500 mb-4">Auto-suggests species, moisture, grade.</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {END_USE_PRESETS.map((p) => {
-              const isActive = endUse === p.id;
-              return (
-                <button key={p.id} onClick={() => applyEndUse(p)}
-                  className={`text-left p-3 rounded-lg border-2 transition-all active:scale-95 ${
-                    isActive ? "border-orange-500 bg-orange-50 shadow-md" : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="font-bold text-sm">{p.icon} {p.label}</div>
-                    {isActive && <span className="text-orange-500">✓</span>}
-                  </div>
-                  <div className="text-xs text-slate-500">{p.ru}</div>
-                  <div className="text-xs text-slate-400 mt-1">Grade: {p.grade}</div>
-                </button>
-              );
-            })}
-          </div>
-
-          {selectedEndUse && (
-            <div className="mt-4 space-y-3">
-              <div className="bg-blue-50 border-l-4 border-blue-500 p-3 rounded text-xs text-slate-700">
-                ℹ️ <strong>Recommended for {selectedEndUse.label}:</strong><br/>
-                • Sizes: {selectedEndUse.recommendedSizes}<br/>
-                • Species: {selectedEndUse.recommendedSpeciesLabel}<br/>
-                • Moisture: {selectedEndUse.allowedMoisture.join(" or ")} only<br/>
-                • Grade: {selectedEndUse.grade}
-              </div>
-              <div className="bg-emerald-50 border-l-4 border-emerald-500 p-3 rounded text-xs text-slate-700">
-                🛡️ <strong>Legal Protection Enabled</strong><br/>
-                <em className="text-slate-600 block mt-2 pl-2 border-l-2 border-emerald-300">
-                  &quot;{selectedEndUse.disclaimer}&quot;
-                </em>
-              </div>
-              {moistureWarning && (
-                <div className="bg-rose-50 border-l-4 border-rose-500 p-3 rounded text-xs text-slate-700">
-                  ⚠️ <strong>Moisture mismatch!</strong> For {selectedEndUse.label} use{" "}
-                  {selectedEndUse.allowedMoisture.join(" or ")}, not {moisture}.
-                </div>
-              )}
-              <button onClick={() => updateField("endUse", null)} className="text-xs text-slate-500 hover:text-orange-500 underline">
-                ✕ Clear end-use selection
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+            {END_USES.map((u) => (
+              <button
+                key={u.id}
+                onClick={() => updateDeal({ endUse: u.id })}
+                className={`p-3 rounded-lg text-left text-xs transition-all active:scale-95 ${
+                  deal.endUse === u.id ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+                }`}
+              >
+                <div className="font-bold">{u.label}</div>
+                <div className="opacity-75 mt-1">{u.ru}</div>
+                <div className="opacity-60 text-[10px] mt-1">{u.grade}</div>
               </button>
-            </div>
-          )}
+            ))}
+          </div>
         </section>
 
-        {/* SIZE PRESETS */}
-        <section className="bg-white rounded-lg p-5 shadow-sm">
-          <h2 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
-            <span className="text-orange-500">⚡</span> Quick Size Presets
+        {/* Dimensions */}
+        <section className="bg-white rounded-xl p-5 shadow-sm">
+          <h2 className="font-bold text-slate-800 flex items-center">
+            📐 Board Dimensions
+            <Tooltip text="Размеры одной доски в миллиметрах. По ГОСТ 24454-80 стандарт для экспорта — толщина 44мм, ширина 150мм." />
           </h2>
-          <div className="flex flex-wrap gap-2">
-            {PRESETS_SIZES.map((p) => {
-              const isActive = thickness === p.t && width === p.w && length === p.l;
+
+          {/* Size presets */}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {SIZE_PRESETS.map((p) => {
+              const active = deal.thickness === p.t && deal.width === p.w;
               return (
-                <button key={p.label} onClick={() => applyPreset(p)}
-                  className={`px-3 py-2 text-sm rounded font-mono transition-all active:scale-95 ${
-                    isActive ? "bg-orange-500 text-white shadow-md ring-2 ring-orange-300"
-                    : "bg-slate-100 text-slate-700 hover:bg-orange-500 hover:text-white"
-                  }`}>
-                  {isActive && "✓ "}{p.label}
+                <button
+                  key={`${p.t}-${p.w}`}
+                  onClick={() => updateDeal({ thickness: p.t, width: p.w })}
+                  className={`px-3 py-2 rounded-lg text-xs font-mono transition-all active:scale-95 ${
+                    active ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  {p.t}×{p.w} <span className="opacity-60">· {p.tag}</span>
                 </button>
               );
             })}
           </div>
-          <p className="text-xs text-slate-500 mt-2">
-            ℹ️ Standard export sizes for 40ft HC container (length 5980mm optimal)
-          </p>
+
+          {/* Inputs */}
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <div>
+              <label className="text-xs text-slate-500 flex items-center">
+                Thickness (mm)
+                <Tooltip text="Толщина доски. Стандарты: 22, 25, 32, 44, 50 мм." />
+              </label>
+              <input
+                type="number"
+                value={deal.thickness}
+                onChange={handleNum("thickness")}
+                onFocus={(e) => e.target.select()}
+                className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-lg font-bold"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 flex items-center">
+                Width (mm)
+                <Tooltip text="Ширина доски. Стандарты: 100, 125, 150, 200, 250 мм." />
+              </label>
+              <input
+                type="number"
+                value={deal.width}
+                onChange={handleNum("width")}
+                onFocus={(e) => e.target.select()}
+                className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-lg font-bold"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 flex items-center">
+                Length (mm)
+                <Tooltip text="Длина доски. Для 40HC оптимум 5980мм (2 пачки подряд). 6000мм НЕ влезает!" />
+              </label>
+              <input
+                type="number"
+                value={deal.length}
+                onChange={handleNum("length")}
+                onFocus={(e) => e.target.select()}
+                className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-lg font-bold"
+              />
+            </div>
+          </div>
+
+          {/* Length presets — светофор */}
+          <div className="mt-3">
+            <div className="text-xs text-slate-500 mb-2">Length presets (40HC fit check):</div>
+            <div className="flex flex-wrap gap-2">
+              {LENGTH_PRESETS.map((p) => {
+                const active = deal.length === p.mm;
+                const colors = {
+                  green: active ? "bg-emerald-500 text-white" : "bg-emerald-50 text-emerald-700 border border-emerald-300",
+                  yellow: active ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-700 border border-amber-300",
+                  red: active ? "bg-rose-500 text-white" : "bg-rose-50 text-rose-700 border border-rose-300",
+                };
+                return (
+                  <button
+                    key={p.mm}
+                    onClick={() => updateDeal({ length: p.mm })}
+                    className={`px-3 py-2 rounded-lg text-xs font-mono transition-all active:scale-95 ${colors[p.status]}`}
+                    title={p.note}
+                  >
+                    {p.label}mm
+                    <div className="text-[10px] opacity-75">{p.note}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </section>
 
-        {/* DIMENSIONS + INPUT MODE */}
-        <section className="bg-white rounded-lg p-5 shadow-sm">
-          <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-            <span className="text-orange-500">📐</span> Board Dimensions
+        {/* Total Volume / Pieces */}
+        <section className="bg-white rounded-xl p-5 shadow-sm">
+          <h2 className="font-bold text-slate-800 flex items-center">
+            📊 Input Mode
+            <Tooltip text="Выберите: считать по объёму (м³) или по количеству досок (штук). Калькулятор автоматически пересчитает." />
           </h2>
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={() => updateDeal({ inputMode: "volume" })}
+              className={`flex-1 p-3 rounded-lg text-sm transition-all active:scale-95 ${
+                deal.inputMode === "volume" ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              📦 Volume (m³)
+            </button>
+            <button
+              onClick={() => updateDeal({ inputMode: "pieces" })}
+              className={`flex-1 p-3 rounded-lg text-sm transition-all active:scale-95 ${
+                deal.inputMode === "pieces" ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              🔢 Pieces
+            </button>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Thickness (mm)</label>
-              <input type="number" value={thickness}
-                onChange={handleNumberInput("thickness")}
-                onFocus={(e) => e.target.select()}
-                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
-              <p className="text-xs text-slate-500 mt-1">{(thickness / 25.4).toFixed(2)}&quot;</p>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Width (mm)</label>
-              <input type="number" value={width}
-                onChange={handleNumberInput("width")}
-                onFocus={(e) => e.target.select()}
-                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
-              <p className="text-xs text-slate-500 mt-1">{(width / 25.4).toFixed(2)}&quot;</p>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Length (mm)</label>
-              <input type="number" value={length}
-                onChange={handleNumberInput("length")}
-                onFocus={(e) => e.target.select()}
-                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
-              <p className="text-xs text-slate-500 mt-1">{(length / 304.8).toFixed(2)} ft</p>
+          <div className="mt-4">
+            <label className="text-xs text-slate-500 flex items-center">
+              Total Volume (m³)
+              <Tooltip text="Общий объём заказа в кубических метрах. Лимит 40HC = 76 m³ и 26580 кг. Обычно грузят 50-56 m³ для KD." />
+            </label>
+            <input
+              type="number"
+              value={deal.totalVolume}
+              onChange={handleNum("totalVolume")}
+              onFocus={(e) => e.target.select()}
+              placeholder="Введите объём..."
+              className="w-full mt-1 p-3 border border-slate-300 rounded-lg text-2xl font-black text-slate-900"
+            />
+            <div className="text-xs text-slate-500 mt-1">
+              ≈ {pieces.toLocaleString()} pcs · {(totalVol * 35.3147).toFixed(0)} CFT
             </div>
           </div>
 
-          <div className="mb-3">
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Input mode:</label>
-            <div className="inline-flex rounded-lg border-2 border-slate-200 p-1 bg-slate-50">
-              <button onClick={() => updateField("inputMode", "volume")}
-                className={`px-4 py-2 rounded text-sm font-semibold transition-all active:scale-95 ${
-                  inputMode === "volume" ? "bg-orange-500 text-white shadow" : "text-slate-600 hover:bg-slate-100"
-                }`}>📦 Volume (m³)</button>
-              <button onClick={() => updateField("inputMode", "pieces")}
-                className={`px-4 py-2 rounded text-sm font-semibold transition-all active:scale-95 ${
-                  inputMode === "pieces" ? "bg-orange-500 text-white shadow" : "text-slate-600 hover:bg-slate-100"
-                }`}>🔢 Pieces</button>
-            </div>
-          </div>
-
-          {inputMode === "volume" ? (
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Total Volume (m³)</label>
-              <input type="number" value={volumeInput} step="0.1"
-                onChange={handleNumberInput("volumeInput")}
-                onFocus={(e) => e.target.select()}
-                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
-              <p className="text-xs text-slate-500 mt-1">
-                ≈ {actualQuantity.toLocaleString()} pcs · {(totalVolume_m3 * 35.3147).toFixed(0)} CFT
-              </p>
-            </div>
-          ) : (
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Quantity (pcs)</label>
-              <input type="number" value={quantity}
-                onChange={handleNumberInput("quantity")}
-                onFocus={(e) => e.target.select()}
-                className="w-full px-3 py-3 border-2 border-slate-200 rounded text-lg font-mono focus:border-orange-500 focus:outline-none" />
-              <p className="text-xs text-slate-500 mt-1">
-                = {totalVolume_m3.toFixed(2)} m³ · {(totalVolume_m3 * 35.3147).toFixed(0)} CFT
-              </p>
+          {overloaded && (
+            <div className="mt-3 p-3 bg-rose-100 border border-rose-300 rounded-lg text-rose-800 text-sm">
+              ⚠ OVERLOAD! {totalVol > MAX_VOL && `Volume ${totalVol.toFixed(1)} > 76 m³. `}
+              {totalWeight > MAX_WEIGHT && `Weight ${(totalWeight / 1000).toFixed(1)} > 26.58 t.`}
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-4">
-            <button onClick={resetDeal} className="text-sm text-slate-500 hover:text-orange-500 underline">
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={resetDeal}
+              className="text-xs text-slate-500 hover:text-rose-500 active:scale-95"
+            >
               ↻ Reset all
             </button>
-            <button onClick={clearMemory} className="text-sm text-rose-500 hover:text-rose-700 underline">
-              🗑️ Clear saved memory
+          </div>
+        </section>
+
+        {/* Species */}
+        <section className="bg-white rounded-xl p-5 shadow-sm">
+          <h2 className="font-bold text-slate-800 flex items-center">
+            🌲 Wood Species
+            <Tooltip text="Чистые породы — одна порода в пачке (дороже). Смеси — разные породы в пачке (дешевле). ГОСТ 8486: Сосна+Ель можно смешивать, Лиственницу и Дуб — только отдельно!" />
+          </h2>
+
+          <div className="mt-3 text-xs text-slate-500">PURE SPECIES · чистые</div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+            {SPECIES_LIST.filter((s) => s.pure).map((s) => {
+              const active = deal.species === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => updateDeal({ species: s.id })}
+                  className={`p-2 rounded-lg text-left text-xs transition-all active:scale-95 ${
+                    active ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  <div className="font-bold">{s.label}</div>
+                  <div className="opacity-75">{s.ru}</div>
+                  <div className="opacity-60 text-[10px] mt-1">${SPECIES_BASE_PRICES[s.id]}/m³</div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-3 text-xs text-slate-500">🌲🌲 MIXED BUNDLES · смеси</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
+            {SPECIES_LIST.filter((s) => !s.pure).map((s) => {
+              const active = deal.species === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => updateDeal({ species: s.id })}
+                  className={`p-2 rounded-lg text-left text-xs transition-all active:scale-95 ${
+                    active ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  <div className="font-bold">{s.label}</div>
+                  <div className="opacity-75">{s.ru}</div>
+                  <div className="opacity-60 text-[10px] mt-1">${SPECIES_BASE_PRICES[s.id]}/m³</div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Moisture */}
+        <section className="bg-white rounded-xl p-5 shadow-sm">
+          <h2 className="font-bold text-slate-800 flex items-center">
+            💧 Moisture Content
+            <Tooltip text="KD (Kiln Dried, 10-12%) — камерная сушка, премиум, 0% экспортной пошлины РФ. AD (Air Dried, 18-22%) — атмосферная, стандарт, пошлина 6.5%. Fresh — свежепил, НЕ для экспорта (плесень)!" />
+          </h2>
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            <button
+              onClick={() => updateDeal({ moisture: "kd" })}
+              className={`p-3 rounded-lg text-xs transition-all active:scale-95 ${
+                deal.moisture === "kd" ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              <div className="font-bold">KD ⭐</div>
+              <div className="opacity-75 mt-1">10-12%</div>
+              <div className="opacity-60 text-[10px] mt-1">Chamber, premium</div>
+            </button>
+            <button
+              onClick={() => updateDeal({ moisture: "ad" })}
+              className={`p-3 rounded-lg text-xs transition-all active:scale-95 ${
+                deal.moisture === "ad" ? "bg-amber-500 text-white" : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              <div className="font-bold">AD</div>
+              <div className="opacity-75 mt-1">18-22%</div>
+              <div className="opacity-60 text-[10px] mt-1">Air dried</div>
+            </button>
+            <button
+              onClick={() => updateDeal({ moisture: "fresh" })}
+              className={`p-3 rounded-lg text-xs transition-all active:scale-95 ${
+                deal.moisture === "fresh" ? "bg-rose-500 text-white" : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              <div className="font-bold">Fresh ⚠</div>
+              <div className="opacity-75 mt-1">22-30%</div>
+              <div className="opacity-60 text-[10px] mt-1">NOT for export!</div>
             </button>
           </div>
         </section>
 
-        {/* SPECIES */}
-        <section className="bg-white rounded-lg p-5 shadow-sm">
-          <h2 className="font-bold text-slate-900 mb-1 flex items-center gap-2">
-            <span className="text-orange-500">🌲</span> Wood Species
+        {/* Packaging */}
+        <section className="bg-white rounded-xl p-5 shadow-sm">
+          <h2 className="font-bold text-slate-800 flex items-center">
+            📦 Packaging
+            <Tooltip text="Упаковка защищает груз в пути. Для Индии/Китая/MENA из-за влажности рекомендуется термопленка + обрешётка." />
           </h2>
-          <p className="text-xs text-slate-500 mb-4">GOST 8486: Pine+Spruce can be mixed. Larch/Cedar — separate.</p>
-
-          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Pure species</div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-            {SPECIES.filter(s => !s.isMix).map((s) => {
-              const isActive = species === s.id;
-              return (
-                <button key={s.id} onClick={() => updateField("species", s.id)}
-                  className={`text-left p-3 rounded-lg border-2 transition-all active:scale-95 ${
-                    isActive ? "border-orange-500 bg-orange-50 shadow-md" : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="font-bold text-sm">{s.icon} {s.label}</div>
-                    {isActive && <span className="text-orange-500">✓</span>}
-                  </div>
-                  <div className="text-xs text-slate-500">{s.ru}</div>
-                  <div className="text-xs font-mono mt-1 text-slate-700">{s.densities[moisture]} kg/m³</div>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">🌲🌲 Mixed bundles</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {SPECIES.filter(s => s.isMix).map((s) => {
-              const isActive = species === s.id;
-              const d = s.isCustom
-                ? Math.round((PINE_DENSITIES[moisture] * pinePercent + SPRUCE_DENSITIES[moisture] * (100 - pinePercent)) / 100)
-                : s.densities[moisture];
-              return (
-                <button key={s.id} onClick={() => updateField("species", s.id)}
-                  className={`text-left p-3 rounded-lg border-2 transition-all active:scale-95 ${
-                    isActive ? "border-orange-500 bg-orange-50 shadow-md" : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="font-bold text-sm">{s.icon} {s.label}</div>
-                    {isActive && <span className="text-orange-500">✓</span>}
-                  </div>
-                  <div className="text-xs text-slate-500">{s.ru}</div>
-                  <div className="text-xs font-mono mt-1 text-slate-700">{d} kg/m³</div>
-                  <div className="text-xs text-slate-600 mt-1 italic">{s.desc}</div>
-                </button>
-              );
-            })}
-          </div>
-
-          {selectedSpecies.isCustom && (
-            <div className="mt-4 bg-slate-50 border-2 border-slate-200 rounded-lg p-4">
-              <label className="block text-sm font-bold text-slate-700 mb-2">Pine / Spruce ratio</label>
-              <div className="flex items-center gap-4 mb-2">
-                <div className="text-center">
-                  <div className="text-2xl font-black text-orange-500">{pinePercent}%</div>
-                  <div className="text-xs text-slate-500">Pine</div>
-                </div>
-                <input type="range" min="0" max="100" step="5" value={pinePercent}
-                  onChange={(e) => updateField("pinePercent", Number(e.target.value))} className="flex-1 accent-orange-500" />
-                <div className="text-center">
-                  <div className="text-2xl font-black text-slate-500">{100 - pinePercent}%</div>
-                  <div className="text-xs text-slate-500">Spruce</div>
-                </div>
-              </div>
-              <div className="text-xs text-slate-600 text-center">Weighted density: <strong>{density} kg/m³</strong></div>
-            </div>
-          )}
-
-          {species === "LARCH" && (
-            <div className="mt-4 bg-rose-50 border-l-4 border-rose-500 p-3 rounded text-xs text-slate-700">
-              ⚠️ <strong>GOST 8486:</strong> Larch must NOT be mixed with Pine/Spruce. Package separately!
-            </div>
-          )}
-        </section>
-
-        {/* MOISTURE */}
-        <section className="bg-white rounded-lg p-5 shadow-sm">
-          <h2 className="font-bold text-slate-900 mb-1 flex items-center gap-2">
-            <span className="text-orange-500">💧</span> Moisture Content
-          </h2>
-          <p className="text-xs text-slate-500 mb-4">Fresh-sawn NOT recommended for export — mold risk.</p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {MOISTURE_OPTIONS.map((m) => {
-              const isActive = moisture === m.id;
-              const blocked = selectedEndUse && !selectedEndUse.allowedMoisture.includes(m.id);
-              let mDensity;
-              if (selectedSpecies.isCustom) {
-                mDensity = Math.round((PINE_DENSITIES[m.id] * pinePercent + SPRUCE_DENSITIES[m.id] * (100 - pinePercent)) / 100);
-              } else {
-                mDensity = selectedSpecies.densities[m.id];
-              }
-              return (
-                <button key={m.id} onClick={() => updateField("moisture", m.id)}
-                  className={`text-left p-4 rounded-lg border-2 transition-all active:scale-95 relative ${
-                    isActive ? "border-orange-500 bg-orange-50 shadow-md"
-                    : blocked ? "border-rose-200 bg-rose-50/50 opacity-60"
-                    : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="font-black text-lg">{m.label}</div>
-                    {isActive && <span className="text-orange-500 text-xl">✓</span>}
-                    {blocked && !isActive && <span className="text-rose-500">🚫</span>}
-                  </div>
-                  <div className="text-sm font-semibold text-slate-700">{m.fullName}</div>
-                  <div className="text-xs text-slate-500 mb-2">Moisture: {m.range}</div>
-                  <div className="text-xs font-mono bg-slate-100 inline-block px-2 py-1 rounded">{mDensity} kg/m³</div>
-                  <p className="text-xs text-slate-600 mt-2">{m.desc}</p>
-                </button>
-              );
-            })}
-          </div>
-
-          {moisture === "FRESH" && (
-            <div className="mt-4 bg-rose-50 border-l-4 border-rose-500 p-3 rounded text-xs text-slate-700">
-              ⚠️ <strong>Fresh-sawn is NOT recommended for export!</strong> Mold develops in containers during 25-35 day shipping.
-            </div>
-          )}
-
-          <div className={`mt-4 border-l-4 p-3 rounded text-xs text-slate-700 ${
-            safeLoad_m3 >= 45 ? "bg-emerald-50 border-emerald-500" :
-            safeLoad_m3 >= 38 ? "bg-amber-50 border-amber-500" :
-            "bg-rose-50 border-rose-500"
-          }`}>
-            {safeLoad_m3 >= 45 ? "✅" : safeLoad_m3 >= 38 ? "ℹ️" : "⚠️"}
-            {" "}<strong>40ft HC safe load for {densityLabel} {selectedMoisture.label}:</strong>
-            {" "}~{safeLoad_m3.toFixed(1)} m³
+          <div className="grid grid-cols-3 gap-2 mt-3">
+            <button
+              onClick={() => updateDeal({ packaging: "none" })}
+              className={`p-3 rounded-lg text-xs transition-all active:scale-95 ${
+                deal.packaging === "none" ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              <div className="font-bold">None</div>
+              <div className="opacity-75 mt-1">навалом</div>
+              <div className="opacity-60 text-[10px] mt-1">+$0/m³</div>
+            </button>
+            <button
+              onClick={() => updateDeal({ packaging: "crate" })}
+              className={`p-3 rounded-lg text-xs transition-all active:scale-95 ${
+                deal.packaging === "crate" ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              <div className="font-bold">Crate ⭐</div>
+              <div className="opacity-75 mt-1">обрешётка</div>
+              <div className="opacity-60 text-[10px] mt-1">+$8/m³</div>
+            </button>
+            <button
+              onClick={() => updateDeal({ packaging: "shrink" })}
+              className={`p-3 rounded-lg text-xs transition-all active:scale-95 ${
+                deal.packaging === "shrink" ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-700"
+              }`}
+            >
+              <div className="font-bold">Shrink+Crate</div>
+              <div className="opacity-75 mt-1">термоплёнка</div>
+              <div className="opacity-60 text-[10px] mt-1">+$18/m³</div>
+            </button>
           </div>
         </section>
 
-        {/* OVERLOAD ALERT */}
-        {hasOverload && (
-          <section className="bg-rose-600 text-white rounded-lg p-5 shadow-lg border-4 border-rose-700 animate-pulse">
-            <h2 className="font-black text-xl mb-3 flex items-center gap-2">🚨 CONTAINER OVERLOAD!</h2>
-            <p className="text-sm mb-4 text-rose-100">Your cargo EXCEEDS 40ft HC limits. Split into multiple containers!</p>
-            <div className="space-y-2">
-              {weightOverload && (
-                <div className="bg-rose-700 rounded p-3">
-                  <div className="text-xs uppercase tracking-wider text-rose-200">⚖️ Weight overload</div>
-                  <div className="font-mono text-lg">
-                    {totalWeight_kg.toLocaleString("en-US", {maximumFractionDigits: 0})} kg / {CONTAINER_40HC.maxWeight_kg.toLocaleString()} kg max
-                  </div>
-                  <div className="text-sm font-bold text-amber-300">
-                    ⚠️ OVER BY +{weightOverBy.toLocaleString("en-US", {maximumFractionDigits: 0})} kg
-                  </div>
-                </div>
-              )}
-              {volumeOverload && (
-                <div className="bg-rose-700 rounded p-3">
-                  <div className="text-xs uppercase tracking-wider text-rose-200">📦 Volume overload</div>
-                  <div className="font-mono text-lg">
-                    {totalVolume_m3.toFixed(2)} m³ / {CONTAINER_40HC.maxVolume_m3} m³ max
-                  </div>
-                  <div className="text-sm font-bold text-amber-300">
-                    ⚠️ OVER BY +{volumeOverBy.toFixed(2)} m³
-                  </div>
-                </div>
-              )}
+        {/* Result */}
+        <section className="bg-slate-900 text-white rounded-xl p-5 shadow-lg">
+          <h2 className="font-bold">📊 Calculation Result</h2>
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div>
+              <div className="text-xs opacity-60">TOTAL VOLUME</div>
+              <div className="text-3xl font-black">{totalVol.toFixed(2)}</div>
+              <div className="text-xs opacity-60">m³ (CBM)</div>
+              <div className="mt-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${volPct > 100 ? "bg-rose-500" : "bg-emerald-500"}`}
+                  style={{ width: `${Math.min(volPct, 100)}%` }}
+                />
+              </div>
+              <div className="text-[10px] opacity-60 mt-1">{volPct.toFixed(0)}% of 76m³</div>
             </div>
-            <div className="mt-3 text-xs text-rose-100">
-              💡 <strong>Tip:</strong> Russian customs fines for overweight = $500-$2000.
-              Split: need {Math.ceil(Math.max(totalWeight_kg/CONTAINER_40HC.maxWeight_kg, totalVolume_m3/CONTAINER_40HC.maxVolume_m3))} containers.
+            <div>
+              <div className="text-xs opacity-60">TOTAL WEIGHT</div>
+              <div className="text-3xl font-black">{(totalWeight / 1000).toFixed(2)}</div>
+              <div className="text-xs opacity-60">tonnes</div>
+              <div className="mt-1 h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className={`h-full ${weightPct > 100 ? "bg-rose-500" : "bg-emerald-500"}`}
+                  style={{ width: `${Math.min(weightPct, 100)}%` }}
+                />
+              </div>
+              <div className="text-[10px] opacity-60 mt-1">{weightPct.toFixed(0)}% of 26.6t</div>
             </div>
-          </section>
-        )}
-
-        {/* RESULT */}
-        <section className="bg-slate-900 text-white rounded-lg p-6 shadow-lg">
-          <h2 className="font-bold mb-4 flex items-center gap-2">
-            <span className="text-orange-500">📊</span> Calculation Result
-          </h2>
-          <div className="mb-3 text-xs text-slate-400">
-            {selectedEndUse && <>🎯 {selectedEndUse.label} · </>}
-            {selectedSpecies.icon} {densityLabel} · {selectedMoisture.label} · {density} kg/m³
-          </div>
-
-          <div className="mb-5">
-            <div className="text-xs text-slate-400 uppercase tracking-wider mb-2">Total Volume</div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-3xl md:text-4xl font-black font-mono text-orange-500">{totalVolume_m3.toFixed(2)}</div>
-                <div className="text-sm text-slate-400">m³ (CBM)</div>
-              </div>
-              <div>
-                <div className="text-3xl md:text-4xl font-black font-mono">{totalVolume_cft.toFixed(0)}</div>
-                <div className="text-sm text-slate-400">CFT</div>
-              </div>
+            <div>
+              <div className="text-xs opacity-60">QUANTITY</div>
+              <div className="text-xl font-bold">{pieces.toLocaleString()} pcs</div>
             </div>
-            <div className="mt-3">
-              <div className="flex justify-between text-xs text-slate-400 mb-1">
-                <span>40ft HC capacity</span>
-                <span className={volumeOverload ? "text-rose-400 font-bold" : ""}>{volumePercent.toFixed(0)}%</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-2">
-                <div className={`h-2 rounded-full transition-all ${
-                  volumeOverload ? "bg-rose-500" : volumePercent > 90 ? "bg-amber-500" : "bg-emerald-500"
-                }`} style={{width: `${volumePercent}%`}}></div>
-              </div>
+            <div>
+              <div className="text-xs opacity-60">DENSITY</div>
+              <div className="text-xl font-bold">{density} kg/m³</div>
             </div>
           </div>
 
-          <div className="border-t border-slate-700 pt-5">
-            <div className="text-xs text-slate-400 uppercase tracking-wider mb-2">Total Weight</div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-3xl md:text-4xl font-black font-mono text-orange-500">
-                  {totalWeight_kg.toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                </div>
-                <div className="text-sm text-slate-400">kg</div>
-              </div>
-              <div>
-                <div className="text-3xl md:text-4xl font-black font-mono">{totalWeight_t.toFixed(2)}</div>
-                <div className="text-sm text-slate-400">tonnes</div>
-              </div>
-            </div>
-            <div className="mt-3">
-              <div className="flex justify-between text-xs text-slate-400 mb-1">
-                <span>Weight limit</span>
-                <span className={weightOverload ? "text-rose-400 font-bold" : ""}>{weightPercent.toFixed(0)}%</span>
-              </div>
-              <div className="w-full bg-slate-800 rounded-full h-2">
-                <div className={`h-2 rounded-full transition-all ${
-                  weightOverload ? "bg-rose-500" : weightPercent > 90 ? "bg-amber-500" : "bg-emerald-500"
-                }`} style={{width: `${weightPercent}%`}}></div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 pt-5 border-t border-slate-700 grid grid-cols-2 gap-3 text-sm">
-            <div><div className="text-xs text-slate-400 uppercase">Per board vol.</div><div className="font-mono">{volumePerBoard_m3.toFixed(4)} m³</div></div>
-            <div><div className="text-xs text-slate-400 uppercase">Per board weight</div><div className="font-mono">{(volumePerBoard_m3 * density).toFixed(2)} kg</div></div>
-            <div><div className="text-xs text-slate-400 uppercase">Quantity</div><div className="font-mono">{actualQuantity.toLocaleString()} pcs</div></div>
-            <div><div className="text-xs text-slate-400 uppercase">Density</div><div className="font-mono">{density} kg/m³</div></div>
-          </div>
-
-          {selectedEndUse && (
-            <div className="mt-5 pt-5 border-t border-slate-700">
-              <div className="text-xs text-slate-400 uppercase tracking-wider mb-2">🛡️ Legal disclaimer (to invoice)</div>
-              <div className="text-xs text-slate-300 italic leading-relaxed">{selectedEndUse.disclaimer}</div>
-            </div>
-          )}
-
-          {/* CTA to Pricing */}
-          <div className="mt-5 pt-5 border-t border-slate-700">
-            <Link href="/calculator/pricing"
-              className="block bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg text-center transition-all active:scale-95">
-              💰 Continue to Pricing → (volume auto-transfers)
-            </Link>
-          </div>
+          <Link
+            href="/calculator/pricing"
+            className="block w-full mt-5 bg-orange-500 text-white text-center py-3 rounded-lg font-bold active:scale-95"
+          >
+            💰 Continue to Pricing →
+          </Link>
         </section>
-      </main>
 
-      <footer className="bg-slate-900 text-slate-400 text-center py-6 text-xs">
-        Powered by RU-TIMBER Export | Contact: +7 915 349 00 07
-      </footer>
-    </div>
+        <div className="text-center text-xs text-slate-400">
+          Powered by RU-TIMBER Export · +7 915 349 00 07
+        </div>
+      </div>
+    </main>
   );
 }
