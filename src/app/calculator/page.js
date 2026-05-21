@@ -74,13 +74,55 @@ const SIZE_PRESETS = [
 ];
 
 const END_USES = [
-  { id: "construction", label: "🏗 Construction", ru: "Строительство", grade: "2-3 grade (structural)" },
-  { id: "furniture", label: "🪑 Furniture", ru: "Мебель", grade: "1st (Select)" },
-  { id: "packaging", label: "📦 Packaging", ru: "Упаковка", grade: "3-4 grade" },
-  { id: "interior", label: "🏠 Interior", ru: "Отделка", grade: "1-2 grade" },
-  { id: "sauna", label: "🧖 Sauna", ru: "Баня", grade: "1st (Select)" },
-  { id: "decking", label: "🌳 Decking", ru: "Террасы", grade: "Select" },
-  { id: "industrial", label: "🏭 Industrial", ru: "Опалубка", grade: "4 grade" },
+  { 
+    id: "construction", 
+    label: "🏗️ Construction", 
+    ru: "Строительство", 
+    grade: "2-3 grade (structural)",
+    preset: { species: "pine-spruce-50-50", moisture: "kd", thickness: 50, width: 150, length: 5980 }
+  },
+  { 
+    id: "furniture", 
+    label: "🪑 Furniture", 
+    ru: "Мебель", 
+    grade: "1st (Select)",
+    preset: { species: "spruce", moisture: "kd", thickness: 25, width: 100, length: 4000 }
+  },
+  { 
+    id: "packaging", 
+    label: "📦 Packaging", 
+    ru: "Упаковка", 
+    grade: "3-4 grade",
+    preset: { species: "spf", moisture: "ad", thickness: 22, width: 100, length: 3000 }
+  },
+  { 
+    id: "interior", 
+    label: "🏠 Interior", 
+    ru: "Отделка", 
+    grade: "1-2 grade",
+    preset: { species: "pine", moisture: "kd", thickness: 25, width: 100, length: 5980 }
+  },
+  { 
+    id: "sauna", 
+    label: "🧖 Sauna", 
+    ru: "Баня", 
+    grade: "1st (Select)",
+    preset: { species: "cedar", moisture: "kd", thickness: 25, width: 100, length: 4000 }
+  },
+  { 
+    id: "decking", 
+    label: "🏖️ Decking", 
+    ru: "Террасы", 
+    grade: "Select",
+    preset: { species: "larch", moisture: "kd", thickness: 32, width: 100, length: 5100 }
+  },
+  { 
+    id: "industrial", 
+    label: "🔨 Industrial", 
+    ru: "Опалубка", 
+    grade: "4 grade",
+    preset: { species: "pine-spruce-50-50", moisture: "ad", thickness: 50, width: 150, length: 5980 }
+  },
 ];
 
 export default function CalculatorPage() {
@@ -172,12 +214,10 @@ export default function CalculatorPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
             {END_USES.map((u) => (
               <button
-                key={u.id}
-                onClick={() => updateDeal({ endUse: u.id })}
-                className={`p-3 rounded-lg text-left text-xs transition-all active:scale-95 ${
-                  deal.endUse === u.id ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
-                }`}
-              >
+  key={u.id}
+  onClick={() => updateDeal({ endUse: u.id, ...u.preset })}
+  className={`...`}
+>
                 <div className="font-bold">{u.label}</div>
                 <div className="opacity-75 mt-1">{u.ru}</div>
                 <div className="opacity-60 text-[10px] mt-1">{u.grade}</div>
