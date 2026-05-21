@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useDeal, SPECIES_BASE_PRICES } from "../context/DealContext";
+import Reminder from "../components/Reminder";
 
 // 🇷🇺 Подсказки
 const Tooltip = ({ text }) => {
@@ -204,6 +205,22 @@ export default function CalculatorPage() {
           <h1 className="text-2xl font-black text-slate-900">Container Loading Calculator</h1>
           <p className="text-sm text-slate-500 mt-1">🔗 Connected to Pricing · auto-saved</p>
         </div>
+{/* 🆕 Шаг B3.1: ЛесЕГАИС напоминалка (КРИТИЧНО, нельзя скрыть) */}
+        <Reminder
+          priority="critical"
+          icon="🚨"
+          title="ЛесЕГАИС: запросить выписку у пилорамы"
+          description="К КАЖДОЙ партии! Без выписки = риск ст. 191.1 УК РФ (до 7 лет). Топовые экспортёры РФ работают только с подтверждённым происхождением сырья."
+        />
+
+        {/* 🆕 Шаг B3.1: Напоминалка про ИП (скрываемая) */}
+        <Reminder
+          priority="high"
+          icon="⚖️"
+          title="Не забудь зарегистрировать ИП"
+          description="Триггер: первый серьёзный запрос от клиента с готовностью платить. ИП на ОСНО + НДС через Тинькофф. Возврат НДС 20% при экспорте = +$30-50/м³ к прибыли."
+          dismissKey="ip-registration-2026"
+        />
 
         {/* End-Use */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
@@ -214,10 +231,14 @@ export default function CalculatorPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
             {END_USES.map((u) => (
               <button
-  key={u.id}
-  onClick={() => updateDeal({ endUse: u.id, ...u.preset })}
-  className={`...`}
->
+                key={u.id}
+                onClick={() => updateDeal({ endUse: u.id, ...u.preset })}
+                className={`p-3 rounded-lg text-left text-xs transition-all active:scale-95 border-2 ${
+                  deal.endUse === u.id 
+                    ? "bg-orange-500 text-white border-orange-600 shadow-lg scale-105" 
+                    : "bg-slate-100 text-slate-700 border-transparent hover:border-slate-300"
+                }`}
+              >
                 <div className="font-bold">{u.label}</div>
                 <div className="opacity-75 mt-1">{u.ru}</div>
                 <div className="opacity-60 text-[10px] mt-1">{u.grade}</div>
