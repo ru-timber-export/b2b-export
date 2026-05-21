@@ -117,7 +117,26 @@ export default function CalculatorPage() {
   const volPct = Math.min((totalVol / MAX_VOL) * 100, 999);
   const weightPct = Math.min((totalWeight / MAX_WEIGHT) * 100, 999);
   const overloaded = totalVol > MAX_VOL || totalWeight > MAX_WEIGHT;
+// 🆕 SHAG B2: Sync computed values → DealContext (fix 3D bug)
+  // Этот useEffect пишет вычисленный объём и вес в Context,
+  // чтобы страница /calculator/container могла их использовать.
+  useEffect(() => {
+    if (!isLoaded) return;
 
+    // Защита от лишних апдейтов — пишем только если что-то изменилось
+    const needsUpdate =
+      deal.computedVolume_m3 !== totalVol ||
+      deal.computedWeight_kg !== totalWeight ||
+      deal.computedPieces !== pieces;
+
+    if (needsUpdate) {
+      updateDeal({
+        computedVolume_m3: totalVol,
+        computedWeight_kg: totalWeight,
+        computedPieces: pieces,
+      });
+    }
+  }, [totalVol, totalWeight, pieces, isLoaded, deal.computedVolume_m3, deal.computedWeight_kg, deal.computedPieces, updateDeal]);
   if (!isLoaded) {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>;
   }
