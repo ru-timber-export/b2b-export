@@ -13,6 +13,7 @@ const STORAGE_KEYS = {
   DEALS: "ru-timber-deals-v1",
   REMINDERS: "ru-timber-reminders-v1",
   CHECKLIST: "ru-timber-checklist-v1",
+  MISSION: "ru-timber-mission-v1", // 🆕 B4
 };
 
 // Old key (для миграции v3 → v4)
@@ -20,11 +21,11 @@ const OLD_DEAL_KEY = "ru-timber-current-deal-v3";
 
 // === 🔒 ЖЁСТКИЕ ПРАВИЛА БИЗНЕСА ===
 export const BUSINESS_RULES = {
-  FIAT_ONLY: true,            // только USD/EUR/AED через банк
-  NO_CRYPTO: true,             // никакой USDT/BTC
-  JURISDICTION: "RU",          // юрисдикция РФ
-  ARBITRATION: "ICAC Moscow",  // арбитраж в Москве
-  TARGET_TIER: "TOP_1_PERCENT", // цель: топ-1% экспортёров
+  FIAT_ONLY: true,
+  NO_CRYPTO: true,
+  JURISDICTION: "RU",
+  ARBITRATION: "ICAC Moscow",
+  TARGET_TIER: "TOP_1_PERCENT",
 };
 
 // === 💰 Таблица цен по породам (апрель 2026) ===
@@ -75,9 +76,8 @@ export const COUNTRY_MARGINS = {
   turkey: 17,
 };
 
-// === 📋 DEAL DEFAULTS (основная сделка) ===
+// === 📋 DEAL DEFAULTS ===
 const DEAL_DEFAULTS = {
-  // Board
   thickness: 44,
   width: 150,
   length: 5980,
@@ -88,8 +88,6 @@ const DEAL_DEFAULTS = {
   inputMode: "volume",
   totalVolume: 50,
   totalPieces: 1267,
-
-  // Pricing
   incoterm: "cif",
   margin: 18,
   usdRubRate: 76.25,
@@ -98,22 +96,17 @@ const DEAL_DEFAULTS = {
   port_fees: 400,
   freight_insurance: 2500,
   profileProcessing: false,
-
-  // 🆕 Computed (для 3D, фикс бага в Шаге B2)
   computedVolume_m3: 0,
   computedWeight_kg: 0,
   computedPieces: 0,
-
-  // 🆕 Текущая сделка (если открыта из архива)
   currentDealId: null,
-
   lastUpdate: null,
 };
 
-// === 🏢 SELLER DEFAULTS (твои реквизиты — пустые до регистрации ИП) ===
+// === 🏢 SELLER DEFAULTS ===
 export const SELLER_DEFAULTS = {
   name: "RU-TIMBER EXPORT",
-  legalForm: "",                       // LLC / IE / FZE (заполнить после ИП)
+  legalForm: "",
   address: "[Your Legal Address]",
   phone: "+7 915 349 00 07",
   email: "info@ru-timber.com",
@@ -125,40 +118,45 @@ export const SELLER_DEFAULTS = {
   swift: "[SWIFT]",
   account: "[Account Number]",
   correspondent: "[Correspondent Bank on request]",
-  registered: false,                    // 🚨 флаг: ИП зарегистрирован?
+  registered: false,
   registrationDate: null,
 };
 
-// === ✅ PRE-FLIGHT CHECKLIST (готовность к первой сделке) ===
+// === ✅ PRE-FLIGHT CHECKLIST ===
 export const CHECKLIST_DEFAULTS = {
-  // Юридическая часть
   ip_registered: false,
   ved_account_opened: false,
   domain_purchased: false,
   email_corporate_setup: false,
-  
-  // Государственные системы
   lesegais_registered: false,
   customs_account: false,
-  
-  // Партнёры
   lawyer_consulted: false,
   exiar_applied: false,
   rec_subsidy_applied: false,
   it_accreditation: false,
-  
-  // Инструменты
   vpn_setup: false,
   whatsapp_business: false,
   google_drive_organized: false,
-  
-  // Документы-шаблоны
   international_contract_reviewed: false,
   supply_contract_reviewed: false,
-  
-  // Сертификаты (для маркетинга)
   pefc_certificate: false,
   iso_certificate: false,
+};
+
+// === 🌊 B4: OCEAN MISSION ===
+export const MISSION_DEFAULTS = {
+  // Цели (₽)
+  goal_ship: 100_000_000,
+  goal_house: 20_000_000,
+  goal_wedding: 1_500_000,
+  goal_reserve: 25_000_000,
+  // Текущее состояние
+  currentCapital: 0,
+  avgProfitPerContainer_usd: 5000,
+  containersPerMonth: 1,
+  targetUsdRubRate: 85,
+  // Дата старта
+  missionStartDate: null,
 };
 
 // === 🔔 НАПОМИНАНИЯ ПО УМОЛЧАНИЮ ===
@@ -235,7 +233,7 @@ const DEFAULT_REMINDERS = [
   },
 ];
 
-// === 📁 HELPER: безопасное чтение LocalStorage ===
+// === 📁 HELPER ===
 function safeRead(key, fallback) {
   if (typeof window === "undefined") return fallback;
   try {
@@ -263,21 +261,16 @@ function migrateV3toV4() {
   try {
     const oldDeal = localStorage.getItem(OLD_DEAL_KEY);
     if (!oldDeal) return null;
-    
     const parsed = JSON.parse(oldDeal);
-    // Сохраняем все старые поля + добавляем новые computed
     const migrated = {
       ...DEAL_DEFAULTS,
       ...parsed,
       computedVolume_m3: parseFloat(parsed.totalVolume) || 0,
-      computedWeight_kg: 0,  // пересчитается на следующем входе
+      computedWeight_kg: 0,
       computedPieces: parseFloat(parsed.totalPieces) || 0,
     };
-    
-    // Пишем в новый ключ, удаляем старый
     localStorage.setItem(STORAGE_KEYS.DEAL, JSON.stringify(migrated));
     localStorage.removeItem(OLD_DEAL_KEY);
-    
     console.log("✅ Migrated DealContext v3 → v4");
     return migrated;
   } catch (e) {
@@ -295,6 +288,7 @@ export function DealProvider({ children }) {
   const [deals, setDeals] = useState([]);
   const [reminders, setReminders] = useState(DEFAULT_REMINDERS);
   const [checklist, setChecklist] = useState(CHECKLIST_DEFAULTS);
+  const [mission, setMission] = useState(MISSION_DEFAULTS); // 🆕 B4
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasMemory, setHasMemory] = useState(false);
 
@@ -302,10 +296,8 @@ export function DealProvider({ children }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // 1. Мигр��ция v3 → v4 (если есть старые данные)
     const migrated = migrateV3toV4();
 
-    // 2. Загружаем все коллекции
     const loadedDeal = migrated || safeRead(STORAGE_KEYS.DEAL, DEAL_DEFAULTS);
     const loadedSeller = safeRead(STORAGE_KEYS.SELLER, SELLER_DEFAULTS);
     const loadedCustomers = safeRead(STORAGE_KEYS.CUSTOMERS, []);
@@ -313,8 +305,8 @@ export function DealProvider({ children }) {
     const loadedDeals = safeRead(STORAGE_KEYS.DEALS, []);
     const loadedReminders = safeRead(STORAGE_KEYS.REMINDERS, DEFAULT_REMINDERS);
     const loadedChecklist = safeRead(STORAGE_KEYS.CHECKLIST, CHECKLIST_DEFAULTS);
+    const loadedMission = safeRead(STORAGE_KEYS.MISSION, MISSION_DEFAULTS); // 🆕
 
-    // 3. Мерджим с дефолтами (на случай новых полей в будущем)
     setDeal({ ...DEAL_DEFAULTS, ...loadedDeal });
     setSeller({ ...SELLER_DEFAULTS, ...loadedSeller });
     setCustomers(Array.isArray(loadedCustomers) ? loadedCustomers : []);
@@ -322,49 +314,21 @@ export function DealProvider({ children }) {
     setDeals(Array.isArray(loadedDeals) ? loadedDeals : []);
     setReminders(Array.isArray(loadedReminders) ? loadedReminders : DEFAULT_REMINDERS);
     setChecklist({ ...CHECKLIST_DEFAULTS, ...loadedChecklist });
+    setMission({ ...MISSION_DEFAULTS, ...loadedMission }); // 🆕
 
-    // hasMemory = была ли память от прошлой сессии
     setHasMemory(!!(migrated || localStorage.getItem(STORAGE_KEYS.DEAL)));
     setIsLoaded(true);
   }, []);
 
-  // === Автосохранение DEAL ===
-  useEffect(() => {
-    if (!isLoaded) return;
-    safeWrite(STORAGE_KEYS.DEAL, deal);
-  }, [deal, isLoaded]);
-
-  // === Автосохранение SELLER ===
-  useEffect(() => {
-    if (!isLoaded) return;
-    safeWrite(STORAGE_KEYS.SELLER, seller);
-  }, [seller, isLoaded]);
-
-  // === Автосохранение коллекций ===
-  useEffect(() => {
-    if (!isLoaded) return;
-    safeWrite(STORAGE_KEYS.CUSTOMERS, customers);
-  }, [customers, isLoaded]);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    safeWrite(STORAGE_KEYS.SUPPLIERS, suppliers);
-  }, [suppliers, isLoaded]);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    safeWrite(STORAGE_KEYS.DEALS, deals);
-  }, [deals, isLoaded]);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    safeWrite(STORAGE_KEYS.REMINDERS, reminders);
-  }, [reminders, isLoaded]);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-    safeWrite(STORAGE_KEYS.CHECKLIST, checklist);
-  }, [checklist, isLoaded]);
+  // === Автосохранение ===
+  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.DEAL, deal); }, [deal, isLoaded]);
+  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.SELLER, seller); }, [seller, isLoaded]);
+  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.CUSTOMERS, customers); }, [customers, isLoaded]);
+  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.SUPPLIERS, suppliers); }, [suppliers, isLoaded]);
+  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.DEALS, deals); }, [deals, isLoaded]);
+  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.REMINDERS, reminders); }, [reminders, isLoaded]);
+  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.CHECKLIST, checklist); }, [checklist, isLoaded]);
+  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.MISSION, mission); }, [mission, isLoaded]); // 🆕
 
   // === HELPERS ===
   const updateDeal = (updates) => {
@@ -378,47 +342,25 @@ export function DealProvider({ children }) {
     }
   };
 
-  const updateSeller = (updates) => {
-    setSeller((prev) => ({ ...prev, ...updates }));
-  };
+  const updateSeller = (updates) => setSeller((prev) => ({ ...prev, ...updates }));
 
   // Customers
   const addCustomer = (customer) => {
-    const newCustomer = {
-      id: `cust-${Date.now()}`,
-      createdAt: Date.now(),
-      ...customer,
-    };
+    const newCustomer = { id: `cust-${Date.now()}`, createdAt: Date.now(), ...customer };
     setCustomers((prev) => [...prev, newCustomer]);
     return newCustomer.id;
   };
-
-  const updateCustomer = (id, updates) => {
-    setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
-  };
-
-  const deleteCustomer = (id) => {
-    setCustomers((prev) => prev.filter((c) => c.id !== id));
-  };
+  const updateCustomer = (id, updates) => setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
+  const deleteCustomer = (id) => setCustomers((prev) => prev.filter((c) => c.id !== id));
 
   // Suppliers
   const addSupplier = (supplier) => {
-    const newSupplier = {
-      id: `sup-${Date.now()}`,
-      createdAt: Date.now(),
-      ...supplier,
-    };
+    const newSupplier = { id: `sup-${Date.now()}`, createdAt: Date.now(), ...supplier };
     setSuppliers((prev) => [...prev, newSupplier]);
     return newSupplier.id;
   };
-
-  const updateSupplier = (id, updates) => {
-    setSuppliers((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
-  };
-
-  const deleteSupplier = (id) => {
-    setSuppliers((prev) => prev.filter((s) => s.id !== id));
-  };
+  const updateSupplier = (id, updates) => setSuppliers((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
+  const deleteSupplier = (id) => setSuppliers((prev) => prev.filter((s) => s.id !== id));
 
   // Deals
   const addDeal = (dealData) => {
@@ -432,14 +374,8 @@ export function DealProvider({ children }) {
     setDeals((prev) => [...prev, newDeal]);
     return newDeal.id;
   };
-
-  const updateDealById = (id, updates) => {
-    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, ...updates } : d)));
-  };
-
-  const deleteDealById = (id) => {
-    setDeals((prev) => prev.filter((d) => d.id !== id));
-  };
+  const updateDealById = (id, updates) => setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, ...updates } : d)));
+  const deleteDealById = (id) => setDeals((prev) => prev.filter((d) => d.id !== id));
 
   // Reminders
   const toggleReminder = (id) => {
@@ -447,30 +383,43 @@ export function DealProvider({ children }) {
       prev.map((r) => (r.id === id ? { ...r, done: !r.done, doneAt: !r.done ? Date.now() : null } : r))
     );
   };
-
   const addReminder = (reminder) => {
-    const newReminder = {
-      id: `rem-${Date.now()}`,
-      createdAt: Date.now(),
-      done: false,
-      ...reminder,
-    };
+    const newReminder = { id: `rem-${Date.now()}`, createdAt: Date.now(), done: false, ...reminder };
     setReminders((prev) => [...prev, newReminder]);
     return newReminder.id;
   };
 
   // Checklist
-  const toggleChecklistItem = (key) => {
-    setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
+  const toggleChecklistItem = (key) => setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
   const getChecklistProgress = () => {
     const total = Object.keys(checklist).length;
     const done = Object.values(checklist).filter(Boolean).length;
     return { done, total, percent: Math.round((done / total) * 100) };
   };
 
-  // Reset ALL (опасная кнопка для дебага)
+  // 🆕 B4: Mission helpers
+  const updateMission = (updates) => setMission((prev) => ({ ...prev, ...updates }));
+
+  const missionStats = (() => {
+    const totalGoal = mission.goal_ship + mission.goal_house + mission.goal_wedding + mission.goal_reserve;
+    const profitPerContainerRub = mission.avgProfitPerContainer_usd * mission.targetUsdRubRate;
+    const profitPerMonthRub = profitPerContainerRub * mission.containersPerMonth;
+    const profitPerYearRub = profitPerMonthRub * 12;
+    const remaining = Math.max(totalGoal - mission.currentCapital, 0);
+    const containersNeeded = profitPerContainerRub > 0 ? Math.ceil(remaining / profitPerContainerRub) : 0;
+    const monthsNeeded = mission.containersPerMonth > 0 ? Math.ceil(containersNeeded / mission.containersPerMonth) : 0;
+    const yearsNeeded = monthsNeeded / 12;
+    const overallProgress = totalGoal > 0 ? Math.min((mission.currentCapital / totalGoal) * 100, 100) : 0;
+    const targetDate = new Date();
+    targetDate.setMonth(targetDate.getMonth() + monthsNeeded);
+    return {
+      totalGoal, remaining, containersNeeded, monthsNeeded, yearsNeeded,
+      profitPerContainerRub, profitPerMonthRub, profitPerYearRub,
+      overallProgress, targetDate,
+    };
+  })();
+
+  // Reset ALL
   const resetAll = () => {
     if (typeof window === "undefined") return;
     Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
@@ -481,46 +430,21 @@ export function DealProvider({ children }) {
     setDeals([]);
     setReminders(DEFAULT_REMINDERS);
     setChecklist(CHECKLIST_DEFAULTS);
+    setMission(MISSION_DEFAULTS); // 🆕
   };
 
   return (
     <DealContext.Provider
       value={{
-        // Core deal
-        deal,
-        updateDeal,
-        resetDeal,
-        isLoaded,
-        hasMemory,
-        // Seller
-        seller,
-        updateSeller,
-        // Customers
-        customers,
-        addCustomer,
-        updateCustomer,
-        deleteCustomer,
-        // Suppliers
-        suppliers,
-        addSupplier,
-        updateSupplier,
-        deleteSupplier,
-        // Deals
-        deals,
-        addDeal,
-        updateDealById,
-        deleteDealById,
-        // Reminders
-        reminders,
-        toggleReminder,
-        addReminder,
-        // Checklist
-        checklist,
-        toggleChecklistItem,
-        getChecklistProgress,
-        // Danger zone
+        deal, updateDeal, resetDeal, isLoaded, hasMemory,
+        seller, updateSeller,
+        customers, addCustomer, updateCustomer, deleteCustomer,
+        suppliers, addSupplier, updateSupplier, deleteSupplier,
+        deals, addDeal, updateDealById, deleteDealById,
+        reminders, toggleReminder, addReminder,
+        checklist, toggleChecklistItem, getChecklistProgress,
+        mission, updateMission, missionStats, // 🆕 B4
         resetAll,
-        // Constants
         BUSINESS_RULES,
       }}
     >
