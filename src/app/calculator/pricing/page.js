@@ -1,7 +1,7 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Reminder from "../../components/Reminder";
 import {
   useDeal,
   SPECIES_BASE_PRICES,
@@ -40,7 +40,7 @@ export default function PricingPage() {
   const [cbrDate, setCbrDate] = useState(null);
   const [cbrError, setCbrError] = useState(false);
 
-  // 💱 Автозагрузка курса ЦБ РФ
+  // Автозагрузка курса ЦБ РФ
   const fetchCBR = async () => {
     setCbrLoading(true);
     setCbrError(false);
@@ -86,34 +86,28 @@ export default function PricingPage() {
   const margin = deal.margin === "" ? 0 : parseFloat(deal.margin) || 18;
   const rate = deal.usdRubRate === "" ? 76.25 : parseFloat(deal.usdRubRate) || 76.25;
 
-  // Пресет фрахта
   const freightPreset = FREIGHT_PRESETS[deal.freightRoute] || FREIGHT_PRESETS["vlv-chennai"];
 
-  // 💰 Расчёт mill price (EXW по-честному)
   const speciesBase = SPECIES_BASE_PRICES[species] || 160;
   const dryingAdd = DRYING_SURCHARGE[moisture] || 0;
   const packAdd = PACKAGING_SURCHARGE[packaging] || 0;
   const millPrice = speciesBase + dryingAdd + packAdd;
 
-  // Честный расчёт по шагам Incoterms
-  const loadFactory = 6; // FCA завод: +$6/m³ (погрузка на пилораме)
-  const landTransport = totalVol > 0 ? 1500 / totalVol : 0; // FCA порт: фура/жд до порта
-  const portFees = totalVol > 0 ? 400 / totalVol : 0; // FOB: THC + B/L
-  const ocean = totalVol > 0 ? freightPreset.rate / totalVol : 0; // CIF: фрахт
-  const insurance = 0.011 * (millPrice + loadFactory + landTransport + portFees + ocean); // страховка 1.1%
+  const loadFactory = 6;
+  const landTransport = totalVol > 0 ? 1500 / totalVol : 0;
+  const portFees = totalVol > 0 ? 400 / totalVol : 0;
+  const ocean = totalVol > 0 ? freightPreset.rate / totalVol : 0;
+  const insurance = 0.011 * (millPrice + loadFactory + landTransport + portFees + ocean);
 
-  // Сумма по выбранному Incoterm
   let totalCost = millPrice;
   if (incoterm === "fca-factory") totalCost = millPrice + loadFactory;
   if (incoterm === "fca-port") totalCost = millPrice + loadFactory + landTransport;
   if (incoterm === "fob") totalCost = millPrice + loadFactory + landTransport + portFees;
   if (incoterm === "cif") totalCost = millPrice + loadFactory + landTransport + portFees + ocean + insurance;
 
-  // 0% пошлины при камерной сушке или обработке 4409
   const dutyFree = moisture === "kd" || deal.profileProcessing;
   const duty = dutyFree ? 0 : totalCost * 0.065;
   const totalCostWithDuty = totalCost + duty;
-
   const sellPricePerM3 = totalCostWithDuty * (1 + margin / 100);
   const profitPerM3 = sellPricePerM3 - totalCostWithDuty;
   const totalAmount = sellPricePerM3 * totalVol;
@@ -147,6 +141,24 @@ export default function PricingPage() {
           </p>
         </div>
 
+        {/* 🆕 B3.2: Напоминалка — курс ЦБ */}
+        <Reminder
+          priority="high"
+          icon="💱"
+          title="Проверь курс USD/RUB перед отправкой Quotation"
+          description="Курс ЦБ РФ обновляется в 13:00 МСК ежедневно. Если квотация валидна 7 дней — закладывай запас 2-3% на колебание рубля, чтобы не потерять маржу. Внизу страницы есть кнопка '🔄 Обновить ЦБ'."
+          dismissKey="usd-rate-tip-2026"
+        />
+
+        {/* 🆕 B3.2: Напоминалка — валютный контроль */}
+        <Reminder
+          priority="medium"
+          icon="🏦"
+          title="Валютный контроль (после регистрации ИП)"
+          description="Контракты на сумму >$50,000 обязательно ставятся на учёт в банке (Тинькофф ВЭД делает это автоматически). За нарушение — штраф до 100% суммы сделки! Сейчас не критично — но запомни этот момент."
+          dismissKey="vc-warning-2026"
+        />
+
         {/* Volume info */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <div className="text-xs text-slate-500">Volume from Step 3.10 (auto-synced)</div>
@@ -169,8 +181,10 @@ export default function PricingPage() {
                 <button
                   key={key}
                   onClick={() => updateDeal({ freightRoute: key })}
-                  className={`p-3 rounded-lg text-left text-xs transition-all active:scale-95 ${
-                    active ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+                  className={`p-3 rounded-lg text-left text-xs transition-all active:scale-95 border-2 ${
+                    active
+                      ? "bg-orange-500 text-white border-orange-600 shadow-lg"
+                      : "bg-slate-100 text-slate-700 border-transparent hover:border-slate-300"
                   }`}
                 >
                   <div className="font-bold">{val.label}</div>
@@ -184,22 +198,24 @@ export default function PricingPage() {
         {/* Incoterms */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
-            📜 Incoterms (Delivery Basis)
+            📋 Incoterms (Delivery Basis)
             <Tooltip text="Международные условия поставки. EXW = товар на складе. FCA завод = +погрузка в фуру. FCA порт = +доставка. FOB = +погрузка на судно. CIF = +фрахт и страховка до порта клиента. Каждый шаг добавляет стоимость." />
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">
             {[
-              { id: "exw", label: "EXW", ru: "Самовывоз", include: [] },
-              { id: "fca-factory", label: "FCA завод", ru: "+погрузка", include: ["load"] },
-              { id: "fca-port", label: "FCA порт", ru: "+фура", include: ["load", "land"] },
-              { id: "fob", label: "FOB", ru: "+судно", include: ["load", "land", "port"] },
-              { id: "cif", label: "CIF ⭐", ru: "+фрахт+страх.", include: ["load", "land", "port", "ocean"] },
+              { id: "exw", label: "EXW", ru: "Самовывоз" },
+              { id: "fca-factory", label: "FCA завод", ru: "+погрузка" },
+              { id: "fca-port", label: "FCA порт", ru: "+фура" },
+              { id: "fob", label: "FOB", ru: "+судно" },
+              { id: "cif", label: "CIF ⭐", ru: "+фрахт+страх." },
             ].map((t) => (
               <button
                 key={t.id}
                 onClick={() => updateDeal({ incoterm: t.id })}
-                className={`p-2 rounded-lg text-xs transition-all active:scale-95 ${
-                  deal.incoterm === t.id ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+                className={`p-2 rounded-lg text-xs transition-all active:scale-95 border-2 ${
+                  deal.incoterm === t.id
+                    ? "bg-orange-500 text-white border-orange-600 shadow-lg"
+                    : "bg-slate-100 text-slate-700 border-transparent hover:border-slate-300"
                 }`}
               >
                 <div className="font-bold">{t.label}</div>
@@ -212,13 +228,13 @@ export default function PricingPage() {
         {/* Cost Breakdown */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
-            💵 Cost Breakdown
+            💰 Cost Breakdown
             <Tooltip text="Честная себестоимость по компонентам. Меняется при смене Incoterms." />
           </h2>
           <div className="mt-4 space-y-2 text-sm">
             <div className="flex justify-between border-b py-2">
               <span className="flex items-center">
-                🌲 Mill price ({species} {moisture} {packaging})
+                🪵 Mill price ({species} {moisture} {packaging})
                 <Tooltip text={`Заводская цена = База породы ($${speciesBase}) + Сушка ($${dryingAdd}) + Упаковка ($${packAdd})`} />
               </span>
               <span className="font-mono font-bold">${millPrice.toFixed(2)}/m³</span>
@@ -226,7 +242,7 @@ export default function PricingPage() {
 
             {["fca-factory", "fca-port", "fob", "cif"].includes(incoterm) && (
               <div className="flex justify-between py-2 border-b text-slate-600">
-                <span>🏭 Factory loading (погрузка в фуру)</span>
+                <span>🚚 Factory loading (погрузка в фуру)</span>
                 <span className="font-mono">+${loadFactory.toFixed(2)}/m³</span>
               </div>
             )}
@@ -248,7 +264,7 @@ export default function PricingPage() {
             {incoterm === "cif" && (
               <>
                 <div className="flex justify-between py-2 border-b text-slate-600">
-                  <span>🌊 Ocean freight ({freightPreset.label.split("→")[1]?.trim()})</span>
+                  <span>🚢 Ocean freight ({freightPreset.label.split("→")[1]?.trim()})</span>
                   <span className="font-mono">+${ocean.toFixed(2)}/m³</span>
                 </div>
                 <div className="flex justify-between py-2 border-b text-slate-600">
@@ -261,7 +277,7 @@ export default function PricingPage() {
             {/* Пошлина */}
             <div className={`flex justify-between py-2 border-b ${dutyFree ? "text-emerald-600" : "text-rose-600"}`}>
               <span className="flex items-center">
-                🛃 Export duty {dutyFree ? "(0% — KD/4409)" : "(6.5% — AD raw)"}
+                🏛 Export duty {dutyFree ? "(0% — KD/4409)" : "(6.5% — AD raw)"}
                 <Tooltip text="Экспортная пошлина РФ. 0% если: камерная сушка (KD) ИЛИ обработка по коду 4409 (фаска/паз)." />
               </span>
               <span className="font-mono">+${duty.toFixed(2)}/m³</span>
@@ -284,7 +300,7 @@ export default function PricingPage() {
               />
               <div className="text-xs text-slate-700">
                 <div className="font-bold flex items-center">
-                  ⚙ Profile processing (HS 4409 — fаска/паз)
+                  ⚙ Profile processing (HS 4409 — фаска/паз)
                   <Tooltip text="Лёгкая фаска 2×2мм переводит товар в код ТН ВЭД 4409 → 0% экспортной пошлины. Особенно выгодно для AD доски. Стоимость обработки ~$4/m³, экономия пошлины ~$12/m³." />
                 </div>
                 <div className="opacity-75 mt-1">
@@ -298,7 +314,7 @@ export default function PricingPage() {
         {/* Margin + Rate */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
-            💼 Margin & Exchange Rate
+            📊 Margin & Exchange Rate
             <Tooltip text="Ваша наценка к себестоимости. Меняется по рынку." />
           </h2>
 
@@ -310,8 +326,10 @@ export default function PricingPage() {
                 <button
                   key={country}
                   onClick={() => updateDeal({ margin: m })}
-                  className={`px-3 py-2 rounded-lg text-xs transition-all active:scale-95 ${
-                    deal.margin === m ? "bg-orange-500 text-white" : "bg-slate-100 text-slate-700"
+                  className={`px-3 py-2 rounded-lg text-xs transition-all active:scale-95 border-2 ${
+                    deal.margin === m
+                      ? "bg-orange-500 text-white border-orange-600 shadow-lg"
+                      : "bg-slate-100 text-slate-700 border-transparent hover:border-slate-300"
                   }`}
                 >
                   {country === "india" && "🇮🇳 India"}
@@ -373,11 +391,10 @@ export default function PricingPage() {
 
         {/* Final pricing */}
         <section className="bg-slate-900 text-white rounded-xl p-5 shadow-lg">
-          <h2 className="font-bold">💎 Final Pricing</h2>
+          <h2 className="font-bold">🎯 Final Pricing</h2>
           <div className="text-xs opacity-60 mt-1">
             {incoterm.toUpperCase()} · Margin {margin}% · {totalVol.toFixed(2)} m³ · ₽{rate}/$
           </div>
-
           <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <div className="text-xs opacity-60">SELLING PRICE PER m³</div>
@@ -390,7 +407,6 @@ export default function PricingPage() {
               <div className="text-xs opacity-60">≈ ₽{(totalAmount * rate).toFixed(0)}</div>
             </div>
           </div>
-
           <div className="mt-4 p-3 bg-emerald-900/50 rounded-lg">
             <div className="text-xs opacity-75">YOUR PROFIT</div>
             <div className="text-2xl font-black text-emerald-400">
@@ -398,13 +414,12 @@ export default function PricingPage() {
             </div>
           </div>
 
-         <Link
+          <Link
             href="/calculator/container"
             className="block w-full mt-5 bg-orange-500 text-white text-center py-3 rounded-lg font-bold active:scale-95"
           >
             📦 Continue to 3D View →
           </Link>
-
           <Link
             href="/calculator/quotation"
             className="block w-full mt-2 bg-emerald-600 text-white text-center py-3 rounded-lg font-bold active:scale-95"
