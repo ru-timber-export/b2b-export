@@ -9,6 +9,7 @@ import {
   PACKAGING_SURCHARGE,
   FREIGHT_PRESETS,
 } from "../../context/DealContext";
+import Reminder from "../../components/Reminder";
 
 // 💼 Демо-реквизиты компании (потом поменяете на реальные)
 const DEFAULT_COMPANY = {
@@ -75,7 +76,7 @@ const ROUTE_PORTS = {
 };
 
 export default function QuotationPage() {
-  const { deal, isLoaded } = useDeal();
+  const { deal, seller, isLoaded } = useDeal();
   const [company, setCompany] = useState(DEFAULT_COMPANY);
   const [editMode, setEditMode] = useState(false);
   const [customerName, setCustomerName] = useState("");
@@ -217,7 +218,66 @@ export default function QuotationPage() {
             </div>
           </div>
         </header>
+{/* 🆕 B3.4: Reminders block (скрыто при печати) */}
+        <div className="max-w-4xl mx-auto p-4 space-y-3 print:hidden">
+          {/* 🔴 KYC проверка покупателя — КРИТИЧНО */}
+          <Reminder
+            id="kyc_customer_check"
+            type="critical"
+            title="🏦 ОБЯЗАТЕЛЬНО: проверь покупателя перед отправкой квотации"
+            dismissible={false}
+          >
+            <p className="mb-2">
+              <strong>30% «покупателей» из Индии/Пакистана — фейковые!</strong> Они собирают цены с экспортёров, чтобы продать конкурентам или использовать в тендерах.
+            </p>
+            <p className="font-bold text-slate-900 mb-1">Минимальная проверка (10 минут):</p>
+            <ul className="list-disc ml-5 text-xs space-y-1">
+              <li><strong>Индия:</strong> сайт MCA (mca.gov.in) → проверка компании по CIN</li>
+              <li><strong>ОАЭ:</strong> Dubai Chamber + Trade Licence (запросить копию)</li>
+              <li><strong>Китай:</strong> сайт NECIPS, проверка по USCC коду</li>
+              <li><strong>Все:</strong> Dun &amp; Bradstreet — кредитный рейтинг (платно, но окупается)</li>
+              <li>Запросить: визитку директора, скан паспорта, фото офиса/склада</li>
+            </ul>
+            <p className="text-xs mt-2 italic text-slate-600">
+              Не уверен в покупателе? Не отправляй цену. Отправь только лист продукции без цен.
+            </p>
+          </Reminder>
 
+          {/* 🟡 NDA — Warning */}
+          <Reminder
+            id="nda_before_quote"
+            type="warning"
+            title="🤝 NDA перед обменом конфиденциальной информацией"
+            dismissible={true}
+          >
+            <p>
+              Для премиум-сегмента (ОАЭ, Европа) — стандартная практика подписать <strong>Mutual NDA</strong> до отправки детальной квотации. Это защитит твои <strong>закупочные цены</strong> от утечки конкурентам.
+            </p>
+            <p className="text-xs mt-2">
+              Шаблон NDA на 1 страницу скачивается с любого юрсайта. Подписание занимает 1 день. Покупатели премиум-сегмента <strong>сами уважают</strong> это требование — оно повышает твой авторитет.
+            </p>
+          </Reminder>
+
+          {/* 🟢 Юрист (показывается только до регистрации ИП) */}
+          {!seller?.registered && (
+            <Reminder
+              id="lawyer_before_first_deal"
+              type="tip"
+              title="⚖️ Перед первой сделкой — консультация с юристом-международником"
+              dismissible={true}
+            >
+              <p>
+                Покажи этот шаблон + текст контракта юристу <strong>до отправки клиенту</strong>. 1-2 часа консультации = <strong>5-10 тыс. ₽</strong>. Окупится с первой же сделки.
+              </p>
+              <p className="text-xs mt-2">
+                Что юрист проверит: <strong>пункты Force Majeure</strong> (санкции!), <strong>арбитраж</strong> (ICAC Moscow обязательно), <strong>валютный контроль</strong> (для контрактов &gt;$50,000), <strong>штрафные санкции</strong> с обеих сторон.
+              </p>
+              <p className="text-xs mt-2 italic text-slate-600">
+                После регистрации ИП — это напоминание автоматически исчезнет.
+              </p>
+            </Reminder>
+          )}
+        </div>
         {/* Controls (hidden in print) */}
         <div className="max-w-4xl mx-auto p-4 print:hidden">
           <div className="bg-white rounded-xl p-5 shadow-sm">
