@@ -5,7 +5,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-800">
       
-      {/* НАВИГАЦИЯ */}
+      {/* НАВИГАЦИЯ — только для клиентов */}
       <nav className="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-lg">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
@@ -13,16 +13,31 @@ export default function Home() {
             <span className="font-black text-xl tracking-widest">RU-TIMBER</span>
           </div>
           <div className="hidden md:flex gap-6 text-sm font-bold tracking-wider text-slate-300">
-            <Link href="/calculator" className="hover:text-orange-500 transition-colors">КАЛЬКУЛЯТОР</Link>
-            <Link href="/admin" className="hover:text-orange-500 transition-colors">ERP</Link>
-            <Link href="/crm" className="hover:text-orange-500 transition-colors">CRM</Link>
-            <Link href="/stats" className="hover:text-orange-500 transition-colors">СВОДКА</Link>
-            <Link href="/mission" className="text-cyan-400 hover:text-orange-500 transition-colors">🌊 MISSION</Link>
+            <a href="#products" className="hover:text-orange-500 transition-colors">PRODUCTS</a>
+            <a href="#logistics" className="hover:text-orange-500 transition-colors">LOGISTICS</a>
+            <a href="#contact" className="hover:text-orange-500 transition-colors">CONTACT</a>
           </div>
-          <a href="https://wa.me/79153490007" target="_blank" rel="noopener noreferrer" className="bg-green-500 hover:bg-green-400 text-white px-4 py-2 rounded font-bold text-sm flex items-center gap-2 transition-colors">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.883-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51h-.57c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
-            Contact Sales
-          </a>
+          <div className="flex items-center gap-3">
+            <a 
+              href="https://wa.me/79153490007" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="bg-green-500 hover:bg-green-400 text-white px-4 py-2 rounded font-bold text-sm flex items-center gap-2 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.305-.883-.653-1.48-1.459-1.653-1.756-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51h-.57c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+              </svg>
+              Contact Sales
+            </a>
+            {/* ⚓ Скрытая ссылка в Captain Mode — только ты знаешь */}
+            <Link 
+              href="/captain" 
+              className="text-slate-500 hover:text-orange-500 transition-colors text-xs"
+              title="Captain Mode"
+            >
+              ⚓
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -40,7 +55,7 @@ export default function Home() {
           
           <div className="flex flex-col sm:flex-row gap-4">
             <a href="https://wa.me/79153490007" target="_blank" rel="noopener noreferrer" className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-4 rounded font-bold text-lg text-center transition-all shadow-[0_0_20px_rgba(249,115,22,0.4)]">Get a Quote (CIF)</a>
-            <a href="#gallery" className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-8 py-4 rounded font-bold text-lg text-center transition-all">View Products</a>
+            <a href="#products" className="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-8 py-4 rounded font-bold text-lg text-center transition-all">View Products</a>
           </div>
         </div>
       </header>
@@ -48,7 +63,7 @@ export default function Home() {
       <main className="max-w-6xl mx-auto px-4 py-16">
         
         {/* ХАРАКТЕРИСТИКИ */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20 -mt-24 relative z-20">
+        <div id="products" className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20 -mt-24 relative z-20">
           <div className="bg-white p-8 rounded-xl shadow-xl border border-slate-100">
             <div className="w-12 h-12 bg-orange-100 text-orange-500 rounded-lg flex items-center justify-center mb-6">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" /></svg>
@@ -73,7 +88,7 @@ export default function Home() {
         </div>
 
         {/* ГАЛЕРЕЯ */}
-        <div id="gallery" className="mb-20">
+        <div className="mb-20">
           <h2 className="text-3xl font-black mb-10 text-center uppercase tracking-wider">Product Gallery</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="rounded-xl overflow-hidden shadow-lg h-64 relative group">
@@ -98,7 +113,7 @@ export default function Home() {
         </div>
 
         {/* БЛОК ЛОГИСТИКИ */}
-        <div className="mb-16">
+        <div id="logistics" className="mb-16">
           <h3 className="text-3xl font-black mb-10 text-center uppercase tracking-wider">Global Logistics</h3>
           <div className="bg-white rounded-2xl shadow-xl p-8 border border-slate-100 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-full -mr-20 -mt-20 opacity-50"></div>
@@ -110,9 +125,6 @@ export default function Home() {
                 </div>
                 <h4 className="font-bold text-slate-800 mb-2">1. Production</h4>
                 <p className="text-xs text-slate-500">Siberian Sawmill (Bratsk). Kiln drying and AST treatment.</p>
-                <div className="hidden md:block absolute top-8 -right-6 text-slate-300">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                </div>
               </div>
 
               <div className="text-center relative">
@@ -121,9 +133,6 @@ export default function Home() {
                 </div>
                 <h4 className="font-bold text-slate-800 mb-2">2. Rail Transit</h4>
                 <p className="text-xs text-slate-500">Fast block trains to Novorossiysk or Vladivostok ports.</p>
-                <div className="hidden md:block absolute top-8 -right-6 text-slate-300">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                </div>
               </div>
 
               <div className="text-center relative">
@@ -132,9 +141,6 @@ export default function Home() {
                 </div>
                 <h4 className="font-bold text-slate-800 mb-2">3. Customs & Port</h4>
                 <p className="text-xs text-slate-500">Full export documentation (Phyto, Origin, BL) and loading.</p>
-                <div className="hidden md:block absolute top-8 -right-6 text-slate-300">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                </div>
               </div>
 
               <div className="text-center">
@@ -151,19 +157,28 @@ export default function Home() {
       </main>
 
       {/* ФУТЕР */}
-      <footer className="bg-slate-900 text-slate-400 py-12 text-center border-t border-slate-800">
+      <footer id="contact" className="bg-slate-900 text-slate-400 py-12 text-center border-t border-slate-800">
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-2xl font-black text-white tracking-widest mb-4">RU-TIMBER EXPORT</h2>
           <p className="mb-6">Reliable supplier of Russian Sawn Timber.</p>
-          <p className="text-sm mb-6">© {new Date().getFullYear()} RU-TIMBER. All rights reserved.</p>
           
-          {/* 🌊 Captain's secret link */}
-          <Link 
-            href="/mission" 
-            className="inline-flex items-center gap-2 text-xs text-slate-600 hover:text-cyan-400 transition-colors border-t border-slate-800 pt-6 mt-4"
-          >
-            🌊 Captain's Mission · Ocean Dashboard
-          </Link>
+          {/* Contact details */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-8 max-w-3xl mx-auto">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-slate-500 mb-1">Phone / WhatsApp</div>
+              <a href="https://wa.me/79153490007" className="text-orange-400 hover:text-orange-300">+7 915 349 00 07</a>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wider text-slate-500 mb-1">Email</div>
+              <a href="mailto:info@ru-timber.com" className="text-orange-400 hover:text-orange-300">info@ru-timber.com</a>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wider text-slate-500 mb-1">Website</div>
+              <span className="text-orange-400">ru-timber.com</span>
+            </div>
+          </div>
+
+          <p className="text-sm">© {new Date().getFullYear()} RU-TIMBER. All rights reserved.</p>
         </div>
       </footer>
 
