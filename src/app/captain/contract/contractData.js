@@ -1,0 +1,591 @@
+// 📜 INTERNATIONAL SALES CONTRACT — TEMPLATE DATA
+// 2-language structure: { en: "...", ru: "..." }
+// Used by /captain/contract page
+
+// === 🌐 ГЛОССАРИЙ ЮРИДИЧЕСКИХ ТЕРМИНОВ ===
+export const GLOSSARY = {
+  "Incoterms": {
+    short: "Международные правила доставки",
+    long: "Incoterms (International Commercial Terms) — правила ICC, определяющие кто платит за доставку, страховку и где переходит риск. Сейчас актуальна редакция 2020 года.",
+  },
+  "CIF": {
+    short: "Cost, Insurance, Freight",
+    long: "CIF — продавец доставляет груз в порт покупателя, платит фрахт и страховку. Риск переходит на покупателя при пересечении борта судна в порту отгрузки.",
+  },
+  "FOB": {
+    short: "Free On Board",
+    long: "FOB — продавец доставляет груз до порта отгрузки и загружает на судно. Дальше — риск и расходы покупателя.",
+  },
+  "EXW": {
+    short: "Ex Works",
+    long: "EXW — самые минимальные обязательства продавца: товар забирается со склада, дальше все расходы и риски — на покупателе.",
+  },
+  "B/L": {
+    short: "Bill of Lading — коносамент",
+    long: "B/L (Bill of Lading) — главный документ морской перевозки. Кто держит оригинал B/L — тот владелец груза. Без B/L покупатель НЕ сможет забрать контейнер в своём порту.",
+  },
+  "L/C": {
+    short: "Letter of Credit — аккредитив",
+    long: "L/C (Letter of Credit) — банковская гарантия оплаты. Банк покупателя обязуется заплатить, если продавец предоставит правильные документы. Самая безопасная схема, но стоит ~1% от суммы.",
+  },
+  "T/T": {
+    short: "Telegraphic Transfer",
+    long: "T/T — обычный международный банковский перевод через SWIFT. Самый распространённый способ оплаты в B2B.",
+  },
+  "Force Majeure": {
+    short: "Форс-мажор — чрезвычайные обстоятельства",
+    long: "Force Majeure — обстоятельства непреодолимой силы (война, санкции, эпидемии, стихийные бедствия), освобождающие стороны от ответственности. КРИТИЧНО включить санкции и блокировку SWIFT для контрактов 2024-2026.",
+  },
+  "Arbitration": {
+    short: "Арбитраж — частный суд",
+    long: "Arbitration — рассмотрение споров в частном суде вместо государственного. ICAC Moscow в 10-30 раз дешевле западных арбитражей, решения признаются в 168 странах.",
+  },
+  "ICAC Moscow": {
+    short: "Международный коммерческий арбитраж в Москве",
+    long: "ICAC (International Commercial Arbitration Court при ТПП РФ) — российский арбитраж для международных споров. Стоимость ~$3000-5000, срок 3-6 месяцев. Решения признаются в Индии, Китае, ОАЭ, ЕС по Нью-Йоркской конвенции 1958.",
+  },
+  "Governing Law": {
+    short: "Применимое право",
+    long: "Governing Law — право какой страны применяется к контракту. Для тебя оптимально Russian Federation Law — твой юрист знает его наизусть.",
+  },
+  "HS Code": {
+    short: "Код Гармонизированной Системы",
+    long: "HS Code (Harmonized System) — международный 6-значный таможенный код товара. Для пиломатериалов: 4407.11 (сосна), 4407.12 (ель), 4407.19 (лиственница, кедр).",
+  },
+  "Phyto": {
+    short: "Фитосанитарный сертификат",
+    long: "Phytosanitary Certificate — документ Россельхознадзора, подтверждающий что древесина не заражена вредителями. Обязателен для экспорта в 99% стран.",
+  },
+  "ISPM-15": {
+    short: "Фумигация деревянной упаковки",
+    long: "ISPM-15 — международный стандарт обработки деревянной упаковки (поддоны, брус). Без клейма IPPC груз развернут в порту Индии/ЕС/Австралии.",
+  },
+  "GOST 8486-86": {
+    short: "Российский стандарт пиломатериалов",
+    long: "ГОСТ 8486-86 — советский стандарт качества пиломатериалов хвойных пород. Определяет сорта 1-4, допустимые дефекты, влажность. Признаётся во всём мире.",
+  },
+  "Advance Payment": {
+    short: "Предоплата",
+    long: "Advance Payment — авансовый платёж до начала производства/отгрузки. Стандарт для первой сделки: 30% advance + 70% против скана B/L.",
+  },
+  "Demurrage": {
+    short: "Простой контейнера в порту",
+    long: "Demurrage — штраф за простой контейнера в порту назначения сверх бесплатного периода (обычно 5-7 дней). $50-150/день. Платит грузополучатель.",
+  },
+  "Sanctions Clause": {
+    short: "Пункт про санкции",
+    long: "Sanctions Clause — отдельная оговорка о санкциях. КРИТИЧНО для российских экспортёров в 2024-2026: позволяет приостановить или расторгнуть контракт без штрафов при введении новых санкций.",
+  },
+  "Acceptance": {
+    short: "Приёмка товара",
+    long: "Acceptance — процедура принятия товара покупателем. Включает приёмку по количеству (в порту) и по качеству (срок 14 дней с фото и сюрвейерским отчётом).",
+  },
+  "Claims Period": {
+    short: "Срок предъявления претензий",
+    long: "Claims Period — период, в течение которого покупатель может предъявить претензии по качеству. Стандарт: 14 дней с момента выгрузки в порту назначения. Обязательно с фото + сюрвейерский отчёт SGS/Bureau Veritas.",
+  },
+  "Confidentiality": {
+    short: "Конфиденциальность",
+    long: "Confidentiality clause — обязательство сторон не разглашать условия контракта (цены, объёмы) третьим лицам. Защищает твои закупочные цены от утечки конкурентам.",
+  },
+};
+
+// === 📜 15 ПУНКТОВ КОНТРАКТА ===
+// Структура: { id, title_en, title_ru, body_en, body_ru, tooltipKey?, critical? }
+
+export const CONTRACT_CLAUSES = [
+  {
+    id: 1,
+    title_en: "1. PARTIES",
+    title_ru: "1. СТОРОНЫ",
+    body_en: (data) => `
+This International Sales Contract (hereinafter — "Contract") No. ${data.contractNumber} is made on ${data.contractDate} between:
+
+THE SELLER:
+${data.sellerName}
+Registered address: ${data.sellerAddress}
+INN: ${data.sellerINN} | OGRN: ${data.sellerOGRN}
+Represented by: ${data.sellerDirector}, acting on the basis of the Charter
+
+— and —
+
+THE BUYER:
+${data.buyerName}
+Registered address: ${data.buyerAddress}
+Tax ID / Trade License: ${data.buyerTaxId || "[BUYER TAX ID]"}
+Represented by: ${data.buyerDirector || "[BUYER REPRESENTATIVE]"}, acting on the basis of [Power of Attorney / Charter]
+
+Hereinafter jointly referred to as "the Parties".`,
+    body_ru: (data) => `
+Настоящий международный контракт купли-продажи (далее — «Контракт») № ${data.contractNumber} заключён ${data.contractDate} между:
+
+ПРОДАВЕЦ:
+${data.sellerName}
+Юридический адрес: ${data.sellerAddress}
+ИНН: ${data.sellerINN} | ОГРН: ${data.sellerOGRN}
+В лице: ${data.sellerDirector}, действующего на основании Устава
+
+— и —
+
+ПОКУПАТЕЛЬ:
+${data.buyerName}
+Юридический адрес: ${data.buyerAddress}
+Налоговый ID / Торговая лицензия: ${data.buyerTaxId || "[ID ПОКУПАТЕЛЯ]"}
+В лице: ${data.buyerDirector || "[ПРЕДСТАВИТЕЛЬ ПОКУПАТЕЛЯ]"}, действующего на основании [Доверенности / Устава]
+
+Далее совместно именуемые «Стороны».`,
+  },
+  {
+    id: 2,
+    title_en: "2. SUBJECT OF THE CONTRACT",
+    title_ru: "2. ПРЕДМЕТ КОНТРАКТА",
+    body_en: (data) => `
+2.1. The Seller undertakes to sell and deliver, and the Buyer undertakes to accept and pay for the following goods (hereinafter — "Goods"):
+
+• Description: ${data.productDescription}
+• Standard: GOST 8486-86 (Russian Federation State Standard)
+• Grade: 1-3 (selected grades)
+• Moisture: ${data.moisture}
+• Dimensions: ${data.dimensions} mm
+• Quantity: ${data.quantity} m³ (cubic meters)
+• Packaging: ${data.packaging}
+• HS Code: ${data.hsCode}
+• Country of Origin: Russian Federation`,
+    body_ru: (data) => `
+2.1. Продавец обязуется продать и поставить, а Покупатель обязуется принять и оплатить следующий товар (далее — «Товар»):
+
+• Наименование: ${data.productDescription}
+• Стандарт: ГОСТ 8486-86 (Российская Федерация)
+• Сорт: 1-3 (отборные сорта)
+• Влажность: ${data.moisture}
+• Размеры: ${data.dimensions} мм
+• Количество: ${data.quantity} м³ (кубических метров)
+• Упаковка: ${data.packaging}
+• Код ТН ВЭД: ${data.hsCode}
+• Страна происхождения: Российская Федерация`,
+    tooltipKey: "HS Code",
+  },
+  {
+    id: 3,
+    title_en: "3. QUALITY",
+    title_ru: "3. КАЧЕСТВО",
+    body_en: () => `
+3.1. The quality of the Goods shall correspond to GOST 8486-86 standard.
+
+3.2. Tolerances:
+• Thickness: ±2 mm
+• Width: ±2 mm
+• Length: ±5 mm
+• Moisture: as specified in clause 2.1 (±2%)
+
+3.3. The Seller shall provide pre-shipment photos of the Goods as an Annex to this Contract.
+
+3.4. The Seller guarantees that the Goods are free from defects affecting their commercial value (rot, fungal stains, insect damage exceeding GOST tolerances).`,
+    body_ru: () => `
+3.1. Качество Товара должно соответствовать ГОСТ 8486-86.
+
+3.2. Допуски:
+• Толщина: ±2 мм
+• Ширина: ±2 мм
+• Длина: ±5 мм
+• Влажность: согласно п.2.1 (±2%)
+
+3.3. Продавец предоставляет фотографии Товара перед отгрузкой в качестве Приложения к Контракту.
+
+3.4. Продавец гарантирует, что Товар свободен от дефектов, влияющих на его коммерческую ценность (гниль, грибные пятна, поражения насекомыми сверх допусков ГОСТ).`,
+    tooltipKey: "GOST 8486-86",
+  },
+  {
+    id: 4,
+    title_en: "4. PRICE AND TOTAL VALUE",
+    title_ru: "4. ЦЕНА И ОБЩАЯ СТОИМОСТЬ",
+    body_en: (data) => `
+4.1. The unit price of the Goods: USD ${data.unitPrice} per m³ on ${data.incoterm} basis (Incoterms 2020).
+
+4.2. Total Contract value: USD ${data.totalAmount} (${data.totalAmountWords}).
+
+4.3. The price is firm and is not subject to any changes during the validity of this Contract.
+
+4.4. The price includes: cost of Goods, packaging, marking, loading, all applicable Russian export duties (if any), and (for CIF) — international ocean freight and marine insurance up to the destination port.`,
+    body_ru: (data) => `
+4.1. Цена за единицу Товара: ${data.unitPrice} долларов США за м³ на условиях ${data.incoterm} (Инкотермс 2020).
+
+4.2. Общая стоимость Контракта: ${data.totalAmount} долларов США (${data.totalAmountWords}).
+
+4.3. Цена является твёрдой и не подлежит изменению в течение срока действия Контракта.
+
+4.4. Цена включает: стоимость Товара, упаковку, маркировку, погрузку, все применимые российские экспортные пошлины (при наличии), и (для CIF) — международный морской фрахт и морское страхование до порта назначения.`,
+    tooltipKey: "Incoterms",
+  },
+  {
+    id: 5,
+    title_en: "5. DELIVERY TERMS (INCOTERMS 2020)",
+    title_ru: "5. УСЛОВИЯ ПОСТАВКИ (ИНКОТЕРМС 2020)",
+    body_en: (data) => `
+5.1. Delivery basis: ${data.incoterm} ${data.destinationPort} (Incoterms 2020).
+
+5.2. Port of loading: ${data.loadingPort}, Russian Federation.
+
+5.3. Port of destination: ${data.destinationPort}.
+
+5.4. Container type: 40' High Cube (40HC), 1 container per shipment.
+
+5.5. Lead time: ${data.leadTime} days from the date of receipt of advance payment.
+
+5.6. The Seller is obliged to provide the Buyer with a copy of the Bill of Lading (B/L) within 3 working days after vessel departure.
+
+5.7. Title to the Goods passes to the Buyer upon receipt by the Buyer of 100% payment.
+
+5.8. Risk of loss or damage passes to the Buyer at the moment of crossing the ship's rail at the port of loading (for FOB/CIF).`,
+    body_ru: (data) => `
+5.1. Условия поставки: ${data.incoterm} ${data.destinationPort} (Инкотермс 2020).
+
+5.2. Порт отгрузки: ${data.loadingPort}, Российская Федерация.
+
+5.3. Порт назначения: ${data.destinationPort}.
+
+5.4. Тип контейнера: 40-футовый High Cube (40HC), 1 контейнер на отгрузку.
+
+5.5. Срок поставки: ${data.leadTime} дней с даты получения авансового платежа.
+
+5.6. Продавец обязан предоставить Покупателю копию коносамента (B/L) в течение 3 рабочих дней после отправки судна.
+
+5.7. Право собственности на Товар переходит к Покупателю в момент получения Покупателем 100% оплаты.
+
+5.8. Риск утраты или повреждения Товара переходит к Покупателю в момент пересечения борта судна в порту отгрузки (для FOB/CIF).`,
+    tooltipKey: "CIF",
+    critical: true,
+  },
+  {
+    id: 6,
+    title_en: "6. PAYMENT TERMS",
+    title_ru: "6. УСЛОВИЯ ОПЛАТЫ",
+    body_en: (data) => `
+6.1. Payment is made in US Dollars (USD) by Telegraphic Transfer (T/T) or through an authorized payment agent (see clause 6.5).
+
+6.2. Payment schedule:
+• 30% advance payment within 5 (five) banking days after signing this Contract
+• 70% balance payment against scan copy of Bill of Lading (B/L), within 5 (five) banking days after receipt of B/L copy
+
+6.3. Bank charges: charges of the Seller's bank — for the Seller's account, charges of the Buyer's bank — for the Buyer's account, intermediary bank charges — for the Buyer's account (OUR/OUR).
+
+6.4. The Buyer is considered to have fulfilled his payment obligations from the moment the funds are credited to the Seller's account.
+
+6.5. PAYMENT VIA AUTHORIZED AGENT (Kyrgyzstan / Uzbekistan):
+Due to current international banking restrictions, the Buyer may pay through an authorized payment agent designated by the Seller (a licensed company in Kyrgyzstan or Uzbekistan). The Seller shall provide:
+• Tripartite Agency Agreement (Seller — Agent — Buyer)
+• Compliance letter from the Seller's bank
+• Agent invoice for the same amount as per this Contract
+This scheme is fully compliant with CIS, UAE, EU and US regulations as of 2026.
+
+6.6. The Buyer's payment obligation under this Contract is deemed fulfilled upon transfer of funds to the Agent's account, subject to confirmation by the Seller's bank.`,
+    body_ru: (data) => `
+6.1. Оплата производится в долларах США (USD) телеграфным переводом (T/T) или через уполномоченного платёжного агента (см. п.6.5).
+
+6.2. График оплаты:
+• 30% авансовый платёж в течение 5 (пяти) банковских дней с даты подписания Контракта
+• 70% окончательный платёж против скан-копии коносамента (B/L), в течение 5 (пяти) банковских дней с даты получения копии B/L
+
+6.3. Банковские расходы: расходы банка Продавца — за счёт Продавца, расходы банка Покупателя — за счёт Покупателя, расходы банков-корреспондентов — за счёт Покупателя (OUR/OUR).
+
+6.4. Покупатель считается исполнившим обязательства по оплате с момента зачисления средств на счёт Продавца.
+
+6.5. ОПЛАТА ЧЕРЕЗ УПОЛНОМОЧЕННОГО АГЕНТА (Киргизия / Узбекистан):
+В связи с текущими международными банковскими ограничениями, Покупатель может произвести оплату через уполномоченного платёжного агента, назначенного Продавцом (лицензированная компания в Киргизии или Узбекистане). Продавец предоставляет:
+• Трёхсторонний агентский договор (Продавец — Агент — Покупатель)
+• Письмо о комплаенсе от банка Продавца
+• Инвойс агента на сумму согласно настоящему Контракту
+Данная схема полностью соответствует требованиям регуляторов СНГ, ОАЭ, ЕС и США по состоянию на 2026 год.
+
+6.6. Обязательства Покупателя по оплате считаются выполненными с момента перечисления средств на счёт Агента при условии подтверждения банком Продавца.`,
+    tooltipKey: "Advance Payment",
+    critical: true,
+  },
+  {
+    id: 7,
+    title_en: "7. PACKING AND MARKING",
+    title_ru: "7. УПАКОВКА И МАРКИРОВКА",
+    body_en: (data) => `
+7.1. Packaging: ${data.packaging}, suitable for ocean transit of ${data.transitDays} days.
+
+7.2. All wooden packaging materials (dunnage, pallets, supports) must comply with ISPM-15 standard (IPPC stamp).
+
+7.3. Marking on each bundle:
+• Contract number: ${data.contractNumber}
+• Bundle number
+• Dimensions
+• Quantity (m³)
+• Quality grade
+• Country of origin: RUSSIA
+• Destination port: ${data.destinationPort}`,
+    body_ru: (data) => `
+7.1. Упаковка: ${data.packaging}, пригодная для морской перевозки в течение ${data.transitDays} дней.
+
+7.2. Все деревянные упаковочные материалы (крепёжный брус, поддоны, опоры) должны соответствовать стандарту ISPM-15 (клеймо IPPC).
+
+7.3. Маркировка на каждой пачке:
+• Номер контракта: ${data.contractNumber}
+• Номер пачки
+• Размеры
+• Количество (м³)
+• Сорт качества
+• Страна происхождения: RUSSIA
+• Порт назначения: ${data.destinationPort}`,
+    tooltipKey: "ISPM-15",
+  },
+  {
+    id: 8,
+    title_en: "8. SHIPPING DOCUMENTS",
+    title_ru: "8. ОТГРУЗОЧНЫЕ ДОКУМЕНТЫ",
+    body_en: () => `
+8.1. The Seller shall provide the following documents:
+(a) Commercial Invoice — 3 originals
+(b) Packing List — 3 originals
+(c) Bill of Lading (B/L) — 3 originals + 3 non-negotiable copies
+(d) Certificate of Origin (Form A or CT-1) — 1 original
+(e) Phytosanitary Certificate (Rosselkhoznadzor) — 1 original
+(f) Fumigation Certificate (ISPM-15 / IPPC) — 1 original
+(g) Pre-shipment photographs (digital, via email)
+(h) Loading Survey Report (if requested by the Buyer, at the Buyer's expense)
+
+8.2. Original documents shall be sent to the Buyer by international courier (DHL/FedEx) within 5 working days after final payment.`,
+    body_ru: () => `
+8.1. Продавец предоставляет следующие документы:
+(а) Коммерческий инвойс — 3 оригинала
+(б) Упаковочный лист — 3 оригинала
+(в) Коносамент (B/L) — 3 оригинала + 3 необоротных копии
+(г) Сертификат происхождения (Форма А или СТ-1) — 1 оригинал
+(д) Фитосанитарный сертификат (Россельхознадзор) — 1 оригинал
+(е) Сертификат фумигации (ISPM-15 / IPPC) — 1 оригинал
+(ж) Фотографии товара перед отгрузкой (цифровые, по email)
+(з) Сюрвейерский отчёт о погрузке (по запросу Покупателя, за его счёт)
+
+8.2. Оригиналы документов направляются Покупателю международной курьерской службой (DHL/FedEx) в течение 5 рабочих дней после окончательного платежа.`,
+    tooltipKey: "B/L",
+  },
+  {
+    id: 9,
+    title_en: "9. ACCEPTANCE OF GOODS",
+    title_ru: "9. ПРИЁМКА ТОВАРА",
+    body_en: () => `
+9.1. Acceptance of the Goods by quantity is performed at the port of destination, at the moment of container unloading, in the presence of the Buyer's representative.
+
+9.2. Acceptance by quality is performed within 14 (fourteen) calendar days from the date of unloading. Any claims regarding quality must be supported by:
+(a) Photographic evidence
+(b) Official report of an independent surveyor (SGS, Bureau Veritas, Cotecna or equivalent)
+(c) Samples of the disputed Goods
+
+9.3. Claims received after the 14-day period shall not be accepted.
+
+9.4. Total claim amount shall not exceed 5% (five percent) of the Contract value, unless caused by gross negligence of the Seller.`,
+    body_ru: () => `
+9.1. Приёмка Товара по количеству производится в порту назначения в момент разгрузки контейнера в присутствии представителя Покупателя.
+
+9.2. Приёмка по качеству производится в течение 14 (четырнадцати) календарных дней с даты разгрузки. Претензии по качеству должны быть подкреплены:
+(а) Фотодоказательствами
+(б) Официальным отчётом независимого сюрвейера (SGS, Bureau Veritas, Cotecna или эквивалент)
+(в) Образцами спорного Товара
+
+9.3. Претензии, полученные после 14-дневного срока, не принимаются.
+
+9.4. Общая сумма претензий не может превышать 5% (пять процентов) от стоимости Контракта, за исключением случаев грубой неосторожности Продавца.`,
+    tooltipKey: "Claims Period",
+  },
+  {
+    id: 10,
+    title_en: "10. CLAIMS AND DISPUTES RESOLUTION",
+    title_ru: "10. ПРЕТЕНЗИИ И РАЗРЕШЕНИЕ СПОРОВ",
+    body_en: () => `
+10.1. All claims must be submitted in writing (email is acceptable) within the period specified in clause 9.
+
+10.2. The Parties shall attempt to resolve all disputes through good-faith negotiations within 30 (thirty) calendar days.
+
+10.3. If amicable settlement is not reached, the dispute shall be referred to arbitration as per clause 12.
+
+10.4. Acceptable claim resolutions: (a) replacement of defective Goods in next shipment, (b) partial refund / discount, (c) credit note for future orders.`,
+    body_ru: () => `
+10.1. Все претензии направляются в письменной форме (электронная почта допускается) в сроки, указанные в п.9.
+
+10.2. Стороны прилагают усилия для разрешения всех споров путём добросовестных переговоров в течение 30 (тридцати) календарных дней.
+
+10.3. Если мировое соглашение не достигнуто, спор передаётся в арбитраж согласно п.12.
+
+10.4. Возможные способы урегулирования: (а) замена дефектного Товара в следующей отгрузке, (б) частичный возврат / скидка, (в) кредит-нота на будущие заказы.`,
+  },
+  {
+    id: 11,
+    title_en: "11. FORCE MAJEURE",
+    title_ru: "11. ФОРС-МАЖОР",
+    body_en: () => `
+11.1. Neither Party shall be liable for failure or delay in performance of obligations due to circumstances beyond reasonable control ("Force Majeure"), including but not limited to:
+(a) War, military operations, terrorism, civil unrest, revolution
+(b) Natural disasters (earthquake, flood, hurricane, fire)
+(c) Epidemics, pandemics, government quarantine measures
+(d) Strikes, lockouts, port closures
+(e) Acts or omissions of governmental authorities
+(f) **International sanctions, embargoes, restrictions imposed by any country or international body (including but not limited to USA, EU, UK)**
+(g) **Refusal of banks to process payments due to sanctions or compliance reasons**
+(h) **SWIFT blockade or restrictions affecting Russian financial institutions**
+(i) **Government-imposed export bans or restrictions**
+
+11.2. The affected Party shall notify the other Party in writing within 10 (ten) calendar days of the Force Majeure event, with supporting evidence (Chamber of Commerce certificate or equivalent).
+
+11.3. If Force Majeure continues for more than 60 (sixty) calendar days, either Party may terminate this Contract without liability, with full refund of advance payments received.
+
+11.4. Force Majeure does not release Parties from obligations that arose before the event.`,
+    body_ru: () => `
+11.1. Ни одна из Сторон не несёт ответственности за неисполнение или задержку в исполнении обязательств вследствие обстоятельств непреодолимой силы («Форс-мажор»), включая, помимо прочего:
+(а) Война, военные действия, терроризм, гражданские беспорядки, революция
+(б) Стихийные бедствия (землетрясение, наводнение, ураган, пожар)
+(в) Эпидемии, пандемии, государственные карантинные меры
+(г) Забастовки, локауты, закрытие портов
+(д) Действия или бездействие государственных органов
+(е) **Международные санкции, эмбарго, ограничения, введённые любой страной или международной организацией (включая, помимо прочего, США, ЕС, Великобританию)**
+(ж) **Отказ банков проводить платежи в связи с санкциями или комплаенсом**
+(з) **Блокада SWIFT или ограничения, влияющие на российские финансовые институты**
+(и) **Государственные запреты или ограничения на экспорт**
+
+11.2. Пострадавшая Сторона уведомляет другую Сторону в письменной форме в течение 10 (десяти) календарных дней с момента наступления форс-мажора, с подтверждающими документами (сертификат Торгово-промышленной палаты или эквивалент).
+
+11.3. Если форс-мажор продолжается более 60 (шестидесяти) календарных дней, любая Сторона вправе расторгнуть Контракт без ответственности с полным возвратом полученных авансовых платежей.
+
+11.4. Форс-мажор не освобождает Стороны от обязательств, возникших до его наступления.`,
+    tooltipKey: "Force Majeure",
+    critical: true,
+  },
+  {
+    id: 12,
+    title_en: "12. ARBITRATION AND GOVERNING LAW",
+    title_ru: "12. АРБИТРАЖ И ПРИМЕНИМОЕ ПРАВО",
+    body_en: () => `
+12.1. All disputes arising from or in connection with this Contract shall be finally settled by the International Commercial Arbitration Court at the Chamber of Commerce and Industry of the Russian Federation (ICAC Moscow) in accordance with its Rules.
+
+12.2. Place of arbitration: Moscow, Russian Federation.
+
+12.3. Number of arbitrators: one (1).
+
+12.4. Language of arbitration: English (with Russian translation of evidence where applicable).
+
+12.5. Governing Law: The substantive law of the Russian Federation, including the UN Convention on Contracts for the International Sale of Goods 1980 (CISG), shall apply to this Contract.
+
+12.6. The arbitration award shall be final and binding on the Parties. The award shall be enforceable under the New York Convention 1958 in any signatory country, including but not limited to India, China, UAE, EU member states.`,
+    body_ru: () => `
+12.1. Все споры, возникающие из настоящего Контракта или в связи с ним, окончательно разрешаются Международным коммерческим арбитражным судом при Торгово-промышленной палате Российской Федерации (МКАС при ТПП РФ, г. Москва) в соответствии с его Регламентом.
+
+12.2. Место арбитража: Москва, Российская Федерация.
+
+12.3. Количество арбитров: один (1).
+
+12.4. Язык арбитража: английский (с переводом доказательств на русский, где применимо).
+
+12.5. Применимое право: К настоящему Контракту применяется материальное право Российской Федерации, включая Венскую конвенцию ООН о договорах международной купли-продажи товаров 1980 года (CISG).
+
+12.6. Решение арбитража является окончательным и обязательным для Сторон. Решение подлежит исполнению согласно Нью-Йоркской конвенции 1958 года в любой стране-участнице, включая, помимо прочего, Индию, Китай, ОАЭ, страны-члены ЕС.`,
+    tooltipKey: "ICAC Moscow",
+    critical: true,
+  },
+  {
+    id: 13,
+    title_en: "13. CONFIDENTIALITY",
+    title_ru: "13. КОНФИДЕНЦИАЛЬНОСТЬ",
+    body_en: () => `
+13.1. The Parties agree to keep the terms of this Contract, including prices, volumes, and any commercial information, strictly confidential.
+
+13.2. Confidential information shall not be disclosed to third parties without prior written consent of the other Party, except as required by law or court order.
+
+13.3. This obligation survives the termination of the Contract for a period of 3 (three) years.`,
+    body_ru: () => `
+13.1. Стороны обязуются сохранять условия настоящего Контракта, включая цены, объёмы и любую коммерческую информацию, в строгой конфиденциальности.
+
+13.2. Конфиденциальная информация не может быть передана третьим лицам без предварительного письменного согласия другой Стороны, за исключением случаев, требуемых законом или судебным решением.
+
+13.3. Данное обязательство сохраняет силу в течение 3 (трёх) лет после прекращения Контракта.`,
+    tooltipKey: "Confidentiality",
+  },
+  {
+    id: 14,
+    title_en: "14. GENERAL PROVISIONS",
+    title_ru: "14. ОБЩИЕ ПОЛОЖЕНИЯ",
+    body_en: (data) => `
+14.1. This Contract is executed in 2 (two) original copies in English and Russian languages, one for each Party. In case of discrepancy, the English version shall prevail.
+
+14.2. Any amendments and additions to this Contract shall be valid only if made in writing and signed by both Parties.
+
+14.3. This Contract supersedes all prior negotiations, agreements and understandings between the Parties.
+
+14.4. Neither Party may assign rights or obligations under this Contract without written consent of the other Party.
+
+14.5. This Contract enters into force on the date of signing by both Parties and remains valid until full performance of all obligations, but no later than ${data.contractExpiryDate}.
+
+14.6. Notices: All notices shall be sent by email to the addresses specified in clause 1, and considered received on the next business day.`,
+    body_ru: (data) => `
+14.1. Контракт составлен в 2 (двух) оригинальных экземплярах на английском и русском языках, по одному для каждой Стороны. В случае расхождений преимущественную силу имеет английская версия.
+
+14.2. Любые изменения и дополнения к Контракту действительны только при оформлении в письменной форме и подписании обеими Сторонами.
+
+14.3. Настоящий Контракт заменяет все предыдущие переговоры, соглашения и договорённости между Сторонами.
+
+14.4. Ни одна из Сторон не вправе уступать права или обязательства по Контракту без письменного согласия другой Стороны.
+
+14.5. Контракт вступает в силу с даты подписания обеими Сторонами и действует до полного исполнения всех обязательств, но не позднее ${data.contractExpiryDate}.
+
+14.6. Уведомления: Все уведомления направляются по электронной почте по адресам, указанным в п.1, и считаются полученными на следующий рабочий день.`,
+  },
+  {
+    id: 15,
+    title_en: "15. BANKING DETAILS AND SIGNATURES",
+    title_ru: "15. БАНКОВСКИЕ РЕКВИЗИТЫ И ПОДПИСИ",
+    body_en: (data) => `
+SELLER'S BANKING DETAILS:
+Beneficiary: ${data.sellerName}
+Bank: ${data.sellerBank}
+SWIFT: ${data.sellerSwift}
+Account (USD): ${data.sellerAccount}
+Correspondent Bank: ${data.sellerCorrespondent}
+
+BUYER'S BANKING DETAILS:
+[To be provided by the Buyer]
+
+SIGNED FOR AND ON BEHALF OF THE SELLER:
+
+_______________________
+${data.sellerDirector}
+${data.sellerName}
+Stamp & Signature
+Date: _____________
+
+SIGNED FOR AND ON BEHALF OF THE BUYER:
+
+_______________________
+${data.buyerDirector || "[Buyer Representative]"}
+${data.buyerName}
+Stamp & Signature
+Date: _____________`,
+    body_ru: (data) => `
+БАНКОВСКИЕ РЕКВИЗИТЫ ПРОДАВЦА:
+Бенефициар: ${data.sellerName}
+Банк: ${data.sellerBank}
+SWIFT: ${data.sellerSwift}
+Счёт (USD): ${data.sellerAccount}
+Банк-корреспондент: ${data.sellerCorrespondent}
+
+БАНКОВСКИЕ РЕКВИЗИТЫ ПОКУПАТЕЛЯ:
+[Предоставляются Покупателем]
+
+ПОДПИСАНО ОТ ИМЕНИ ПРОДАВЦА:
+
+_______________________
+${data.sellerDirector}
+${data.sellerName}
+Печать и подпись
+Дата: _____________
+
+ПОДПИСАНО ОТ ИМЕНИ ПОКУПАТЕЛЯ:
+
+_______________________
+${data.buyerDirector || "[Представитель Покупателя]"}
+${data.buyerName}
+Печать и подпись
+Дата: _____________`,
+  },
+];

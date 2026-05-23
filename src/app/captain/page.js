@@ -144,17 +144,17 @@ export default function CaptainDashboard() {
             active
           />
 
-          {/* TILE 4: CRM */}
-          <Tile
-            href="/captain/crm"
-            icon="👥"
-            title="CRM"
-            subtitle="Клиенты и поставщики"
-            description="База контактов, история переговоров, KYC"
-            color="from-purple-600 to-purple-700"
-            stat="Coming soon"
-            comingSoon
-          />
+          {/* TILE 4: CONTRACT */}
+<Tile
+  href="/captain/contract"
+  icon="📜"
+  title="Contract Generator"
+  subtitle="International Sales Contract"
+  description="15 пунктов · EN+RU · ICAC Moscow · Force Majeure под санкции"
+  color="from-rose-600 to-rose-700"
+  stat="Ready"
+  active
+/>
 
           {/* TILE 5: СДЕЛКИ */}
           <Tile
