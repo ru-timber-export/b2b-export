@@ -1,5 +1,5 @@
 "use client";
-
+import { SignatureWithStamp } from "../../components/CompanyStamp";
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useDeal } from "../../context/DealContext";
@@ -444,7 +444,35 @@ export default function ContractPage() {
                 );
               })}
             </div>
+{/* После CONTRACT_CLAUSES.map(...) и перед {showGlossary && <GlossaryFooter />} */}
 
+{/* СЕКЦИЯ ПОДПИСЕЙ И ПЕЧАТЕЙ */}
+<div className="mt-12 pt-8 border-t-2 border-slate-300 grid grid-cols-1 md:grid-cols-2 gap-8">
+  <div>
+    <div className="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2">
+      Seller / Продавец
+    </div>
+    <SignatureWithStamp
+      name={contractData.sellerDirector}
+      role={contractData.sellerName}
+      companyName="RU-TIMBER EXPORT"
+      inn={contractData.sellerINN || "1234567890"}
+      ogrn={contractData.sellerOGRN || "1234567890123"}
+      city="MOSCOW"
+    />
+  </div>
+  <div>
+    <div className="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2">
+      Buyer / Покупатель
+    </div>
+    <div className="border-b-2 border-slate-700 w-64 mb-2 h-12"></div>
+    <div className="text-xs font-bold">{contractData.buyerDirector}</div>
+    <div className="text-xs text-slate-600">{contractData.buyerName}</div>
+    <div className="text-xs text-slate-400 italic mt-2">
+      Buyer's seal & signature
+    </div>
+  </div>
+</div>
             {/* Glossary footer */}
             {showGlossary && <GlossaryFooter />}
 

@@ -1,591 +1,345 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useDeal } from "../../context/DealContext";
 import Link from "next/link";
-import {
-  useDeal,
-  SPECIES_BASE_PRICES,
-  DRYING_SURCHARGE,
-  PACKAGING_SURCHARGE,
-  FREIGHT_PRESETS,
-} from "../../context/DealContext";
 import Reminder from "../../components/Reminder";
-
-// 💼 Демо-реквизиты компании (потом поменяете на реальные)
-const DEFAULT_COMPANY = {
-  name: "RU-TIMBER EXPORT LLC",
-  address: "123 Lesnaya str., Bratsk, Irkutsk region, 665717, Russia",
-  phone: "+7 915 349 00 07",
-  email: "director@ru-timber.com",
-  website: "ru-timber.com",
-  inn: "3804XXXXXX",
-  ogrn: "1XXXXXXXXXXXX",
-  bank: "JSC ALPHA-BANK",
-  swift: "ALFARUMM",
-  account: "40702840XXXXXXXXXXXX",
-  correspondent: "Correspondent bank on request",
-};
-
-// 📝 Описание товара для клиента (умная подстановка)
-const SPECIES_DESCRIPTION = {
-  pine: "Russian Pine (Pinus Sylvestris)",
-  spruce: "Russian Spruce (Picea Abies)",
-  "pine-spruce-50-50": "Russian Softwood (Pine/Spruce mix)",
-  "pine-spruce-70-30": "Russian Pine-Dominant Softwood (Pine 70% / Spruce 30%)",
-  spf: "Russian Whitewood (Spruce/Fir — SPF)",
-  larch: "Siberian Larch (Larix Sibirica) — Premium",
-  cedar: "Siberian Cedar (Pinus Sibirica)",
-  birch: "Russian Birch (Betula Pendula)",
-  oak: "Russian Oak (Quercus Robur)",
-  aspen: "Russian Aspen (Populus Tremula)",
-};
-
-const HS_CODES = {
-  pine: "4407.11",
-  spruce: "4407.12",
-  larch: "4407.19",
-  cedar: "4407.19",
-  birch: "4407.96",
-  oak: "4407.91",
-  aspen: "4407.97",
-  "pine-spruce-50-50": "4407.11",
-  "pine-spruce-70-30": "4407.11",
-  spf: "4407.12",
-};
-
-const MOISTURE_DESC = {
-  kd: "Kiln Dried (KD) 10-12%",
-  ad: "Air Dried (AD) 18-22%",
-  fresh: "Fresh Sawn 22-30%",
-};
-
-const PACKAGING_DESC = {
-  none: "Loose (bulk)",
-  crate: "Crated (wooden pallets + strapping)",
-  shrink: "Shrink-wrapped + crated",
-};
-
-// Порт отгрузки по направлению
-const ROUTE_PORTS = {
-  "vlv-chennai": { from: "Vladivostok, Russia", to: "Chennai, India" },
-  "vlv-shanghai": { from: "Vladivostok, Russia", to: "Shanghai, China" },
-  "nvr-mumbai": { from: "Novorossiysk, Russia", to: "Mumbai, India" },
-  "nvr-dubai": { from: "Novorossiysk, Russia", to: "Jebel Ali, UAE" },
-  "nvr-alexandria": { from: "Novorossiysk, Russia", to: "Alexandria, Egypt" },
-  "nvr-istanbul": { from: "Novorossiysk, Russia", to: "Istanbul, Turkey" },
-};
 
 export default function QuotationPage() {
   const { deal, seller, isLoaded } = useDeal();
-  const [company, setCompany] = useState(DEFAULT_COMPANY);
-  const [editMode, setEditMode] = useState(false);
-  const [customerName, setCustomerName] = useState("");
-  const [customerCountry, setCustomerCountry] = useState("");
-  const [quoteNumber, setQuoteNumber] = useState("");
-
-  // 📅 Даты
-  const today = new Date();
-  const validUntil = new Date(today);
-  validUntil.setDate(today.getDate() + 7);
-
-  const formatDate = (d) =>
-    d.toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    });
-
-  // 🔢 Auto quote number
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const counterKey = "ru-timber-quote-counter";
-    const saved = localStorage.getItem(counterKey);
-    const num = saved ? parseInt(saved) + 1 : 1;
-    localStorage.setItem(counterKey, num.toString());
-    const year = today.getFullYear();
-    setQuoteNumber(`RT-${year}-${String(num).padStart(4, "0")}`);
-
-    // Загрузка сохранённых реквизитов
-    const savedCompany = localStorage.getItem("ru-timber-company-details");
-    if (savedCompany) {
-      try {
-        setCompany(JSON.parse(savedCompany));
-      } catch (e) {
-        console.error("Company load error:", e);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // 💾 Сохранение реквизитов
-  const saveCompany = () => {
-    if (typeof window !== "undefined") {
-      localStorage.setItem("ru-timber-company-details", JSON.stringify(company));
-    }
-    setEditMode(false);
-  };
 
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        Loading...
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
-  // 🧮 Расчёт цены (копия логики из Pricing)
-  const species = deal.species || "pine-spruce-50-50";
-  const moisture = deal.moisture || "kd";
-  const packaging = deal.packaging || "crate";
-  const incoterm = deal.incoterm || "cif";
-  const totalVol = deal.totalVolume === "" ? 0 : parseFloat(deal.totalVolume) || 50;
-  const margin = deal.margin === "" ? 0 : parseFloat(deal.margin) || 18;
-  const freightPreset = FREIGHT_PRESETS[deal.freightRoute] || FREIGHT_PRESETS["vlv-chennai"];
+  const handlePrint = () => window.print();
 
-  const speciesBase = SPECIES_BASE_PRICES[species] || 160;
-  const dryingAdd = DRYING_SURCHARGE[moisture] || 0;
-  const packAdd = PACKAGING_SURCHARGE[packaging] || 0;
-  const millPrice = speciesBase + dryingAdd + packAdd;
+  // Расчёты
+  const volumePerContainer = deal.volumeTotal || 0;
+  const pricePerM3 = deal.pricingPerM3 || 0;
+  const containerCount = deal.containerCount || 1;
+  const totalPerContainer = volumePerContainer * pricePerM3;
+  const grandTotal = totalPerContainer * containerCount;
+  const totalVolume = volumePerContainer * containerCount;
 
-  const loadFactory = 6;
-  const landTransport = totalVol > 0 ? 1500 / totalVol : 0;
-  const portFees = totalVol > 0 ? 400 / totalVol : 0;
-  const ocean = totalVol > 0 ? freightPreset.rate / totalVol : 0;
-  const insurance = 0.011 * (millPrice + loadFactory + landTransport + portFees + ocean);
-
-  let totalCost = millPrice;
-  if (incoterm === "fca-factory") totalCost = millPrice + loadFactory;
-  if (incoterm === "fca-port") totalCost = millPrice + loadFactory + landTransport;
-  if (incoterm === "fob") totalCost = millPrice + loadFactory + landTransport + portFees;
-  if (incoterm === "cif") totalCost = millPrice + loadFactory + landTransport + portFees + ocean + insurance;
-
-  const dutyFree = moisture === "kd" || deal.profileProcessing;
-  const duty = dutyFree ? 0 : totalCost * 0.065;
-  const totalCostWithDuty = totalCost + duty;
-  const sellPricePerM3 = totalCostWithDuty * (1 + margin / 100);
-  const totalAmount = sellPricePerM3 * totalVol;
-
-  const thickness = deal.thickness || 44;
-  const width = deal.width || 150;
-  const length = deal.length || 5980;
-
-  const ports = ROUTE_PORTS[deal.freightRoute] || ROUTE_PORTS["vlv-chennai"];
-  const speciesDesc = SPECIES_DESCRIPTION[species] || "Russian Softwood Timber";
-  const hsCode = HS_CODES[species] || "4407.11";
-  const incotermLabel = {
-    exw: "EXW Bratsk Sawmill",
-    "fca-factory": "FCA Bratsk Sawmill",
-    "fca-port": `FCA ${ports.from.split(",")[0]}`,
-    fob: `FOB ${ports.from.split(",")[0]}`,
-    cif: `CIF ${ports.to}`,
-  }[incoterm];
+  const today = new Date().toLocaleDateString("en-GB");
+  const validUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString("en-GB");
+  const quotationNumber = `QT-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`;
 
   return (
-    <>
-      {/* 🖨 Print styles */}
+    <div className="min-h-screen bg-slate-100 font-sans">
+      {/* Print styles */}
       <style jsx global>{`
         @media print {
-          body {
-            background: white !important;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-          .print\\:block {
-            display: block !important;
-          }
-          .print-page {
-            padding: 20mm !important;
-            max-width: 100% !important;
-            box-shadow: none !important;
-          }
-          @page {
-            size: A4;
-            margin: 0;
-          }
+          @page { size: A4; margin: 12mm; }
+          body { background: white !important; }
+          .print\\:hidden { display: none !important; }
+          .quotation-page { box-shadow: none !important; }
         }
       `}</style>
 
-      <main className="min-h-screen bg-slate-100 pb-20">
-        {/* Header (hidden in print) */}
-        <header className="bg-slate-900 text-white px-4 py-3 sticky top-0 z-40 print:hidden">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <Link href="/" className="text-sm active:scale-95">← Home</Link>
-            <div className="text-xs font-mono">STEP 4B · QUOTATION</div>
-            <div className="flex gap-2 text-xs">
-              <Link href="/calculator" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📐 Volume</Link>
-              <Link href="/calculator/pricing" className="bg-slate-700 px-2 py-1 rounded active:scale-95">💰 Pricing</Link>
-            </div>
+      {/* NAV */}
+      <nav className="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-lg print:hidden">
+        <div className="max-w-5xl mx-auto flex justify-between items-center">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center font-black text-xl">R</div>
+            <span className="font-black text-xl tracking-widest">RU-TIMBER</span>
+          </Link>
+          <div className="flex gap-3 text-xs sm:text-sm">
+            <Link href="/calculator" className="text-slate-300 hover:text-orange-500">← Calculator</Link>
+            <Link href="/captain" className="text-orange-400 hover:text-orange-500">⚓ Captain</Link>
           </div>
-        </header>
-{/* 🆕 B3.4: Reminders block (скрыто при печати) */}
-        <div className="max-w-4xl mx-auto p-4 space-y-3 print:hidden">
-          {/* 🔴 KYC проверка покупателя — КРИТИЧНО */}
-          <Reminder
-            id="kyc_customer_check"
-            type="critical"
-            title="🏦 ОБЯЗАТЕЛЬНО: проверь покупателя перед отправкой квотации"
-            dismissible={false}
-          >
-            <p className="mb-2">
-              <strong>30% «покупателей» из Индии/Пакистана — фейковые!</strong> Они собирают цены с экспортёров, чтобы продать конкурентам или использовать в тендерах.
-            </p>
-            <p className="font-bold text-slate-900 mb-1">Минимальная проверка (10 минут):</p>
-            <ul className="list-disc ml-5 text-xs space-y-1">
-              <li><strong>Индия:</strong> сайт MCA (mca.gov.in) → проверка компании по CIN</li>
-              <li><strong>ОАЭ:</strong> Dubai Chamber + Trade Licence (запросить копию)</li>
-              <li><strong>Китай:</strong> сайт NECIPS, проверка по USCC коду</li>
-              <li><strong>Все:</strong> Dun &amp; Bradstreet — кредитный рейтинг (платно, но окупается)</li>
-              <li>Запросить: визитку директора, скан паспорта, фото офиса/склада</li>
-            </ul>
-            <p className="text-xs mt-2 italic text-slate-600">
-              Не уверен в покупателе? Не отправляй цену. Отправь только лист продукции без цен.
-            </p>
-          </Reminder>
-
-          {/* 🟡 NDA — Warning */}
-          <Reminder
-            id="nda_before_quote"
-            type="warning"
-            title="🤝 NDA перед обменом конфиденциальной информацией"
-            dismissible={true}
-          >
-            <p>
-              Для премиум-сегмента (ОАЭ, Европа) — стандартная практика подписать <strong>Mutual NDA</strong> до отправки детальной квотации. Это защитит твои <strong>закупочные цены</strong> от утечки конкурентам.
-            </p>
-            <p className="text-xs mt-2">
-              Шаблон NDA на 1 страницу скачивается с любого юрсайта. Подписание занимает 1 день. Покупатели премиум-сегмента <strong>сами уважают</strong> это требование — оно повышает твой авторитет.
-            </p>
-          </Reminder>
-
-          {/* 🟢 Юрист (показывается только до регистрации ИП) */}
-          {!seller?.registered && (
-            <Reminder
-              id="lawyer_before_first_deal"
-              type="tip"
-              title="⚖️ Перед первой сделкой — консультация с юристом-международником"
-              dismissible={true}
-            >
-              <p>
-                Покажи этот шаблон + текст контракта юристу <strong>до отправки клиенту</strong>. 1-2 часа консультации = <strong>5-10 тыс. ₽</strong>. Окупится с первой же сделки.
-              </p>
-              <p className="text-xs mt-2">
-                Что юрист проверит: <strong>пункты Force Majeure</strong> (санкции!), <strong>арбитраж</strong> (ICAC Moscow обязательно), <strong>валютный контроль</strong> (для контрактов &gt;$50,000), <strong>штрафные санкции</strong> с обеих сторон.
-              </p>
-              <p className="text-xs mt-2 italic text-slate-600">
-                После регистрации ИП — это напоминание автоматически исчезнет.
-              </p>
-            </Reminder>
-          )}
         </div>
-        {/* Controls (hidden in print) */}
-        <div className="max-w-4xl mx-auto p-4 print:hidden">
-          <div className="bg-white rounded-xl p-5 shadow-sm">
-            <h1 className="text-2xl font-black text-slate-900">📄 Commercial Quotation</h1>
-            <p className="text-sm text-slate-500 mt-1">Auto-synced from Calculator · Ready for PDF export</p>
+      </nav>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+      {/* Controls */}
+      <div className="max-w-5xl mx-auto p-4 print:hidden">
+        <div className="bg-white rounded-xl p-4 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900">📄 Quotation</h1>
+            <p className="text-xs text-slate-500">Commercial offer for international buyer</p>
+          </div>
+          <button
+            onClick={handlePrint}
+            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 active:scale-95"
+          >
+            🖨 Print / PDF
+          </button>
+        </div>
+      </div>
+
+      {/* Reminders */}
+      <div className="max-w-5xl mx-auto p-4 print:hidden space-y-2">
+        <Reminder
+          title="KYC проверка покупателя"
+          tone="warning"
+          icon="🔍"
+        >
+          Перед отправкой Quotation убедись что проверил покупателя: реальный сайт, юридический адрес, отзывы, торговая лицензия (Trade License в ОАЭ).
+        </Reminder>
+        <Reminder
+          title="NDA опционально"
+          tone="info"
+          icon="🤐"
+        >
+          Если переговоры конфиденциальные — пришли покупателю NDA перед детальной квотацией. Защитит твои цены от утечки конкурентам.
+        </Reminder>
+        <Reminder
+          title="Юрист перед подписанием"
+          tone="critical"
+          icon="⚖️"
+        >
+          Quotation — это ещё не контракт, но если покупатель примет — на её основе составится контракт. <strong>Перед подписанием контракта</strong> — обязательно юрист (5-10 тыс₽).
+        </Reminder>
+      </div>
+
+      {/* QUOTATION DOCUMENT */}
+      <div className="max-w-5xl mx-auto p-4 pb-12">
+        <div className="quotation-page bg-white shadow-2xl rounded-xl p-6 sm:p-10">
+
+          {/* HEADER */}
+          <header className="border-b-4 border-orange-500 pb-6 mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
               <div>
-                <label className="text-xs text-slate-500">Customer Name / Company</label>
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  placeholder="ABC Traders Pvt. Ltd."
-                  className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-500">Customer Country / City</label>
-                <input
-                  type="text"
-                  value={customerCountry}
-                  onChange={(e) => setCustomerCountry(e.target.value)}
-                  placeholder="Chennai, India"
-                  className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                onClick={() => window.print()}
-                className="bg-orange-500 text-white px-5 py-3 rounded-lg font-bold active:scale-95"
-              >
-                🖨 Export to PDF / Print
-              </button>
-              <button
-                onClick={() => setEditMode(!editMode)}
-                className="bg-slate-200 text-slate-700 px-5 py-3 rounded-lg font-bold active:scale-95"
-              >
-                ✏ {editMode ? "Cancel Edit" : "Edit Company Details"}
-              </button>
-            </div>
-
-            {/* Edit Company Form */}
-            {editMode && (
-              <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                <h3 className="font-bold text-sm text-slate-800 mb-3">🏢 Edit Company Details</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {Object.entries(company).map(([key, val]) => (
-                    <div key={key}>
-                      <label className="text-xs text-slate-500 capitalize">{key}</label>
-                      <input
-                        type="text"
-                        value={val}
-                        onChange={(e) => setCompany({ ...company, [key]: e.target.value })}
-                        className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-sm"
-                      />
-                    </div>
-                  ))}
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center font-black text-2xl text-white">R</div>
+                  <div>
+                    <div className="font-black text-2xl text-slate-900 tracking-widest">RU-TIMBER</div>
+                    <div className="text-xs text-slate-500 tracking-wider">EXPORT TRADING</div>
+                  </div>
                 </div>
-                <button
-                  onClick={saveCompany}
-                  className="mt-3 bg-emerald-500 text-white px-4 py-2 rounded-lg text-sm font-bold active:scale-95"
-                >
-                  💾 Save Company Details
-                </button>
+                <div className="text-xs text-slate-600">
+                  {seller?.companyName || "Individual Entrepreneur"}<br/>
+                  {seller?.legalAddress || "Moscow, Russian Federation"}<br/>
+                  📞 +7 915 349 00 07 · 📧 info@ru-timber.com
+                </div>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* 📄 PDF Document */}
-        <div className="max-w-4xl mx-auto p-4">
-          <div className="print-page bg-white shadow-lg p-8 sm:p-12 relative overflow-hidden">
-            {/* 🔶 Watermark DRAFT */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-              <div
-                className="text-rose-200 font-black"
-                style={{
-                  fontSize: "120px",
-                  transform: "rotate(-30deg)",
-                  opacity: 0.25,
-                  letterSpacing: "10px",
-                }}
-              >
-                DRAFT
+              <div className="text-right">
+                <div className="bg-slate-900 text-white px-4 py-2 rounded-lg inline-block mb-2">
+                  <div className="text-[10px] uppercase tracking-wider text-slate-400">Quotation №</div>
+                  <div className="font-black text-lg">{quotationNumber}</div>
+                </div>
+                <div className="text-xs text-slate-600 space-y-0.5">
+                  <div><strong>Date:</strong> {today}</div>
+                  <div><strong>Valid until:</strong> {validUntil}</div>
+                </div>
               </div>
             </div>
+          </header>
 
-            <div className="relative z-10">
-              {/* Header */}
-              <div className="border-b-4 border-orange-500 pb-4 flex justify-between items-start">
+          {/* TO / FROM */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div className="bg-slate-50 rounded-lg p-3">
+              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">FROM (Seller)</div>
+              <div className="font-bold text-sm">{seller?.companyName || "RU-TIMBER EXPORT"}</div>
+              <div className="text-xs text-slate-600 mt-1">
+                {seller?.legalAddress || "Russian Federation"}<br/>
+                INN: {seller?.inn || "—"}
+              </div>
+            </div>
+            <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
+              <div className="text-[10px] uppercase tracking-wider text-orange-700 font-bold mb-1">TO (Buyer)</div>
+              <div className="font-bold text-sm">[BUYER COMPANY NAME]</div>
+              <div className="text-xs text-slate-600 mt-1">
+                [Country / Address]<br/>
+                Attn: [Buyer Representative]
+              </div>
+            </div>
+          </section>
+
+          {/* SUBJECT */}
+          <section className="bg-slate-900 text-white rounded-lg p-4 mb-6">
+            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Subject</div>
+            <div className="font-bold text-base sm:text-lg">
+              Sawn Timber Export — {deal.species || "Pine"} — {containerCount} × {deal.containerType || "40HC"} Container{containerCount > 1 ? "s" : ""}
+            </div>
+            <div className="text-xs text-slate-300 mt-1">
+              {deal.loadingPort || "Novorossiysk"} → {deal.destinationPort || "Jebel Ali, UAE"} · CIF Incoterms 2020
+            </div>
+          </section>
+
+          {/* PRODUCT SPECIFICATION */}
+          <section className="mb-6">
+            <h3 className="text-xs sm:text-sm font-black text-orange-500 mb-3 tracking-wider">
+              📋 PRODUCT SPECIFICATION
+            </h3>
+
+            {/* DESKTOP — таблица */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-100 text-slate-700 text-xs uppercase tracking-wider">
+                  <tr>
+                    <th className="text-left p-3 font-bold">Product</th>
+                    <th className="text-left p-3 font-bold">Specification</th>
+                    <th className="text-right p-3 font-bold">Vol/Cont (m³)</th>
+                    <th className="text-right p-3 font-bold">Qty (cont)</th>
+                    <th className="text-right p-3 font-bold">Price (USD/m³)</th>
+                    <th className="text-right p-3 font-bold">Total (USD)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-b border-slate-100">
+                    <td className="p-3">
+                      <div className="font-bold">{deal.species || "Pine"} (Pinus sylvestris)</div>
+                      <div className="text-xs text-slate-500">GOST 8486-86, Grade 1-3</div>
+                      <div className="text-xs text-orange-600 font-semibold">🟠 REDWOOD</div>
+                    </td>
+                    <td className="p-3">
+                      <div className="font-mono text-xs">{deal.dimensions || "50x150x6000"} mm</div>
+                      <div className="text-xs text-slate-500">{deal.drying || "KD 10-12%"}</div>
+                      <div className="text-xs text-slate-500">{deal.packaging || "Strapped bundles, AST"}</div>
+                    </td>
+                    <td className="p-3 text-right font-mono">{volumePerContainer.toFixed(2)}</td>
+                    <td className="p-3 text-right font-mono font-bold">{containerCount}</td>
+                    <td className="p-3 text-right font-mono">${pricePerM3.toFixed(0)}</td>
+                    <td className="p-3 text-right font-mono font-bold">${grandTotal.toFixed(0)}</td>
+                  </tr>
+                </tbody>
+                <tfoot className="bg-slate-50 font-bold">
+                  <tr>
+                    <td colSpan="5" className="p-3 text-right">
+                      TOTAL ({containerCount} × {deal.containerType || "40HC"}, {totalVolume.toFixed(1)} m³):
+                    </td>
+                    <td className="p-3 text-right font-mono text-orange-500 text-base">
+                      ${grandTotal.toFixed(0)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+
+            {/* MOBILE — карточки */}
+            <div className="sm:hidden space-y-3">
+              <div className="bg-slate-50 rounded-lg p-3 border-l-4 border-orange-500">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <div className="font-black text-slate-900 text-sm">{deal.species || "Pine"} (Pinus sylvestris)</div>
+                    <div className="text-xs text-slate-500">GOST 8486-86, Grade 1-3</div>
+                    <div className="text-xs text-orange-600 font-bold mt-0.5">🟠 REDWOOD</div>
+                  </div>
+                  <div className="bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">
+                    Pos. 1
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs mt-3">
+                  <div className="bg-white rounded p-2">
+                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Dimensions</div>
+                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{deal.dimensions || "50x150x6000"} mm</div>
+                  </div>
+                  <div className="bg-white rounded p-2">
+                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Moisture</div>
+                    <div className="font-bold text-slate-900 mt-0.5 text-xs">{deal.drying || "KD 10-12%"}</div>
+                  </div>
+                  <div className="bg-white rounded p-2">
+                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Vol/Cont</div>
+                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{volumePerContainer.toFixed(2)} m³</div>
+                  </div>
+                  <div className="bg-white rounded p-2">
+                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Containers</div>
+                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{containerCount} × {deal.containerType || "40HC"}</div>
+                  </div>
+                  <div className="bg-white rounded p-2 col-span-2">
+                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Packaging</div>
+                    <div className="text-xs text-slate-800 mt-0.5">{deal.packaging || "Strapped bundles, AST treated"}</div>
+                  </div>
+                  <div className="bg-white rounded p-2">
+                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Price/m³</div>
+                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">${pricePerM3.toFixed(0)}</div>
+                  </div>
+                  <div className="bg-white rounded p-2">
+                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Total Volume</div>
+                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{totalVolume.toFixed(1)} m³</div>
+                  </div>
+                </div>
+
+                <div className="mt-3 pt-3 border-t-2 border-orange-200 flex justify-between items-center">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Line Total:</span>
+                  <span className="font-mono font-black text-base text-orange-500">${grandTotal.toFixed(0)}</span>
+                </div>
+              </div>
+
+              {/* TOTAL card */}
+              <div className="bg-slate-900 text-white rounded-lg p-4 flex justify-between items-center">
                 <div>
-                  <div className="text-3xl font-black text-slate-900">RU-TIMBER</div>
-                  <div className="text-xs text-slate-500 uppercase tracking-wider">Russian Sawn Timber · Export Worldwide</div>
+                  <div className="text-[10px] uppercase tracking-wider text-slate-400">Grand Total</div>
+                  <div className="text-xs text-slate-500">{containerCount} × {deal.containerType || "40HC"}</div>
                 </div>
                 <div className="text-right">
-                  <div className="text-xs text-slate-500">QUOTATION №</div>
-                  <div className="text-xl font-black text-slate-900 font-mono">{quoteNumber}</div>
+                  <div className="font-mono font-black text-2xl text-orange-400">${grandTotal.toFixed(0)}</div>
+                  <div className="text-xs text-slate-400">USD</div>
                 </div>
-              </div>
-
-              {/* Title */}
-              <h1 className="text-center text-3xl font-black text-slate-900 mt-6 tracking-wider">
-                COMMERCIAL QUOTATION
-              </h1>
-              <div className="text-center text-xs text-rose-600 font-bold mt-1">
-                ⚠ DRAFT / VALID FOR DEMO ONLY
-              </div>
-
-              {/* Dates + Parties */}
-              <div className="grid grid-cols-2 gap-6 mt-8">
-                <div>
-                  <div className="text-xs text-slate-500 uppercase font-bold">Seller</div>
-                  <div className="text-sm font-bold text-slate-900 mt-1">{company.name}</div>
-                  <div className="text-xs text-slate-600 mt-1">{company.address}</div>
-                  <div className="text-xs text-slate-600 mt-1">Tel: {company.phone}</div>
-                  <div className="text-xs text-slate-600">Email: {company.email}</div>
-                  <div className="text-xs text-slate-600">Web: {company.website}</div>
-                  <div className="text-xs text-slate-500 mt-1">INN: {company.inn}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500 uppercase font-bold">Buyer</div>
-                  <div className="text-sm font-bold text-slate-900 mt-1">
-                    {customerName || "[Customer Name]"}
-                  </div>
-                  <div className="text-xs text-slate-600 mt-1">
-                    {customerCountry || "[Customer Location]"}
-                  </div>
-                  <div className="mt-4 text-xs text-slate-500 uppercase font-bold">Dates</div>
-                  <div className="text-xs text-slate-600 mt-1">
-                    <span className="font-bold">Date:</span> {formatDate(today)}
-                  </div>
-                  <div className="text-xs text-slate-600">
-                    <span className="font-bold">Valid Until:</span> {formatDate(validUntil)}
-                  </div>
-                </div>
-              </div>
-
-              {/* Product Table */}
-              <div className="mt-8">
-                <div className="text-xs text-slate-500 uppercase font-bold mb-2">Product Specification</div>
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-slate-900 text-white">
-                      <th className="p-3 text-left text-xs">№</th>
-                      <th className="p-3 text-left text-xs">Description</th>
-                      <th className="p-3 text-center text-xs">Dimensions (mm)</th>
-                      <th className="p-3 text-center text-xs">Qty (m³)</th>
-                      <th className="p-3 text-right text-xs">Unit Price ($)</th>
-                      <th className="p-3 text-right text-xs">Total ($)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-slate-200">
-                      <td className="p-3 align-top">1</td>
-                      <td className="p-3 align-top">
-                        <div className="font-bold">{speciesDesc}</div>
-                        <div className="text-xs text-slate-600 mt-1">
-                          {MOISTURE_DESC[moisture]} · GOST 8486-86 · Grade 1-3
-                        </div>
-                        <div className="text-xs text-slate-500 mt-1">
-                          Packaging: {PACKAGING_DESC[packaging]}
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          HS Code: {hsCode} {dutyFree && "· Duty-Free (KD/4409)"}
-                        </div>
-                        {deal.profileProcessing && (
-                          <div className="text-xs text-emerald-600">✓ Profiled (4409)</div>
-                        )}
-                      </td>
-                      <td className="p-3 text-center align-top font-mono">
-                        {thickness} × {width} × {length}
-                      </td>
-                      <td className="p-3 text-center align-top font-mono font-bold">
-                        {totalVol.toFixed(2)}
-                      </td>
-                      <td className="p-3 text-right align-top font-mono font-bold">
-                        ${sellPricePerM3.toFixed(2)}
-                      </td>
-                      <td className="p-3 text-right align-top font-mono font-bold">
-                        ${totalAmount.toFixed(2)}
-                      </td>
-                    </tr>
-                    <tr className="bg-slate-100 font-bold">
-                      <td colSpan={5} className="p-3 text-right">
-                        TOTAL AMOUNT ({incoterm.toUpperCase()}):
-                      </td>
-                      <td className="p-3 text-right font-mono text-lg text-orange-600">
-                        ${totalAmount.toFixed(2)}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Terms & Conditions */}
-              <div className="mt-8">
-                <div className="text-xs text-slate-500 uppercase font-bold mb-3">Terms &amp; Conditions</div>
-                <div className="text-xs space-y-2 text-slate-700">
-                  <div>
-                    <span className="font-bold">1. Delivery Basis:</span> {incotermLabel} (Incoterms 2020)
-                  </div>
-                  <div>
-                    <span className="font-bold">2. Loading Port:</span> {ports.from}
-                  </div>
-                  <div>
-                    <span className="font-bold">3. Destination Port:</span> {ports.to}
-                  </div>
-                  <div>
-                    <span className="font-bold">4. Container Type:</span> 40&apos; High Cube (40HC)
-                  </div>
-                  <div>
-                    <span className="font-bold">5. Payment Terms:</span> 30% advance payment by T/T before production,
-                    70% against scan copy of Bill of Lading (B/L).
-                  </div>
-                  <div>
-                    <span className="font-bold">6. Lead Time:</span> 20-30 days from receipt of advance payment.
-                  </div>
-                  <div>
-                    <span className="font-bold">7. Packaging:</span> {PACKAGING_DESC[packaging]}, suitable for ocean transit.
-                  </div>
-                  <div>
-                    <span className="font-bold">8. Documents Provided:</span> Commercial Invoice, Packing List,
-                    Bill of Lading, Certificate of Origin (Form A/CT-1), Phytosanitary Certificate, Fumigation Certificate (IPPC/ISPM-15).
-                  </div>
-                  <div>
-                    <span className="font-bold">9. Quality:</span> As per GOST 8486-86 standard. Pre-shipment photos provided.
-                  </div>
-                  <div>
-                    <span className="font-bold">10. Validity:</span> This quotation is valid for 7 (seven) days from the date of issue.
-                  </div>
-                </div>
-              </div>
-
-              {/* Banking Details */}
-              <div className="mt-8 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="text-xs text-slate-500 uppercase font-bold mb-2">Banking Details (for 30% advance)</div>
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <div className="text-slate-500">Beneficiary:</div>
-                    <div className="font-bold">{company.name}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-500">Bank:</div>
-                    <div className="font-bold">{company.bank}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-500">SWIFT:</div>
-                    <div className="font-mono font-bold">{company.swift}</div>
-                  </div>
-                  <div>
-                    <div className="text-slate-500">Account:</div>
-                    <div className="font-mono font-bold">{company.account}</div>
-                  </div>
-                  <div className="col-span-2">
-                    <div className="text-slate-500">Correspondent:</div>
-                    <div className="font-bold">{company.correspondent}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Signatures */}
-              <div className="mt-12 grid grid-cols-2 gap-8">
-                <div>
-                  <div className="border-t-2 border-slate-400 pt-2">
-                    <div className="text-xs text-slate-500">Authorized Signature (Seller)</div>
-                    <div className="text-sm font-bold mt-1">{company.name}</div>
-                    <div className="text-xs text-rose-600 mt-3 font-bold">
-                      [DRAFT — signature &amp; stamp not affixed]
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div className="border-t-2 border-slate-400 pt-2">
-                    <div className="text-xs text-slate-500">Accepted by Buyer</div>
-                    <div className="text-xs text-slate-400 mt-1">Name, Position, Date</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="mt-8 pt-4 border-t border-slate-200 text-center text-xs text-slate-400">
-                {company.name} · {company.website} · {company.phone} · {company.email}
               </div>
             </div>
-          </div>
-        </div>
+          </section>
 
-        {/* Bottom nav (hidden in print) */}
-        <div className="max-w-4xl mx-auto p-4 print:hidden">
-          <div className="flex gap-2">
-            <Link
-              href="/calculator/pricing"
-              className="flex-1 bg-slate-200 text-slate-700 text-center py-3 rounded-lg font-bold active:scale-95"
-            >
-              ← Back to Pricing
-            </Link>
-            <button
-              onClick={() => window.print()}
-              className="flex-1 bg-orange-500 text-white text-center py-3 rounded-lg font-bold active:scale-95"
-            >
-              🖨 Export PDF
-            </button>
-          </div>
+          {/* TERMS GRID */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+            <TermBlock label="Incoterms" value={`${deal.incoterm || "CIF"} ${deal.destinationPort || "Jebel Ali"}`} />
+            <TermBlock label="Lead Time" value={`${deal.leadTime || 45} days from advance`} />
+            <TermBlock label="Payment" value="30% advance + 70% vs B/L copy" />
+            <TermBlock label="Document Release" value="⚡ Telex Release (no DHL)" />
+            <TermBlock label="Loading Port" value={deal.loadingPort || "Novorossiysk, RU"} />
+            <TermBlock label="Destination" value={deal.destinationPort || "Jebel Ali, UAE"} />
+            <TermBlock label="Container Type" value={`${containerCount} × ${deal.containerType || "40HC"}`} />
+            <TermBlock label="Schedule" value={deal.shipmentSchedule === "single" ? "Single shipment" : `${deal.shipmentSchedule || "single"}`} />
+          </section>
+
+          {/* DOCUMENTS */}
+          <section className="bg-blue-50 border-l-4 border-blue-500 rounded p-4 mb-6">
+            <h4 className="text-xs font-black text-blue-900 uppercase tracking-wider mb-2">📑 Documents provided</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs text-blue-800">
+              <div>✅ Commercial Invoice</div>
+              <div>✅ Packing List</div>
+              <div>✅ Bill of Lading (Telex)</div>
+              <div>✅ Certificate of Origin</div>
+              <div>✅ Phytosanitary Cert.</div>
+              <div>✅ ISPM-15 Fumigation</div>
+              <div>✅ Pre-shipment Photos</div>
+              <div>✅ Container Survey</div>
+              <div>✅ Marine Insurance</div>
+            </div>
+          </section>
+
+          {/* TERMS & CONDITIONS */}
+          <section className="text-xs text-slate-600 space-y-2 mb-6 border-t pt-4">
+            <div><strong>Validity:</strong> This Quotation is valid until {validUntil}. After this date prices may be subject to revision.</div>
+            <div><strong>Quality:</strong> All goods shall meet GOST 8486-86 standard. 100% Pine (Pinus sylvestris), no admixture of Spruce.</div>
+            <div><strong>Inspection:</strong> Pre-shipment inspection by SGS / Bureau Veritas available at Buyer's expense.</div>
+            <div><strong>Force Majeure:</strong> Including sanctions, banking restrictions, port closures. Full terms in Contract.</div>
+            <div><strong>Arbitration:</strong> ICAC at the Chamber of Commerce and Industry of the Russian Federation, Moscow.</div>
+          </section>
+
+          {/* FOOTER / SIGNATURE */}
+          <footer className="border-t-2 border-slate-200 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
+            <div>
+              <div className="text-xs text-slate-500 mb-1">Issued by:</div>
+              <div className="font-bold">{seller?.director || "Director Name"}</div>
+              <div className="text-xs text-slate-600">{seller?.companyName || "RU-TIMBER EXPORT"}</div>
+              <div className="text-xs text-slate-500 mt-2 italic">
+                This Quotation is an offer subject to final Contract signing.
+              </div>
+            </div>
+            <div className="text-right text-xs text-slate-500">
+              Powered by RU-TIMBER<br/>
+              Generated: {today}
+            </div>
+          </footer>
+
         </div>
-      </main>
-    </>
+      </div>
+    </div>
   );
 }
+
+// ============ COMPONENTS ============
+
+function TermBlock({ label, value }) {
+  return (
+    <div className="bg-slate-50 rounded p-2.5">
+      <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">{label}</div>
+      <div className="text-sm font-bold text-slate-900 mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+// END OF FILE
