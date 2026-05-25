@@ -14,95 +14,7 @@ export function useDeal() {
   return context;
 }
 
-// ===========================================
-// 💰 КОНСТАНТЫ ЦЕНООБРАЗОВАНИЯ
-// ===========================================
-
-// Базовые цены за м³ (USD) — закупка у лесопилки
-export const SPECIES_BASE_PRICES = {
-  Pine: 180,         // Сосна (Pinus sylvestris) — REDWOOD
-  Spruce: 165,       // Ель европейская — WHITEWOOD
-  Larch: 240,        // Лиственница — премиум
-  Cedar: 320,        // Кедр — суперпремиум
-  Birch: 200,        // Берёза
-  Oak: 450,          // Дуб
-};
-
-// Наценка по странам назначения (% к базовой цене)
-export const COUNTRY_MARGINS = {
-  UAE: 2.8,          // ОАЭ — премиум рынок
-  India: 2.4,        // Индия — массовый рынок
-  China: 2.2,        // Китай — большие объёмы, низкая маржа
-  Egypt: 2.6,        // Египет
-  Turkey: 2.3,       // Турция
-  Vietnam: 2.5,      // Вьетнам
-  SouthKorea: 3.0,   // Южная Корея — премиум
-  Japan: 3.2,        // Япония — суперпремиум
-  Uzbekistan: 1.8,   // Узбекистан — рядом, дешёво
-  Kazakhstan: 1.7,   // Казахстан
-  Iran: 2.5,         // Иран
-  Iraq: 2.7,         // Ирак
-  SaudiArabia: 2.9,  // Саудовская Аравия
-};
-
-// Надбавка за сушку (USD/m³)
-export const DRYING_SURCHARGE = {
-  "Natural (20-24%)": 0,        // Естественная сушка
-  "KD 18-20%": 25,              // Камерная средняя
-  "KD 14-16%": 45,              // Камерная стандарт
-  "KD 10-12%": 65,              // Камерная экспортная
-  "KD 8-10%": 85,               // Камерная премиум
-};
-
-// Надбавка за обработку (USD/m³)
-export const TREATMENT_SURCHARGE = {
-  None: 0,
-  AST: 15,           // Anti-Stain Treatment
-  ISPM15: 8,         // Фумигация упаковки
-  "AST + ISPM15": 23,
-  Impregnation: 35,  // Импрегнация
-};
-
-// Надбавка за сорт (USD/m³)
-export const GRADE_SURCHARGE = {
-  "Grade 1 (отборный)": 50,
-  "Grade 1-2": 25,
-  "Grade 1-3": 0,        // стандарт
-  "Grade 2-3": -20,
-  "Grade 3-4": -40,
-};
-
-// End-use пресеты (тип конечного использования)
-export const END_USE_PRESETS = {
-  construction: { label: "🏗️ Construction (стройка)", priceMultiplier: 1.0 },
-  furniture: { label: "🪑 Furniture (мебель)", priceMultiplier: 1.15 },
-  packaging: { label: "📦 Packaging (упаковка)", priceMultiplier: 0.85 },
-  pallets: { label: "🟦 Pallets (поддоны)", priceMultiplier: 0.75 },
-  premium: { label: "💎 Premium (премиум)", priceMultiplier: 1.35 },
-  decking: { label: "🛤️ Decking (террасы)", priceMultiplier: 1.25 },
-};
-
-// Курсы валют (статически, можно потом сделать API)
-export const EXCHANGE_RATES = {
-  USD_RUB: 100,
-  EUR_RUB: 108,
-  CNY_RUB: 14,
-  AED_RUB: 27,
-};
-
-// Типы контейнеров
-export const CONTAINER_TYPES = {
-  "20DV": { name: "20' Dry Van", capacity: 28, payload: 21750 },
-  "40DV": { name: "40' Dry Van", capacity: 58, payload: 26500 },
-  "40HC": { name: "40' High Cube", capacity: 68, payload: 26500 },
-  "45HC": { name: "45' High Cube", capacity: 76, payload: 27500 },
-};
-
-// ===========================================
-// 📦 НАЧАЛЬНЫЕ СОСТОЯНИЯ
-// ===========================================
-
-// Начальное состояние сделки
+// 📦 Начальное состояние сделки (Volume + Pricing + Container + Shipping)
 const defaultDeal = {
   // Volume
   species: "Pine",
@@ -115,14 +27,11 @@ const defaultDeal = {
   bundlesPerContainer: 24,
   volumeTotal: 62,
   endUse: "construction",
-  grade: "Grade 1-3",
-  treatment: "AST",
 
   // Pricing
   pricingPerM3: 540,
   pricingTotalUSD: 33480,
   freightPreset: "CIF Jebel Ali",
-  country: "UAE",
 
   // Container
   containerType: "40HC",
@@ -138,7 +47,7 @@ const defaultDeal = {
   packaging: "Strapped bundles, AST treated, polypropylene wrapped",
 };
 
-// Начальное состояние Seller
+// 🏢 Начальное состояние Seller
 const defaultSeller = {
   companyName: "",
   legalAddress: "",
@@ -155,25 +64,34 @@ const defaultSeller = {
   correspondentBank: "",
 };
 
-// Начальное состояние Mission
+// 🌊 Начальное состояние Mission (мечта)
 const defaultMission = {
+  // Yacht
   yachtTarget: 60000000,
   yachtCurrent: 0,
   yachtModel: "Beneteau Oceanis 46.1",
+  
+  // House
   houseTarget: 50000000,
   houseCurrent: 0,
   houseLocation: "Sochi / Limassol",
+  
+  // Family
   familyTarget: 20000000,
   familyCurrent: 0,
   familyGoal: "Education for kids, healthcare, comfort",
+  
+  // Freedom
   freedomTarget: 16500000,
   freedomCurrent: 0,
   freedomGoal: "Financial independence, passive income",
-  marginPerContainer: 1000,
+  
+  // Calculations
+  marginPerContainer: 1000, // USD prof per container
   containersPerMonth: 5,
 };
 
-// Pre-Flight Checklist (17 пунктов)
+// 📋 Pre-Flight Checklist (17 пунктов)
 const defaultChecklist = {
   ip_registered: false,
   lawyer_consulted: false,
@@ -194,17 +112,14 @@ const defaultChecklist = {
   vpn_setup: false,
 };
 
-// ===========================================
-// 🎬 ПРОВАЙДЕР
-// ===========================================
-
+// 🎬 Провайдер
 export function DealProvider({ children }) {
   const [deal, setDeal] = useState(defaultDeal);
   const [seller, setSeller] = useState(defaultSeller);
   const [mission, setMission] = useState(defaultMission);
   const [checklist, setChecklist] = useState(defaultChecklist);
-  const [deals, setDeals] = useState([]);
-  const [customers, setCustomers] = useState([]);
+  const [deals, setDeals] = useState([]); // архив сделок
+  const [customers, setCustomers] = useState([]); // CRM
   const [isLoaded, setIsLoaded] = useState(false);
 
   // 📂 Загружаем из localStorage при старте
@@ -231,51 +146,69 @@ export function DealProvider({ children }) {
 
   // 💾 Сохраняем в localStorage при изменениях
   useEffect(() => {
-    if (isLoaded) localStorage.setItem("ru-timber-deal", JSON.stringify(deal));
+    if (isLoaded) {
+      localStorage.setItem("ru-timber-deal", JSON.stringify(deal));
+    }
   }, [deal, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded) localStorage.setItem("ru-timber-seller", JSON.stringify(seller));
+    if (isLoaded) {
+      localStorage.setItem("ru-timber-seller", JSON.stringify(seller));
+    }
   }, [seller, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded) localStorage.setItem("ru-timber-mission", JSON.stringify(mission));
+    if (isLoaded) {
+      localStorage.setItem("ru-timber-mission", JSON.stringify(mission));
+    }
   }, [mission, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded) localStorage.setItem("ru-timber-checklist", JSON.stringify(checklist));
+    if (isLoaded) {
+      localStorage.setItem("ru-timber-checklist", JSON.stringify(checklist));
+    }
   }, [checklist, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded) localStorage.setItem("ru-timber-deals", JSON.stringify(deals));
+    if (isLoaded) {
+      localStorage.setItem("ru-timber-deals", JSON.stringify(deals));
+    }
   }, [deals, isLoaded]);
 
   useEffect(() => {
-    if (isLoaded) localStorage.setItem("ru-timber-customers", JSON.stringify(customers));
+    if (isLoaded) {
+      localStorage.setItem("ru-timber-customers", JSON.stringify(customers));
+    }
   }, [customers, isLoaded]);
 
-  // 🛠️ Хелперы
+  // 🛠️ Хелперы для обновления
+
+  // Обновить отдельные поля сделки
   const updateDeal = (updates) => {
     setDeal((prev) => ({ ...prev, ...updates }));
   };
 
+  // Обновить отдельные поля seller
   const updateSeller = (updates) => {
     setSeller((prev) => ({ ...prev, ...updates }));
   };
 
+  // Обновить mission
   const updateMission = (updates) => {
     setMission((prev) => ({ ...prev, ...updates }));
   };
 
+  // Переключить пункт checklist
   const toggleChecklistItem = (key) => {
     setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
+  // Сбросить текущую сделку
   const resetDeal = () => {
     setDeal(defaultDeal);
   };
 
-  // 📊 Статистика Mission
+  // 📊 Подсчёт статистики Mission
   const missionStats = {
     totalTarget:
       mission.yachtTarget +
@@ -296,6 +229,7 @@ export function DealProvider({ children }) {
       return this.totalTarget - this.totalCurrent;
     },
     get containersNeeded() {
+      // Прибыль с одного контейнера в рублях (примерно ₽100 за USD)
       const profitPerContainerRUB = (mission.marginPerContainer || 1000) * 100;
       return profitPerContainerRUB > 0
         ? Math.ceil(this.remaining / profitPerContainerRUB)
@@ -310,6 +244,7 @@ export function DealProvider({ children }) {
   return (
     <DealContext.Provider
       value={{
+        // State
         deal,
         seller,
         mission,
@@ -318,12 +253,16 @@ export function DealProvider({ children }) {
         customers,
         isLoaded,
         missionStats,
+
+        // Setters (full replacement)
         setDeal,
         setSeller,
         setMission,
         setChecklist,
         setDeals,
         setCustomers,
+
+        // Helpers (partial updates)
         updateDeal,
         updateSeller,
         updateMission,
