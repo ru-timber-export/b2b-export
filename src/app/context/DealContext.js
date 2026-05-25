@@ -2,450 +2,272 @@
 
 import { createContext, useContext, useState, useEffect } from "react";
 
+// 🎯 Создаём контекст
 const DealContext = createContext();
 
-// === STORAGE KEYS (v4) ===
-const STORAGE_KEYS = {
-  DEAL: "ru-timber-current-deal-v4",
-  SELLER: "ru-timber-seller-v1",
-  CUSTOMERS: "ru-timber-customers-v1",
-  SUPPLIERS: "ru-timber-suppliers-v1",
-  DEALS: "ru-timber-deals-v1",
-  REMINDERS: "ru-timber-reminders-v1",
-  CHECKLIST: "ru-timber-checklist-v1",
-  MISSION: "ru-timber-mission-v1", // 🆕 B4
-};
+// 🪝 Хук для удобного использования
+export function useDeal() {
+  const context = useContext(DealContext);
+  if (!context) {
+    throw new Error("useDeal must be used within DealProvider");
+  }
+  return context;
+}
 
-// Old key (для миграции v3 → v4)
-const OLD_DEAL_KEY = "ru-timber-current-deal-v3";
-
-// === 🔒 ЖЁСТКИЕ ПРАВИЛА БИЗНЕСА ===
-export const BUSINESS_RULES = {
-  FIAT_ONLY: true,
-  NO_CRYPTO: true,
-  JURISDICTION: "RU",
-  ARBITRATION: "ICAC Moscow",
-  TARGET_TIER: "TOP_1_PERCENT",
-};
-
-// === 💰 Таблица цен по породам (апрель 2026) ===
-export const SPECIES_BASE_PRICES = {
-  pine: 160,
-  spruce: 155,
-  "pine-spruce-50-50": 150,
-  "pine-spruce-70-30": 158,
-  spf: 152,
-  larch: 285,
-  cedar: 250,
-  birch: 195,
-  oak: 580,
-  aspen: 140,
-  custom: 160,
-};
-
-// === 💧 Надбавка за сушку ===
-export const DRYING_SURCHARGE = {
-  fresh: 0,
-  ad: 15,
-  kd: 35,
-};
-
-// === 📦 Надбавка за упаковку ===
-export const PACKAGING_SURCHARGE = {
-  none: 0,
-  crate: 8,
-  shrink: 18,
-};
-
-// === 🚢 Пресеты фрахта (Vladivostok приоритет) ===
-export const FREIGHT_PRESETS = {
-  "vlv-chennai": { label: "Vladivostok → Chennai (India)", rate: 2500, port: "Vladivostok" },
-  "vlv-shanghai": { label: "Vladivostok → Shanghai (China)", rate: 1000, port: "Vladivostok" },
-  "nvr-mumbai": { label: "Novorossiysk → Mumbai (India)", rate: 2000, port: "Novorossiysk" },
-  "nvr-dubai": { label: "Novorossiysk → Dubai (UAE)", rate: 1700, port: "Novorossiysk" },
-  "nvr-alexandria": { label: "Novorossiysk → Alexandria (Egypt)", rate: 1600, port: "Novorossiysk" },
-  "nvr-istanbul": { label: "Novorossiysk → Istanbul (Turkey)", rate: 1400, port: "Novorossiysk" },
-};
-
-// === 💼 Рекомендуемая маржа по странам ===
-export const COUNTRY_MARGINS = {
-  india: 18,
-  china: 15,
-  uae: 25,
-  egypt: 20,
-  turkey: 17,
-};
-
-// === 📋 DEAL DEFAULTS ===
-const DEAL_DEFAULTS = {
-  thickness: 44,
-  width: 150,
-  length: 5980,
-  species: "pine-spruce-50-50",
-  moisture: "kd",
-  packaging: "crate",
+// 📦 Начальное состояние сделки (Volume + Pricing + Container + Shipping)
+const defaultDeal = {
+  // Volume
+  species: "Pine",
+  drying: "KD 10-12%",
+  dimensions: "50x150x6000",
+  length: 6,
+  width: 0.15,
+  thickness: 0.05,
+  boardsPerBundle: 36,
+  bundlesPerContainer: 24,
+  volumeTotal: 62,
   endUse: "construction",
-  inputMode: "volume",
-  totalVolume: 50,
-  totalPieces: 1267,
-  incoterm: "cif",
-  margin: 18,
-  usdRubRate: 76.25,
-  freightRoute: "vlv-chennai",
-  mill_logistics: 1500,
-  port_fees: 400,
-  freight_insurance: 2500,
-  profileProcessing: false,
-  computedVolume_m3: 0,
-  computedWeight_kg: 0,
-  computedPieces: 0,
-  currentDealId: null,
-  lastUpdate: null,
+
+  // Pricing
+  pricingPerM3: 540,
+  pricingTotalUSD: 33480,
+  freightPreset: "CIF Jebel Ali",
+
+  // Container
+  containerType: "40HC",
+  containerCount: 1,
+  shipmentSchedule: "single",
+
+  // Shipping
+  loadingPort: "Novorossiysk",
+  destinationPort: "Jebel Ali, UAE",
+  leadTime: 45,
+  transitDays: 30,
+  incoterm: "CIF",
+  packaging: "Strapped bundles, AST treated, polypropylene wrapped",
 };
 
-// === 🏢 SELLER DEFAULTS ===
-export const SELLER_DEFAULTS = {
-  name: "RU-TIMBER EXPORT",
-  legalForm: "",
-  address: "[Your Legal Address]",
-  phone: "+7 915 349 00 07",
+// 🏢 Начальное состояние Seller
+const defaultSeller = {
+  companyName: "",
+  legalAddress: "",
+  inn: "",
+  ogrn: "",
+  director: "",
   email: "info@ru-timber.com",
+  phone: "+7 915 349 00 07",
   website: "ru-timber.com",
-  inn: "[INN]",
-  ogrn: "[OGRN]",
-  director: "Konstantin",
-  bank: "[Bank Name]",
-  swift: "[SWIFT]",
-  account: "[Account Number]",
-  correspondent: "[Correspondent Bank on request]",
-  registered: false,
-  registrationDate: null,
+  bankName: "",
+  bankSwift: "",
+  bankAccountUSD: "",
+  bankAccountRUB: "",
+  correspondentBank: "",
 };
 
-// === ✅ PRE-FLIGHT CHECKLIST ===
-export const CHECKLIST_DEFAULTS = {
+// 🌊 Начальное состояние Mission (мечта)
+const defaultMission = {
+  // Yacht
+  yachtTarget: 60000000,
+  yachtCurrent: 0,
+  yachtModel: "Beneteau Oceanis 46.1",
+  
+  // House
+  houseTarget: 50000000,
+  houseCurrent: 0,
+  houseLocation: "Sochi / Limassol",
+  
+  // Family
+  familyTarget: 20000000,
+  familyCurrent: 0,
+  familyGoal: "Education for kids, healthcare, comfort",
+  
+  // Freedom
+  freedomTarget: 16500000,
+  freedomCurrent: 0,
+  freedomGoal: "Financial independence, passive income",
+  
+  // Calculations
+  marginPerContainer: 1000, // USD prof per container
+  containersPerMonth: 5,
+};
+
+// 📋 Pre-Flight Checklist (17 пунктов)
+const defaultChecklist = {
   ip_registered: false,
-  ved_account_opened: false,
-  domain_purchased: false,
-  email_corporate_setup: false,
-  lesegais_registered: false,
-  customs_account: false,
   lawyer_consulted: false,
-  exiar_applied: false,
-  rec_subsidy_applied: false,
-  it_accreditation: false,
-  vpn_setup: false,
-  whatsapp_business: false,
-  google_drive_organized: false,
   international_contract_reviewed: false,
   supply_contract_reviewed: false,
+  ved_account_opened: false,
+  lesegais_registered: false,
+  customs_account: false,
+  exiar_applied: false,
+  rec_subsidy_applied: false,
   pefc_certificate: false,
   iso_certificate: false,
+  domain_purchased: false,
+  email_corporate_setup: false,
+  whatsapp_business: false,
+  google_drive_organized: false,
+  it_accreditation: false,
+  vpn_setup: false,
 };
 
-// === 🌊 B4: OCEAN MISSION ===
-export const MISSION_DEFAULTS = {
-  // Цели (₽)
-  goal_ship: 100_000_000,
-  goal_house: 20_000_000,
-  goal_wedding: 1_500_000,
-  goal_reserve: 25_000_000,
-  // Текущее состояние
-  currentCapital: 0,
-  avgProfitPerContainer_usd: 5000,
-  containersPerMonth: 1,
-  targetUsdRubRate: 85,
-  // Дата старта
-  missionStartDate: null,
-};
-
-// === 🔔 НАПОМИНАНИЯ ПО УМОЛЧАНИЮ ===
-const DEFAULT_REMINDERS = [
-  {
-    id: "rem-001",
-    type: "legal",
-    priority: "high",
-    icon: "⚖️",
-    title: "Зарегистрировать ИП через Тинькофф",
-    description: "ИП на ОСНО + НДС. Триггер: первый серьёзный запрос с готовностью платить.",
-    when: "before-first-deal",
-    done: false,
-  },
-  {
-    id: "rem-002",
-    type: "legal",
-    priority: "high",
-    icon: "📞",
-    title: "Консультация с юристом-международником",
-    description: "Показать оба контракта (EN + RU). 1-2 часа, 5-10 тыс. ₽. Окупится с первой сделки.",
-    when: "before-first-deal",
-    done: false,
-  },
-  {
-    id: "rem-003",
-    type: "tech",
-    priority: "medium",
-    icon: "🌐",
-    title: "Настроить VPN (Outline + Hetzner VPS)",
-    description: "$5.40/мес. Свой сервер в Германии. Стабильный доступ к Vercel, GitHub, Claude, Gmail.",
-    when: "after-ip-registration",
-    done: false,
-  },
-  {
-    id: "rem-004",
-    type: "benefits",
-    priority: "medium",
-    icon: "🎖️",
-    title: "Применить льготы ВБД",
-    description: "ЭКСАР скидка 20-30%, РЭЦ субсидия 80% на логистику, гранты Сколково/ФРИИ на IT.",
-    when: "after-ip-registration",
-    done: false,
-  },
-  {
-    id: "rem-005",
-    type: "finance",
-    priority: "high",
-    icon: "💰",
-    title: "Подать на возврат НДС 20% при экспорте",
-    description: "После первой отгрузки. Через таможню. +$30-50/м³ к прибыли!",
-    when: "after-first-shipment",
-    done: false,
-  },
-  {
-    id: "rem-006",
-    type: "compliance",
-    priority: "critical",
-    icon: "🚨",
-    title: "ЛесЕГАИС: запросить выписку у пилорамы",
-    description: "ОБЯЗАТЕЛЬНО к каждой партии! Без выписки = риск ст. 191.1 УК РФ.",
-    when: "every-deal",
-    done: false,
-  },
-  {
-    id: "rem-007",
-    type: "tech",
-    priority: "low",
-    icon: "🚀",
-    title: "IT-аккредитация Минцифры",
-    description: "Страховые 7.6% вместо 30%. Подавать после 3-5 сделок и стабильного дохода.",
-    when: "after-3-deals",
-    done: false,
-  },
-];
-
-// === 📁 HELPER ===
-function safeRead(key, fallback) {
-  if (typeof window === "undefined") return fallback;
-  try {
-    const data = localStorage.getItem(key);
-    if (!data) return fallback;
-    return JSON.parse(data);
-  } catch (e) {
-    console.error(`LocalStorage read error [${key}]:`, e);
-    return fallback;
-  }
-}
-
-function safeWrite(key, value) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {
-    console.error(`LocalStorage write error [${key}]:`, e);
-  }
-}
-
-// === 🔄 MIGRATION: v3 → v4 ===
-function migrateV3toV4() {
-  if (typeof window === "undefined") return null;
-  try {
-    const oldDeal = localStorage.getItem(OLD_DEAL_KEY);
-    if (!oldDeal) return null;
-    const parsed = JSON.parse(oldDeal);
-    const migrated = {
-      ...DEAL_DEFAULTS,
-      ...parsed,
-      computedVolume_m3: parseFloat(parsed.totalVolume) || 0,
-      computedWeight_kg: 0,
-      computedPieces: parseFloat(parsed.totalPieces) || 0,
-    };
-    localStorage.setItem(STORAGE_KEYS.DEAL, JSON.stringify(migrated));
-    localStorage.removeItem(OLD_DEAL_KEY);
-    console.log("✅ Migrated DealContext v3 → v4");
-    return migrated;
-  } catch (e) {
-    console.error("Migration error:", e);
-    return null;
-  }
-}
-
-// === 🎯 PROVIDER ===
+// 🎬 Провайдер
 export function DealProvider({ children }) {
-  const [deal, setDeal] = useState(DEAL_DEFAULTS);
-  const [seller, setSeller] = useState(SELLER_DEFAULTS);
-  const [customers, setCustomers] = useState([]);
-  const [suppliers, setSuppliers] = useState([]);
-  const [deals, setDeals] = useState([]);
-  const [reminders, setReminders] = useState(DEFAULT_REMINDERS);
-  const [checklist, setChecklist] = useState(CHECKLIST_DEFAULTS);
-  const [mission, setMission] = useState(MISSION_DEFAULTS); // 🆕 B4
+  const [deal, setDeal] = useState(defaultDeal);
+  const [seller, setSeller] = useState(defaultSeller);
+  const [mission, setMission] = useState(defaultMission);
+  const [checklist, setChecklist] = useState(defaultChecklist);
+  const [deals, setDeals] = useState([]); // архив сделок
+  const [customers, setCustomers] = useState([]); // CRM
   const [isLoaded, setIsLoaded] = useState(false);
-  const [hasMemory, setHasMemory] = useState(false);
 
-  // === Загрузка при старте ===
+  // 📂 Загружаем из localStorage при старте
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    try {
+      const savedDeal = localStorage.getItem("ru-timber-deal");
+      const savedSeller = localStorage.getItem("ru-timber-seller");
+      const savedMission = localStorage.getItem("ru-timber-mission");
+      const savedChecklist = localStorage.getItem("ru-timber-checklist");
+      const savedDeals = localStorage.getItem("ru-timber-deals");
+      const savedCustomers = localStorage.getItem("ru-timber-customers");
 
-    const migrated = migrateV3toV4();
-
-    const loadedDeal = migrated || safeRead(STORAGE_KEYS.DEAL, DEAL_DEFAULTS);
-    const loadedSeller = safeRead(STORAGE_KEYS.SELLER, SELLER_DEFAULTS);
-    const loadedCustomers = safeRead(STORAGE_KEYS.CUSTOMERS, []);
-    const loadedSuppliers = safeRead(STORAGE_KEYS.SUPPLIERS, []);
-    const loadedDeals = safeRead(STORAGE_KEYS.DEALS, []);
-    const loadedReminders = safeRead(STORAGE_KEYS.REMINDERS, DEFAULT_REMINDERS);
-    const loadedChecklist = safeRead(STORAGE_KEYS.CHECKLIST, CHECKLIST_DEFAULTS);
-    const loadedMission = safeRead(STORAGE_KEYS.MISSION, MISSION_DEFAULTS); // 🆕
-
-    setDeal({ ...DEAL_DEFAULTS, ...loadedDeal });
-    setSeller({ ...SELLER_DEFAULTS, ...loadedSeller });
-    setCustomers(Array.isArray(loadedCustomers) ? loadedCustomers : []);
-    setSuppliers(Array.isArray(loadedSuppliers) ? loadedSuppliers : []);
-    setDeals(Array.isArray(loadedDeals) ? loadedDeals : []);
-    setReminders(Array.isArray(loadedReminders) ? loadedReminders : DEFAULT_REMINDERS);
-    setChecklist({ ...CHECKLIST_DEFAULTS, ...loadedChecklist });
-    setMission({ ...MISSION_DEFAULTS, ...loadedMission }); // 🆕
-
-    setHasMemory(!!(migrated || localStorage.getItem(STORAGE_KEYS.DEAL)));
+      if (savedDeal) setDeal({ ...defaultDeal, ...JSON.parse(savedDeal) });
+      if (savedSeller) setSeller({ ...defaultSeller, ...JSON.parse(savedSeller) });
+      if (savedMission) setMission({ ...defaultMission, ...JSON.parse(savedMission) });
+      if (savedChecklist) setChecklist({ ...defaultChecklist, ...JSON.parse(savedChecklist) });
+      if (savedDeals) setDeals(JSON.parse(savedDeals));
+      if (savedCustomers) setCustomers(JSON.parse(savedCustomers));
+    } catch (e) {
+      console.error("Failed to load from localStorage:", e);
+    }
     setIsLoaded(true);
   }, []);
 
-  // === Автосохранение ===
-  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.DEAL, deal); }, [deal, isLoaded]);
-  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.SELLER, seller); }, [seller, isLoaded]);
-  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.CUSTOMERS, customers); }, [customers, isLoaded]);
-  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.SUPPLIERS, suppliers); }, [suppliers, isLoaded]);
-  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.DEALS, deals); }, [deals, isLoaded]);
-  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.REMINDERS, reminders); }, [reminders, isLoaded]);
-  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.CHECKLIST, checklist); }, [checklist, isLoaded]);
-  useEffect(() => { if (isLoaded) safeWrite(STORAGE_KEYS.MISSION, mission); }, [mission, isLoaded]); // 🆕
-
-  // === HELPERS ===
-  const updateDeal = (updates) => {
-    setDeal((prev) => ({ ...prev, ...updates, lastUpdate: Date.now() }));
-  };
-
-  const resetDeal = () => {
-    setDeal(DEAL_DEFAULTS);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(STORAGE_KEYS.DEAL);
+  // 💾 Сохраняем в localStorage при изменениях
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem("ru-timber-deal", JSON.stringify(deal));
     }
+  }, [deal, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem("ru-timber-seller", JSON.stringify(seller));
+    }
+  }, [seller, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem("ru-timber-mission", JSON.stringify(mission));
+    }
+  }, [mission, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem("ru-timber-checklist", JSON.stringify(checklist));
+    }
+  }, [checklist, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem("ru-timber-deals", JSON.stringify(deals));
+    }
+  }, [deals, isLoaded]);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem("ru-timber-customers", JSON.stringify(customers));
+    }
+  }, [customers, isLoaded]);
+
+  // 🛠️ Хелперы для обновления
+
+  // Обновить отдельные поля сделки
+  const updateDeal = (updates) => {
+    setDeal((prev) => ({ ...prev, ...updates }));
   };
 
-  const updateSeller = (updates) => setSeller((prev) => ({ ...prev, ...updates }));
-
-  // Customers
-  const addCustomer = (customer) => {
-    const newCustomer = { id: `cust-${Date.now()}`, createdAt: Date.now(), ...customer };
-    setCustomers((prev) => [...prev, newCustomer]);
-    return newCustomer.id;
-  };
-  const updateCustomer = (id, updates) => setCustomers((prev) => prev.map((c) => (c.id === id ? { ...c, ...updates } : c)));
-  const deleteCustomer = (id) => setCustomers((prev) => prev.filter((c) => c.id !== id));
-
-  // Suppliers
-  const addSupplier = (supplier) => {
-    const newSupplier = { id: `sup-${Date.now()}`, createdAt: Date.now(), ...supplier };
-    setSuppliers((prev) => [...prev, newSupplier]);
-    return newSupplier.id;
-  };
-  const updateSupplier = (id, updates) => setSuppliers((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
-  const deleteSupplier = (id) => setSuppliers((prev) => prev.filter((s) => s.id !== id));
-
-  // Deals
-  const addDeal = (dealData) => {
-    const newDeal = {
-      id: `RT-${new Date().getFullYear()}-${String(deals.length + 1).padStart(4, "0")}`,
-      createdAt: Date.now(),
-      status: "draft",
-      docs: {},
-      ...dealData,
-    };
-    setDeals((prev) => [...prev, newDeal]);
-    return newDeal.id;
-  };
-  const updateDealById = (id, updates) => setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, ...updates } : d)));
-  const deleteDealById = (id) => setDeals((prev) => prev.filter((d) => d.id !== id));
-
-  // Reminders
-  const toggleReminder = (id) => {
-    setReminders((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, done: !r.done, doneAt: !r.done ? Date.now() : null } : r))
-    );
-  };
-  const addReminder = (reminder) => {
-    const newReminder = { id: `rem-${Date.now()}`, createdAt: Date.now(), done: false, ...reminder };
-    setReminders((prev) => [...prev, newReminder]);
-    return newReminder.id;
+  // Обновить отдельные поля seller
+  const updateSeller = (updates) => {
+    setSeller((prev) => ({ ...prev, ...updates }));
   };
 
-  // Checklist
-  const toggleChecklistItem = (key) => setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
-  const getChecklistProgress = () => {
-    const total = Object.keys(checklist).length;
-    const done = Object.values(checklist).filter(Boolean).length;
-    return { done, total, percent: Math.round((done / total) * 100) };
+  // Обновить mission
+  const updateMission = (updates) => {
+    setMission((prev) => ({ ...prev, ...updates }));
   };
 
-  // 🆕 B4: Mission helpers
-  const updateMission = (updates) => setMission((prev) => ({ ...prev, ...updates }));
+  // Переключить пункт checklist
+  const toggleChecklistItem = (key) => {
+    setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
-  const missionStats = (() => {
-    const totalGoal = mission.goal_ship + mission.goal_house + mission.goal_wedding + mission.goal_reserve;
-    const profitPerContainerRub = mission.avgProfitPerContainer_usd * mission.targetUsdRubRate;
-    const profitPerMonthRub = profitPerContainerRub * mission.containersPerMonth;
-    const profitPerYearRub = profitPerMonthRub * 12;
-    const remaining = Math.max(totalGoal - mission.currentCapital, 0);
-    const containersNeeded = profitPerContainerRub > 0 ? Math.ceil(remaining / profitPerContainerRub) : 0;
-    const monthsNeeded = mission.containersPerMonth > 0 ? Math.ceil(containersNeeded / mission.containersPerMonth) : 0;
-    const yearsNeeded = monthsNeeded / 12;
-    const overallProgress = totalGoal > 0 ? Math.min((mission.currentCapital / totalGoal) * 100, 100) : 0;
-    const targetDate = new Date();
-    targetDate.setMonth(targetDate.getMonth() + monthsNeeded);
-    return {
-      totalGoal, remaining, containersNeeded, monthsNeeded, yearsNeeded,
-      profitPerContainerRub, profitPerMonthRub, profitPerYearRub,
-      overallProgress, targetDate,
-    };
-  })();
+  // Сбросить текущую сделку
+  const resetDeal = () => {
+    setDeal(defaultDeal);
+  };
 
-  // Reset ALL
-  const resetAll = () => {
-    if (typeof window === "undefined") return;
-    Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
-    setDeal(DEAL_DEFAULTS);
-    setSeller(SELLER_DEFAULTS);
-    setCustomers([]);
-    setSuppliers([]);
-    setDeals([]);
-    setReminders(DEFAULT_REMINDERS);
-    setChecklist(CHECKLIST_DEFAULTS);
-    setMission(MISSION_DEFAULTS); // 🆕
+  // 📊 Подсчёт статистики Mission
+  const missionStats = {
+    totalTarget:
+      mission.yachtTarget +
+      mission.houseTarget +
+      mission.familyTarget +
+      mission.freedomTarget,
+    totalCurrent:
+      mission.yachtCurrent +
+      mission.houseCurrent +
+      mission.familyCurrent +
+      mission.freedomCurrent,
+    get overallProgress() {
+      return this.totalTarget > 0
+        ? (this.totalCurrent / this.totalTarget) * 100
+        : 0;
+    },
+    get remaining() {
+      return this.totalTarget - this.totalCurrent;
+    },
+    get containersNeeded() {
+      // Прибыль с одного контейнера в рублях (примерно ₽100 за USD)
+      const profitPerContainerRUB = (mission.marginPerContainer || 1000) * 100;
+      return profitPerContainerRUB > 0
+        ? Math.ceil(this.remaining / profitPerContainerRUB)
+        : 0;
+    },
+    get monthsToGoal() {
+      const cpm = mission.containersPerMonth || 1;
+      return cpm > 0 ? Math.ceil(this.containersNeeded / cpm) : 0;
+    },
   };
 
   return (
     <DealContext.Provider
       value={{
-        deal, updateDeal, resetDeal, isLoaded, hasMemory,
-        seller, updateSeller,
-        customers, addCustomer, updateCustomer, deleteCustomer,
-        suppliers, addSupplier, updateSupplier, deleteSupplier,
-        deals, addDeal, updateDealById, deleteDealById,
-        reminders, toggleReminder, addReminder,
-        checklist, toggleChecklistItem, getChecklistProgress,
-        mission, updateMission, missionStats, // 🆕 B4
-        resetAll,
-        BUSINESS_RULES,
+        // State
+        deal,
+        seller,
+        mission,
+        checklist,
+        deals,
+        customers,
+        isLoaded,
+        missionStats,
+
+        // Setters (full replacement)
+        setDeal,
+        setSeller,
+        setMission,
+        setChecklist,
+        setDeals,
+        setCustomers,
+
+        // Helpers (partial updates)
+        updateDeal,
+        updateSeller,
+        updateMission,
+        toggleChecklistItem,
+        resetDeal,
       }}
     >
       {children}
@@ -453,8 +275,4 @@ export function DealProvider({ children }) {
   );
 }
 
-export function useDeal() {
-  const ctx = useContext(DealContext);
-  if (!ctx) throw new Error("useDeal must be used inside DealProvider");
-  return ctx;
-}
+// END OF FILE
