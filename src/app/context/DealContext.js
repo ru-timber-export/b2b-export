@@ -3,56 +3,51 @@
 import { createContext, useContext, useState, useEffect } from "react";
 
 // ═══════════════════════════════════════════════
-// 💰 ЭКСПОРТНЫЕ КОНСТАНТЫ (нужны для pricing/page.js)
+// 💰 ЭКСПОРТНЫЕ КОНСТАНТЫ для pricing/page.js
 // ═══════════════════════════════════════════════
 
-// Базовые цены за m³ (USD, FCA с лесопилки)
+// Базовые цены за m³ (USD, EXW лесопилка)
 export const SPECIES_BASE_PRICES = {
-  Pine: 180,
-  Spruce: 170,
-  Larch: 240,
-  Cedar: 290,
+  "pine": 175,
+  "spruce": 165,
+  "pine-spruce-50-50": 170,
+  "larch": 230,
+  "cedar": 280,
 };
 
-// Маржа по странам (множитель)
-export const COUNTRY_MARGINS = {
-  "UAE": 1.85,
-  "Saudi Arabia": 1.90,
-  "Qatar": 1.95,
-  "Egypt": 1.70,
-  "Turkey": 1.65,
-  "Uzbekistan": 1.50,
-  "India": 1.75,
-  "Other": 1.80,
-};
-
-// Надбавка за камерную сушку (USD за m³)
+// Надбавка за сушку (USD за m³)
 export const DRYING_SURCHARGE = {
-  "Natural (20-25%)": 0,
-  "KD 18-20%": 25,
-  "KD 14-16%": 40,
-  "KD 10-12%": 55,
-  "KD 8-10%": 70,
+  "ad": 0,           // Atmospheric Dry (natural)
+  "kd": 55,          // Kiln Dried 10-12%
+  "kd-light": 30,    // Light kiln dry
 };
 
 // Надбавка за упаковку (USD за m³)
 export const PACKAGING_SURCHARGE = {
-  "Standard strapped": 0,
-  "AST treated": 8,
-  "Polypropylene wrapped": 12,
-  "Premium export (AST + PP)": 18,
+  "strapped": 0,
+  "crate": 8,
+  "premium": 18,
 };
 
-// Готовые пресеты фрахта (USD за контейнер)
+// Фрахт-пресеты (всё включено за 40HC)
 export const FREIGHT_PRESETS = {
-  "FOB Novorossiysk": 0,
-  "FOB St. Petersburg": 0,
-  "CIF Jebel Ali": 2400,
-  "CIF Dammam": 2700,
-  "CIF Doha": 2800,
-  "CIF Alexandria": 1800,
-  "CIF Istanbul": 1600,
-  "CIF Mumbai (Nhava Sheva)": 2900,
+  "nvr-jebelali":  { label: "Новороссийск → Jebel Ali (UAE)",     rate: 2400 },
+  "nvr-dammam":    { label: "Новороссийск → Dammam (KSA)",         rate: 2700 },
+  "nvr-doha":      { label: "Новороссийск → Doha (Qatar)",         rate: 2800 },
+  "nvr-alex":      { label: "Новороссийск → Alexandria (Egypt)",   rate: 1800 },
+  "nvr-istanbul":  { label: "Новороссийск → Istanbul (Turkey)",    rate: 1600 },
+  "spb-jebelali":  { label: "St.Petersburg → Jebel Ali (UAE)",     rate: 2800 },
+  "vlv-mumbai":    { label: "Владивосток → Mumbai (India)",        rate: 2900 },
+  "vlv-chennai":   { label: "Владивосток → Chennai (India)",       rate: 2750 },
+};
+
+// Маржа по странам (в процентах)
+export const COUNTRY_MARGINS = {
+  "india":   18,
+  "china":   15,
+  "uae":     28,
+  "egypt":   22,
+  "turkey":  20,
 };
 
 // ═══════════════════════════════════════════════
@@ -71,34 +66,42 @@ export function useDeal() {
 
 // 📦 Deal default
 const defaultDeal = {
-  species: "Pine",
-  drying: "KD 10-12%",
+  // Volume
+  species: "pine",
+  moisture: "kd",
+  packaging: "crate",
   dimensions: "50x150x6000",
   length: 6,
   width: 0.15,
   thickness: 0.05,
   boardsPerBundle: 36,
   bundlesPerContainer: 24,
+  totalVolume: 62,
   volumeTotal: 62,
   endUse: "construction",
 
+  // Pricing
+  freightRoute: "nvr-jebelali",
+  incoterm: "cif",
+  margin: 28,
+  usdRubRate: 76.25,
+  profileProcessing: false,
   pricingPerM3: 540,
   pricingTotalUSD: 33480,
-  freightPreset: "CIF Jebel Ali",
 
+  // Container
   containerType: "40HC",
   containerCount: 1,
   shipmentSchedule: "single",
 
+  // Shipping
   loadingPort: "Novorossiysk",
   destinationPort: "Jebel Ali, UAE",
   leadTime: 45,
-  transitDays: 30,
-  incoterm: "CIF",
-  packaging: "Strapped bundles, AST treated, polypropylene wrapped",
+  transitDays: 21,
 };
 
-// 🏢 Seller default — ОБНОВЛЁН под РЕАЛЬНЫЕ данные ИП
+// 🏢 Seller default — РЕАЛЬНЫЕ данные ИП
 const defaultSeller = {
   companyName: "IE Semakin Konstantin Fedorovich",
   legalAddress: "Zapovednaya Street 18/4, Apt. 69, Moscow, 127081, Russia",
