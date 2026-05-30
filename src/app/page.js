@@ -79,17 +79,14 @@ export default function Home() {
       {/* ═══════════════════════════════════════════ */}
       {/*                  HERO ЭКРАН                  */}
       {/* ═══════════════════════════════════════════ */}
-      <header className="relative bg-emerald-950 text-white overflow-hidden">
+      <header className="relative bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-950 text-white overflow-hidden">
         
-        {/* Фоновое изображение */}
-        <div className="absolute inset-0 opacity-50">
-  <img 
-    src="https://images.unsplash.com/photo-1597857075809-7b7c3b2c11d1?q=80&w=2000&auto=format&fit=crop" 
-    alt="Premium Russian Timber" 
-    className="w-full h-full object-cover" 
-  />
-  <div className="absolute inset-0 bg-gradient-to-r from-emerald-950 via-emerald-950/80 to-emerald-900/40"></div>
-</div>
+        {/* Декоративный градиент вместо фото */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-950 via-emerald-900/60 to-emerald-800/40"></div>
+          <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-radial from-amber-500/10 via-transparent to-transparent"></div>
+          <div className="absolute bottom-0 left-0 w-1/2 h-full bg-gradient-radial from-emerald-700/20 via-transparent to-transparent"></div>
+        </div>
 
         {/* Геометрический паттерн поверх */}
         <div className="absolute inset-0 text-amber-400 opacity-10">
