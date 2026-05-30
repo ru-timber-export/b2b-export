@@ -56,57 +56,69 @@ export default function Home() {
         </div>
       </nav>
 
-      {/* HERO */}
-      <header className="relative bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-950 text-white overflow-hidden">
+      {/* HERO с фоновой картинкой */}
+      <header className="relative text-white overflow-hidden">
+        {/* Фоновая картинка */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/hero-halal.jpg')" }}
+        ></div>
+        
+        {/* Зелёное затемнение поверх картинки */}
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/95 via-emerald-900/85 to-emerald-950/95"></div>
+        
+        {/* Световые акценты */}
         <div className="absolute inset-0">
-          <div className="absolute top-0 right-0 w-72 h-72 sm:w-96 sm:h-96 bg-amber-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute top-0 right-0 w-72 h-72 sm:w-96 sm:h-96 bg-amber-500/15 rounded-full blur-3xl"></div>
           <div className="absolute bottom-0 left-0 w-72 h-72 sm:w-96 sm:h-96 bg-emerald-700/30 rounded-full blur-3xl"></div>
         </div>
 
+        {/* SVG узор поверх */}
         <div className="absolute inset-0 text-amber-400 opacity-10">
           <svg width="100%" height="100%">
             <rect width="100%" height="100%" fill="url(#halal-pattern)" />
           </svg>
         </div>
 
+        {/* КОНТЕНТ Hero */}
         <div className="max-w-7xl mx-auto px-4 py-16 sm:py-24 md:py-32 relative z-10">
-          <div className="mb-4 sm:mb-6 text-amber-400/80 text-xl sm:text-2xl md:text-3xl" dir="rtl" lang="ar">
+          <div className="mb-4 sm:mb-6 text-amber-400/90 text-xl sm:text-2xl md:text-3xl drop-shadow-lg" dir="rtl" lang="ar">
             بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ
           </div>
 
-          <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/40 text-amber-400 px-3 sm:px-4 py-1.5 rounded-sm text-[10px] sm:text-xs font-bold tracking-[0.2em] sm:tracking-[0.25em] mb-4 sm:mb-6">
+          <div className="inline-flex items-center gap-2 bg-amber-500/20 backdrop-blur-sm border border-amber-500/50 text-amber-300 px-3 sm:px-4 py-1.5 rounded-sm text-[10px] sm:text-xs font-bold tracking-[0.2em] sm:tracking-[0.25em] mb-4 sm:mb-6">
             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2C7 2 3 6 3 12s4 10 9 10c-3-2-5-5.5-5-10s2-8 5-10z"/>
             </svg>
             100% HALAL · PREMIUM RUSSIAN TIMBER
           </div>
 
-          <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold mb-4 sm:mb-6 leading-tight">
+          <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold mb-4 sm:mb-6 leading-tight drop-shadow-2xl">
             Premium Russian<br/>
             <span className="text-amber-400 italic">Sawn Timber</span>
             <br/>
-            <span className="text-lg sm:text-2xl md:text-3xl text-stone-300 font-normal not-italic">
+            <span className="text-lg sm:text-2xl md:text-3xl text-stone-200 font-normal not-italic">
               for the Muslim World
             </span>
           </h1>
 
-          <p className="text-base sm:text-lg md:text-xl text-stone-300 mb-8 sm:mb-10 max-w-2xl leading-relaxed">
+          <p className="text-base sm:text-lg md:text-xl text-stone-200 mb-8 sm:mb-10 max-w-2xl leading-relaxed drop-shadow-lg">
             Direct from our sawmills in <span className="text-amber-400 font-semibold">European Russia</span> (Vologda region).
             Premium Pine (REDWOOD), Spruce & Larch — GOST 8486-86, Kiln Dried 10-12%, ISPM-15.
             <br className="hidden sm:block"/>
-            <span className="text-stone-400 text-sm sm:text-base">FOB / CIF delivery to UAE, Saudi Arabia, Qatar, Egypt, Turkey.</span>
+            <span className="text-stone-300 text-sm sm:text-base">FOB / CIF delivery to UAE, Saudi Arabia, Qatar, Egypt, Turkey.</span>
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <a href="https://wa.me/79153490007" target="_blank" rel="noopener noreferrer" className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-emerald-950 px-6 sm:px-8 py-3 sm:py-4 rounded-sm font-bold text-base sm:text-lg text-center transition-all shadow-2xl tracking-wide">
               REQUEST A QUOTATION
             </a>
-            <a href="#products" className="bg-emerald-900/60 hover:bg-emerald-900 border border-amber-500/40 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-sm font-bold text-base sm:text-lg text-center transition-all tracking-wide">
+            <a href="#products" className="bg-emerald-900/70 backdrop-blur-sm hover:bg-emerald-900 border border-amber-500/40 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-sm font-bold text-base sm:text-lg text-center transition-all tracking-wide">
               VIEW PRODUCTS
             </a>
           </div>
 
-          <div className="mt-8 sm:mt-12 flex flex-wrap gap-3 sm:gap-6 text-[10px] sm:text-xs tracking-widest text-stone-400">
+          <div className="mt-8 sm:mt-12 flex flex-wrap gap-3 sm:gap-6 text-[10px] sm:text-xs tracking-widest text-stone-300">
             <span>✓ GOST 8486-86</span>
             <span>✓ ISPM-15</span>
             <span>✓ LesEGAIS</span>
@@ -115,7 +127,7 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent"></div>
+        <div className="h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent relative z-10"></div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4">
