@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useDeal } from "../context/DealContext";
+import CaptainGate from "./CaptainGate"; 
 
 export default function CaptainDashboard() {
   const { mission, missionStats, checklist, deals, customers, isLoaded } = useDeal();
@@ -42,6 +43,7 @@ export default function CaptainDashboard() {
   });
 
   return (
+    <CaptainGate>
     <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white font-sans">
       {/* Header */}
       <nav className="bg-slate-900/95 backdrop-blur border-b border-slate-700 p-4 sticky top-0 z-50">
@@ -242,6 +244,7 @@ export default function CaptainDashboard() {
         </footer>
       </main>
     </div>
+    </CaptainGate>
   );
 }
 

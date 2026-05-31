@@ -51,7 +51,7 @@ export default function Home() {
               </svg>
               <span className="hidden sm:inline">Contact</span>
             </a>
-            <Link href="/captain" className="text-stone-600 hover:text-amber-400 transition-colors text-xs" title="Captain Mode">⚓</Link>
+            
           </div>
         </div>
       </nav>

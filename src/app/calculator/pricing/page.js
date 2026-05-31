@@ -40,6 +40,34 @@ export default function PricingPage() {
   const [cbrDate, setCbrDate] = useState(null);
   const [cbrError, setCbrError] = useState(false);
 
+  // 🆕 Custom freight rate
+  const [useCustomFreight, setUseCustomFreight] = useState(false);
+  const [customFreightRate, setCustomFreightRate] = useState(2400);
+  const [customFreightDate, setCustomFreightDate] = useState("");
+
+  // 🆕 Загружаем custom freight из localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("ru-timber-custom-freight");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setUseCustomFreight(parsed.enabled || false);
+        setCustomFreightRate(parsed.rate || 2400);
+        setCustomFreightDate(parsed.date || "");
+      }
+    } catch (e) {
+      console.error("Failed to load custom freight:", e);
+    }
+  }, []);
+
+  // 🆕 Сохраняем custom freight
+  const saveCustomFreight = (enabled, rate) => {
+    const today = new Date().toLocaleDateString("ru-RU");
+    const data = { enabled, rate, date: today };
+    localStorage.setItem("ru-timber-custom-freight", JSON.stringify(data));
+    setCustomFreightDate(today);
+  };
+
   // Автозагрузка курса ЦБ РФ
   const fetchCBR = async () => {
     setCbrLoading(true);
@@ -87,6 +115,12 @@ export default function PricingPage() {
   const rate = deal.usdRubRate === "" ? 76.25 : parseFloat(deal.usdRubRate) || 76.25;
 
   const freightPreset = FREIGHT_PRESETS[deal.freightRoute] || FREIGHT_PRESETS["vlv-chennai"];
+  
+  // 🆕 Используем custom freight если включено
+  const effectiveFreightRate = useCustomFreight ? customFreightRate : freightPreset.rate;
+  const effectiveFreightLabel = useCustomFreight 
+    ? `Custom Rate (manual)` 
+    : freightPreset.label;
 
   const speciesBase = SPECIES_BASE_PRICES[species] || 160;
   const dryingAdd = DRYING_SURCHARGE[moisture] || 0;
@@ -96,7 +130,7 @@ export default function PricingPage() {
   const loadFactory = 6;
   const landTransport = totalVol > 0 ? 1500 / totalVol : 0;
   const portFees = totalVol > 0 ? 400 / totalVol : 0;
-  const ocean = totalVol > 0 ? freightPreset.rate / totalVol : 0;
+  const ocean = totalVol > 0 ? effectiveFreightRate / totalVol : 0;
   const insurance = 0.011 * (millPrice + loadFactory + landTransport + portFees + ocean);
 
   let totalCost = millPrice;
@@ -141,21 +175,20 @@ export default function PricingPage() {
           </p>
         </div>
 
-        {/* 🆕 B3.2: Напоминалка — курс ЦБ */}
+        {/* Reminders */}
         <Reminder
           priority="high"
           icon="💱"
           title="Проверь курс USD/RUB перед отправкой Quotation"
-          description="Курс ЦБ РФ обновляется в 13:00 МСК ежедневно. Если квотация валидна 7 дней — закладывай запас 2-3% на колебание рубля, чтобы не потерять маржу. Внизу страницы есть кнопка '🔄 Обновить ЦБ'."
+          description="Курс ЦБ РФ обновляется в 13:00 МСК ежедневно. Если квотация валидна 7 дней — закладывай запас 2-3% на колебание рубля."
           dismissKey="usd-rate-tip-2026"
         />
 
-        {/* 🆕 B3.2: Напоминалка — валютный контроль */}
         <Reminder
           priority="medium"
           icon="🏦"
           title="Валютный контроль (после регистрации ИП)"
-          description="Контракты на сумму >$50,000 обязательно ставятся на учёт в банке (Тинькофф ВЭД делает это автоматически). За нарушение — штраф до 100% суммы сделки! Сейчас не критично — но запомни этот момент."
+          description="Контракты на сумму >$50,000 обязательно ставятся на учёт в банке. За нарушение — штраф до 100% суммы сделки!"
           dismissKey="vc-warning-2026"
         />
 
@@ -172,15 +205,19 @@ export default function PricingPage() {
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
             🚢 Freight Route
-            <Tooltip text="Выберите направление отгрузки. Ставки фрахта ALL-IN (все сборы включены), апрель 2026. Приоритет: Владивосток → Ченнай (Индия)." />
+            <Tooltip text="Выберите готовый маршрут ИЛИ задайте свою ставку вручную ниже." />
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
             {Object.entries(FREIGHT_PRESETS).map(([key, val]) => {
-              const active = deal.freightRoute === key;
+              const active = deal.freightRoute === key && !useCustomFreight;
               return (
                 <button
                   key={key}
-                  onClick={() => updateDeal({ freightRoute: key })}
+                  onClick={() => {
+                    updateDeal({ freightRoute: key });
+                    setUseCustomFreight(false);
+                    saveCustomFreight(false, customFreightRate);
+                  }}
                   className={`p-3 rounded-lg text-left text-xs transition-all active:scale-95 border-2 ${
                     active
                       ? "bg-orange-500 text-white border-orange-600 shadow-lg"
@@ -195,11 +232,107 @@ export default function PricingPage() {
           </div>
         </section>
 
+        {/* 🆕 CUSTOM FREIGHT RATE */}
+        <section className={`rounded-xl p-5 shadow-sm border-2 transition-all ${
+          useCustomFreight 
+            ? "bg-emerald-50 border-emerald-400" 
+            : "bg-white border-slate-200"
+        }`}>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-slate-800 flex items-center">
+              ✏️ Custom Freight Rate
+              <Tooltip text="Введи свою ставку фрахта вручную (например, полученную от форвардера или с Freightos). Сохраняется в браузере." />
+            </h2>
+            {useCustomFreight && (
+              <span className="bg-emerald-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                ACTIVE
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="text-xs text-slate-500 flex items-center">
+                Ставка фрахта (USD за 40HC контейнер)
+                <Tooltip text="Сумма ALL-IN: океанский фрахт + BAF + THC + B/L. Не включает таможню и доставку до порта." />
+              </label>
+              <input
+                type="number"
+                value={customFreightRate}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value) || 0;
+                  setCustomFreightRate(v);
+                  if (useCustomFreight) saveCustomFreight(true, v);
+                }}
+                onFocus={(e) => e.target.select()}
+                placeholder="2400"
+                className="w-full mt-1 p-3 border-2 border-slate-300 rounded-lg text-xl font-bold focus:border-emerald-500 outline-none"
+              />
+            </div>
+            <div className="flex items-end">
+              <button
+                onClick={() => {
+                  const newState = !useCustomFreight;
+                  setUseCustomFreight(newState);
+                  saveCustomFreight(newState, customFreightRate);
+                }}
+                className={`w-full p-3 rounded-lg font-bold text-sm transition-all active:scale-95 ${
+                  useCustomFreight
+                    ? "bg-slate-500 text-white hover:bg-slate-600"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+                }`}
+              >
+                {useCustomFreight ? "⬅ Use Preset" : "✓ Use Custom →"}
+              </button>
+            </div>
+          </div>
+
+          {/* 🆕 Шильдик источника */}
+          <div className="mt-4 pt-4 border-t border-slate-200 flex flex-wrap items-center gap-3 text-xs">
+            <span className="text-slate-500">Источник данных:</span>
+            <a
+              href="https://app.terminal.freightos.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold hover:bg-blue-200 transition-colors"
+            >
+              📊 Freightos Baltic Index (FBX)
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+              </svg>
+            </a>
+            <a
+              href="https://www.drewry.co.uk/supply-chain-advisors/supply-chain-expertise/world-container-index-assessed-by-drewry"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold hover:bg-purple-200 transition-colors"
+            >
+              📈 Drewry WCI
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+              </svg>
+            </a>
+            {customFreightDate && (
+              <span className="text-slate-400 ml-auto">
+                Обновлено: {customFreightDate}
+              </span>
+            )}
+          </div>
+
+          {useCustomFreight && (
+            <div className="mt-3 p-3 bg-emerald-100 border border-emerald-300 rounded-lg text-xs text-emerald-800">
+              ✓ Используется твоя ставка: <span className="font-mono font-bold">${customFreightRate}/40HC</span>
+              <br/>
+              <span className="opacity-75">Per m³ (на {totalVol.toFixed(0)} m³): ${(customFreightRate / totalVol).toFixed(2)}/m³</span>
+            </div>
+          )}
+        </section>
+
         {/* Incoterms */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
             📋 Incoterms (Delivery Basis)
-            <Tooltip text="Международные условия поставки. EXW = товар на складе. FCA завод = +погрузка в фуру. FCA порт = +доставка. FOB = +погрузка на судно. CIF = +фрахт и страховка до порта клиента. Каждый шаг добавляет стоимость." />
+            <Tooltip text="Международные условия поставки. EXW = товар на складе. FCA = +погрузка. FOB = +судно. CIF = +фрахт+страховка." />
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">
             {[
@@ -235,7 +368,7 @@ export default function PricingPage() {
             <div className="flex justify-between border-b py-2">
               <span className="flex items-center">
                 🪵 Mill price ({species} {moisture} {packaging})
-                <Tooltip text={`Заводская цена = База породы ($${speciesBase}) + Сушка ($${dryingAdd}) + Упаковка ($${packAdd})`} />
+                <Tooltip text={`Заводская цена = База породы (${speciesBase}) + Сушка (${dryingAdd}) + Упаковка (${packAdd})`} />
               </span>
               <span className="font-mono font-bold">${millPrice.toFixed(2)}/m³</span>
             </div>
@@ -264,7 +397,10 @@ export default function PricingPage() {
             {incoterm === "cif" && (
               <>
                 <div className="flex justify-between py-2 border-b text-slate-600">
-                  <span>🚢 Ocean freight ({freightPreset.label.split("→")[1]?.trim()})</span>
+                  <span>
+                    🚢 Ocean freight ({effectiveFreightLabel})
+                    {useCustomFreight && <span className="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">CUSTOM</span>}
+                  </span>
                   <span className="font-mono">+${ocean.toFixed(2)}/m³</span>
                 </div>
                 <div className="flex justify-between py-2 border-b text-slate-600">
@@ -274,7 +410,6 @@ export default function PricingPage() {
               </>
             )}
 
-            {/* Пошлина */}
             <div className={`flex justify-between py-2 border-b ${dutyFree ? "text-emerald-600" : "text-rose-600"}`}>
               <span className="flex items-center">
                 🏛 Export duty {dutyFree ? "(0% — KD/4409)" : "(6.5% — AD raw)"}
@@ -289,7 +424,6 @@ export default function PricingPage() {
             </div>
           </div>
 
-          {/* Profile processing checkbox */}
           <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
             <label className="flex items-start gap-2 cursor-pointer">
               <input
@@ -301,10 +435,10 @@ export default function PricingPage() {
               <div className="text-xs text-slate-700">
                 <div className="font-bold flex items-center">
                   ⚙ Profile processing (HS 4409 — фаска/паз)
-                  <Tooltip text="Лёгкая фаска 2×2мм переводит товар в код ТН ВЭД 4409 → 0% экспортной пошлины. Особенно выгодно для AD доски. Стоимость обработки ~$4/m³, экономия пошлины ~$12/m³." />
+                  <Tooltip text="Лёгкая фаска 2×2мм переводит товар в код 4409 → 0% пошлины. Особенно выгодно для AD." />
                 </div>
                 <div className="opacity-75 mt-1">
-                  Для AD-доски: фаска 2×2мм → 0% пошлины РФ. Экономия ~$7/m³ чистыми.
+                  Для AD-доски: фаска 2×2мм → 0% пошлины РФ. Экономия ~$7/m³.
                 </div>
               </div>
             </label>
@@ -315,10 +449,9 @@ export default function PricingPage() {
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
             📊 Margin & Exchange Rate
-            <Tooltip text="Ваша наценка к себестоимости. Меняется по рынку." />
+            <Tooltip text="Ваша наценка к себестоимости." />
           </h2>
 
-          {/* Country margin presets */}
           <div className="mt-3">
             <div className="text-xs text-slate-500 mb-2">Quick margin by country:</div>
             <div className="flex flex-wrap gap-2">
@@ -347,7 +480,7 @@ export default function PricingPage() {
             <div>
               <label className="text-xs text-slate-500 flex items-center">
                 Margin (%)
-                <Tooltip text="Типично 15-30%. Индия/Китай: 15-18% (чувствительны к цене). ОАЭ/Саудовская Аравия: 25-30% (премиум)." />
+                <Tooltip text="Типично 15-30%. Индия/Китай: 15-18%. ОАЭ/Саудовская: 25-30%." />
               </label>
               <input
                 type="number"
@@ -361,7 +494,7 @@ export default function PricingPage() {
             <div>
               <label className="text-xs text-slate-500 flex items-center">
                 USD / RUB
-                <Tooltip text="Курс ЦБ РФ автоматически. Кнопка 🔄 обновит курс." />
+                <Tooltip text="Курс ЦБ РФ автоматически." />
               </label>
               <input
                 type="number"
