@@ -6,7 +6,6 @@ import { createContext, useContext, useState, useEffect } from "react";
 // 💰 ЭКСПОРТНЫЕ КОНСТАНТЫ для pricing/page.js
 // ═══════════════════════════════════════════════
 
-// Базовые цены за m³ (USD, EXW лесопилка)
 export const SPECIES_BASE_PRICES = {
   "pine": 175,
   "spruce": 165,
@@ -15,21 +14,18 @@ export const SPECIES_BASE_PRICES = {
   "cedar": 280,
 };
 
-// Надбавка за сушку (USD за m³)
 export const DRYING_SURCHARGE = {
-  "ad": 0,           // Atmospheric Dry (natural)
-  "kd": 55,          // Kiln Dried 10-12%
-  "kd-light": 30,    // Light kiln dry
+  "ad": 0,
+  "kd": 55,
+  "kd-light": 30,
 };
 
-// Надбавка за упаковку (USD за m³)
 export const PACKAGING_SURCHARGE = {
   "strapped": 0,
   "crate": 8,
   "premium": 18,
 };
 
-// Фрахт-пресеты (всё включено за 40HC)
 export const FREIGHT_PRESETS = {
   "nvr-jebelali":  { label: "Новороссийск → Jebel Ali (UAE)",     rate: 2400 },
   "nvr-dammam":    { label: "Новороссийск → Dammam (KSA)",         rate: 2700 },
@@ -41,7 +37,6 @@ export const FREIGHT_PRESETS = {
   "vlv-chennai":   { label: "Владивосток → Chennai (India)",       rate: 2750 },
 };
 
-// Маржа по странам (в процентах)
 export const COUNTRY_MARGINS = {
   "india":   18,
   "china":   15,
@@ -64,9 +59,7 @@ export function useDeal() {
   return context;
 }
 
-// 📦 Deal default
 const defaultDeal = {
-  // Volume
   species: "pine",
   moisture: "kd",
   packaging: "crate",
@@ -79,8 +72,6 @@ const defaultDeal = {
   totalVolume: 62,
   volumeTotal: 62,
   endUse: "construction",
-
-  // Pricing
   freightRoute: "nvr-jebelali",
   incoterm: "cif",
   margin: 28,
@@ -88,20 +79,15 @@ const defaultDeal = {
   profileProcessing: false,
   pricingPerM3: 540,
   pricingTotalUSD: 33480,
-
-  // Container
   containerType: "40HC",
   containerCount: 1,
   shipmentSchedule: "single",
-
-  // Shipping
   loadingPort: "Novorossiysk",
   destinationPort: "Jebel Ali, UAE",
   leadTime: 45,
   transitDays: 21,
 };
 
-// 🏢 Seller default — РЕАЛЬНЫЕ данные ИП
 const defaultSeller = {
   companyName: "IE Semakin Konstantin Fedorovich",
   legalAddress: "Zapovednaya Street 18/4, Apt. 69, Moscow, 127081, Russia",
@@ -118,29 +104,27 @@ const defaultSeller = {
   correspondentBank: "",
 };
 
-// 🌊 Mission default
+// 🌊 Mission default — ОБНОВЛЁННАЯ структура
 const defaultMission = {
-  yachtTarget: 60000000,
-  yachtCurrent: 0,
-  yachtModel: "Beneteau Oceanis 46.1",
-
-  houseTarget: 50000000,
-  houseCurrent: 0,
-  houseLocation: "Sochi / Limassol",
-
-  familyTarget: 20000000,
-  familyCurrent: 0,
-  familyGoal: "Education for kids, healthcare, comfort",
-
-  freedomTarget: 16500000,
-  freedomCurrent: 0,
-  freedomGoal: "Financial independence, passive income",
-
-  marginPerContainer: 1000,
-  containersPerMonth: 5,
+  // 💰 Текущий капитал (накоплено всего)
+  currentCapital: 0,
+  
+  // 💵 Прибыль на контейнер (в USD)
+  avgProfitPerContainer_usd: 1000,
+  
+  // 📦 Темп производства
+  containersPerMonth: 2,
+  
+  // 💱 Курс USD/RUB для расчёта
+  targetUsdRubRate: 85,
+  
+  // 🎯 4 цели в ₽
+  goal_ship: 60000000,      // 🚢 Корабль
+  goal_house: 50000000,     // 🏠 Дом
+  goal_wedding: 5000000,    // 💍 Свадьба
+  goal_reserve: 25000000,   // 💰 Резерв (5 лет × 5 млн)
 };
 
-// 📋 Checklist default
 const defaultChecklist = {
   ip_registered: false,
   lawyer_consulted: false,
@@ -161,7 +145,6 @@ const defaultChecklist = {
   vpn_setup: false,
 };
 
-// 🎬 Provider
 export function DealProvider({ children }) {
   const [deal, setDeal] = useState(defaultDeal);
   const [seller, setSeller] = useState(defaultSeller);
@@ -222,24 +205,82 @@ export function DealProvider({ children }) {
   const toggleChecklistItem = (key) => setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
   const resetDeal = () => setDeal(defaultDeal);
 
-  const missionStats = {
-    totalTarget: mission.yachtTarget + mission.houseTarget + mission.familyTarget + mission.freedomTarget,
-    totalCurrent: mission.yachtCurrent + mission.houseCurrent + mission.familyCurrent + mission.freedomCurrent,
-    get overallProgress() {
-      return this.totalTarget > 0 ? (this.totalCurrent / this.totalTarget) * 100 : 0;
-    },
-    get remaining() {
-      return this.totalTarget - this.totalCurrent;
-    },
-    get containersNeeded() {
-      const profitPerContainerRUB = (mission.marginPerContainer || 1000) * 100;
-      return profitPerContainerRUB > 0 ? Math.ceil(this.remaining / profitPerContainerRUB) : 0;
-    },
-    get monthsToGoal() {
-      const cpm = mission.containersPerMonth || 1;
-      return cpm > 0 ? Math.ceil(this.containersNeeded / cpm) : 0;
-    },
-  };
+  // ═══════════════════════════════════════════════
+  // 📊 missionStats — ПОЛНОСТЬЮ ПЕРЕДЕЛАНО
+  // ═══════════════════════════════════════════════
+  const missionStats = (() => {
+    // Безопасные значения с дефолтами
+    const currentCapital = mission.currentCapital || 0;
+    const profitPerContainer_usd = mission.avgProfitPerContainer_usd || 1000;
+    const containersPerMonth = mission.containersPerMonth || 2;
+    const usdRubRate = mission.targetUsdRubRate || 85;
+    
+    const goal_ship = mission.goal_ship || 0;
+    const goal_house = mission.goal_house || 0;
+    const goal_wedding = mission.goal_wedding || 0;
+    const goal_reserve = mission.goal_reserve || 0;
+    
+    // Общая цель в ₽
+    const totalGoal = goal_ship + goal_house + goal_wedding + goal_reserve;
+    
+    // Прогресс %
+    const overallProgress = totalGoal > 0 
+      ? Math.min((currentCapital / totalGoal) * 100, 100)
+      : 0;
+    
+    // Сколько осталось накопить
+    const remaining = Math.max(totalGoal - currentCapital, 0);
+    
+    // Прибыль за контейнер в ₽
+    const profitPerContainer_rub = profitPerContainer_usd * usdRubRate;
+    
+    // Сколько контейнеров нужно
+    const containersNeeded = profitPerContainer_rub > 0
+      ? Math.ceil(remaining / profitPerContainer_rub)
+      : 0;
+    
+    // Сколько месяцев нужно
+    const monthsNeeded = containersPerMonth > 0
+      ? Math.ceil(containersNeeded / containersPerMonth)
+      : 0;
+    
+    // Сколько лет
+    const yearsNeeded = monthsNeeded / 12;
+    
+    // Прибыль в месяц (₽)
+    const profitPerMonthRub = containersPerMonth * profitPerContainer_rub;
+    
+    // Прибыль в год (₽)
+    const profitPerYearRub = profitPerMonthRub * 12;
+    
+    // Целевая дата (когда выйдешь в океан)
+    const targetDate = new Date();
+    targetDate.setMonth(targetDate.getMonth() + monthsNeeded);
+    
+    return {
+      // Базовое
+      totalGoal,
+      totalTarget: totalGoal,       // алиас для обратной совместимости
+      totalCurrent: currentCapital, // алиас
+      currentCapital,
+      remaining,
+      overallProgress,
+      
+      // Расчёты
+      containersNeeded,
+      monthsNeeded,
+      monthsToGoal: monthsNeeded,   // алиас
+      yearsNeeded,
+      
+      // Прибыль
+      profitPerContainer_rub,
+      profitPerMonthRub,
+      profitPerYearRub,
+      
+      // Дата
+      targetDate,
+    };
+  })();
 
   return (
     <DealContext.Provider
