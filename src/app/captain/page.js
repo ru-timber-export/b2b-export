@@ -170,17 +170,29 @@ export default function CaptainDashboard() {
   active
 />
 
-          {/* TILE 6: НАСТРОЙКИ — теперь рабочая! */}
-          <Tile
-            href="/captain/settings"
-            icon="⚙"
-            title="Business Settings"
-            subtitle="Реквизиты · Банк · Логистика"
-            description="ИП, ИНН, банк USD, контакты, порт — всё в одном месте"
-            color="from-emerald-600 to-emerald-800"
-            stat="NEW"
-            active
-          />
+          {/* TILE 6: TEMPLATES — NEW */}
+<Tile
+  href="/captain/templates"
+  icon="📧"
+  title="Sales Templates"
+  subtitle="EN / RU / AR · Cold outreach + follow-ups"
+  description="10 готовых шаблонов · WhatsApp + Email · Auto-fill из CRM"
+  color="from-cyan-600 to-blue-700"
+  stat="NEW"
+  active
+/>
+
+{/* TILE 7: SETTINGS (был 6) */}
+<Tile
+  href="/captain/settings"
+  icon="⚙"
+  title="Business Settings"
+  subtitle="Реквизиты · Банк · Логистика"
+  description="ИП, ИНН, банк USD, контакты, порт — всё в одном месте"
+  color="from-emerald-600 to-emerald-800"
+  stat="Active"
+  active
+/>
         </section>
 
         {/* Daily Focus */}
