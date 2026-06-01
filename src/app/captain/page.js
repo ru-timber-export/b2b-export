@@ -158,17 +158,17 @@ export default function CaptainDashboard() {
             active
           />
 
-          {/* TILE 5: СДЕЛКИ */}
-          <Tile
-            href="/captain/deals"
-            icon="📊"
-            title="Архив сделок"
-            subtitle="История и аналитика"
-            description="Все сделки с фильтрами, поиск, экспорт в Excel"
-            color="from-emerald-600 to-emerald-700"
-            stat="Coming soon"
-            comingSoon
-          />
+          {/* TILE 5: CRM */}
+<Tile
+  href="/captain/customers"
+  icon="👥"
+  title="Customers CRM"
+  subtitle="База клиентов и лидов"
+  description="Все покупатели · WhatsApp · фильтры · температура · экспорт"
+  color="from-purple-600 to-purple-700"
+  stat="NEW"
+  active
+/>
 
           {/* TILE 6: НАСТРОЙКИ — теперь рабочая! */}
           <Tile
