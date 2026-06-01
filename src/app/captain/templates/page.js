@@ -965,14 +965,12 @@ export default function TemplatesPage() {
     window.open(url, "_blank");
   };
 
-  // Отправка по Email
+  // Отправка по Email (используем encodeURIComponent — пробелы → %20, не "+")
   const sendEmail = (subject, body) => {
     const to = selectedCustomer?.email || "";
-    const params = new URLSearchParams({
-      subject: subject || "",
-      body: body || "",
-    }).toString();
-    window.location.href = `mailto:${to}?${params}`;
+    const encodedSubject = encodeURIComponent(subject || "");
+    const encodedBody = encodeURIComponent(body || "");
+    window.location.href = `mailto:${to}?subject=${encodedSubject}&body=${encodedBody}`;
   };
 
   return (
