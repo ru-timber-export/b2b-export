@@ -1,19 +1,45 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useDeal } from "../../context/DealContext";
 import { useBusinessSettings } from "../../hooks/useBusinessSettings";
+import { useCustomers } from "../../hooks/useCustomers";
+import { useQuotationCounter } from "../../hooks/useQuotationCounter";
 import Link from "next/link";
 import Reminder from "../../components/Reminder";
 
 export default function QuotationPage() {
   const { deal, isLoaded: dealLoaded } = useDeal();
   const { settings, isLoaded: settingsLoaded } = useBusinessSettings();
+  const { customers, isLoaded: customersLoaded } = useCustomers();
+  const { nextNumber, commitNumber, isLoaded: counterLoaded } = useQuotationCounter();
 
-  if (!dealLoaded || !settingsLoaded) {
+  // 🆕 State для выбранного клиента и модалки
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [showCustomerPicker, setShowCustomerPicker] = useState(false);
+  const [quotationNumber, setQuotationNumber] = useState("");
+  const [numberCommitted, setNumberCommitted] = useState(false);
+
+  // Установить превью-номер при загрузке
+  useEffect(() => {
+    if (counterLoaded && !quotationNumber) {
+      setQuotationNumber(nextNumber);
+    }
+  }, [counterLoaded, nextNumber, quotationNumber]);
+
+  if (!dealLoaded || !settingsLoaded || !customersLoaded || !counterLoaded) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    // Зафиксировать номер при первой печати
+    if (!numberCommitted) {
+      const committed = commitNumber();
+      setQuotationNumber(committed);
+      setNumberCommitted(true);
+    }
+    setTimeout(() => window.print(), 100);
+  };
 
   // Расчёты
   const volumePerContainer = deal.volumeTotal || 0;
@@ -25,14 +51,11 @@ export default function QuotationPage() {
 
   const today = new Date().toLocaleDateString("en-GB");
   const validUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString("en-GB");
-  const quotationNumber = `QT-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`;
 
-  // 🆕 Проверка заполненности настроек
   const settingsIncomplete = !settings.inn || !settings.bankAccountUSD || !settings.companyNameEn;
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans">
-      {/* Print styles */}
       <style jsx global>{`
         @media print {
           @page { size: A4; margin: 12mm; }
@@ -58,21 +81,76 @@ export default function QuotationPage() {
 
       {/* Controls */}
       <div className="max-w-5xl mx-auto p-4 print:hidden">
-        <div className="bg-white rounded-xl p-4 shadow-sm flex flex-wrap gap-3 items-center justify-between">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900">📄 Quotation</h1>
-            <p className="text-xs text-slate-500">Commercial offer for international buyer</p>
+        <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
+          <div className="flex flex-wrap gap-3 items-center justify-between">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900">📄 Quotation</h1>
+              <p className="text-xs text-slate-500">
+                Number: <span className="font-mono font-bold text-orange-500">{quotationNumber}</span>
+                {!numberCommitted && <span className="ml-2 text-slate-400">(preview)</span>}
+                {numberCommitted && <span className="ml-2 text-emerald-500">✓ committed</span>}
+              </p>
+            </div>
+            <button
+              onClick={handlePrint}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 active:scale-95"
+            >
+              🖨 Print / PDF
+            </button>
           </div>
-          <button
-            onClick={handlePrint}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 active:scale-95"
-          >
-            🖨 Print / PDF
-          </button>
+
+          {/* 🆕 Customer selector */}
+          <div className="border-t pt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-slate-600">👥 Buyer:</span>
+            {selectedCustomer ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="bg-purple-50 border-2 border-purple-300 rounded-lg px-3 py-1.5 text-xs">
+                  <span className="font-bold text-purple-900">{selectedCustomer.companyName}</span>
+                  {selectedCustomer.contactPerson && (
+                    <span className="text-purple-600"> · {selectedCustomer.contactPerson}</span>
+                  )}
+                  {selectedCustomer.country && (
+                    <span className="text-purple-500"> · {selectedCustomer.country}</span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowCustomerPicker(true)}
+                  className="text-xs text-purple-600 hover:text-purple-800 underline"
+                >
+                  Change
+                </button>
+                <button
+                  onClick={() => setSelectedCustomer(null)}
+                  className="text-xs text-rose-500 hover:text-rose-700 underline"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => setShowCustomerPicker(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg active:scale-95"
+                >
+                  👥 Select Customer from CRM
+                </button>
+                <span className="text-xs text-slate-400">or leave as placeholder</span>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* 🆕 Предупреждение если Settings не заполнены */}
+      {/* 🆕 Customer Picker Modal */}
+      {showCustomerPicker && (
+        <CustomerPickerModal
+          customers={customers}
+          onSelect={(c) => { setSelectedCustomer(c); setShowCustomerPicker(false); }}
+          onClose={() => setShowCustomerPicker(false)}
+        />
+      )}
+
+      {/* Warning if settings incomplete */}
       {settingsIncomplete && (
         <div className="max-w-5xl mx-auto p-4 print:hidden">
           <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-4 flex items-start gap-3">
@@ -80,13 +158,9 @@ export default function QuotationPage() {
             <div className="flex-1">
               <div className="font-bold text-amber-900">Заполни Business Settings</div>
               <div className="text-xs text-amber-800 mt-1">
-                В Quotation нужны: ИНН, банковский USD-счёт, название компании на английском.
-                Без них документ выглядит непрофессионально.
+                Нужны: ИНН, USD-счёт, название EN.
               </div>
-              <Link
-                href="/captain/settings"
-                className="inline-block mt-2 bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-amber-700 active:scale-95"
-              >
+              <Link href="/captain/settings" className="inline-block mt-2 bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-amber-700 active:scale-95">
                 ⚙ Открыть Settings →
               </Link>
             </div>
@@ -96,26 +170,14 @@ export default function QuotationPage() {
 
       {/* Reminders */}
       <div className="max-w-5xl mx-auto p-4 print:hidden space-y-2">
-        <Reminder
-          title="KYC проверка покупателя"
-          tone="warning"
-          icon="🔍"
-        >
+        <Reminder title="KYC проверка покупателя" tone="warning" icon="🔍">
           Перед отправкой Quotation убедись что проверил покупателя: реальный сайт, юридический адрес, отзывы, торговая лицензия (Trade License в ОАЭ).
         </Reminder>
-        <Reminder
-          title="NDA опционально"
-          tone="info"
-          icon="🤐"
-        >
-          Если переговоры конфиденциальные — пришли покупателю NDA перед детальной квотацией. Защитит твои цены от утечки конкурентам.
+        <Reminder title="NDA опционально" tone="info" icon="🤐">
+          Если переговоры конфиденциальные — пришли покупателю NDA перед детальной квотацией.
         </Reminder>
-        <Reminder
-          title="Юрист перед подписанием"
-          tone="critical"
-          icon="⚖️"
-        >
-          Quotation — это ещё не контракт, но если покупатель примет — на её основе составится контракт. <strong>Перед подписанием контракта</strong> — обязательно юрист (5-10 тыс₽).
+        <Reminder title="Юрист перед подписанием" tone="critical" icon="⚖️">
+          <strong>Перед подписанием контракта</strong> — обязательно юрист (5-10 тыс₽).
         </Reminder>
       </div>
 
@@ -167,11 +229,28 @@ export default function QuotationPage() {
             </div>
             <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
               <div className="text-[10px] uppercase tracking-wider text-orange-700 font-bold mb-1">TO (Buyer)</div>
-              <div className="font-bold text-sm">[BUYER COMPANY NAME]</div>
-              <div className="text-xs text-slate-600 mt-1">
-                [Country / Address]<br/>
-                Attn: [Buyer Representative]
-              </div>
+              {selectedCustomer ? (
+                <>
+                  <div className="font-bold text-sm">{selectedCustomer.companyName}</div>
+                  <div className="text-xs text-slate-600 mt-1">
+                    {selectedCustomer.country && <>{selectedCustomer.country}{selectedCustomer.city && `, ${selectedCustomer.city}`}<br/></>}
+                    {selectedCustomer.contactPerson && (
+                      <>Attn: {selectedCustomer.contactPerson}
+                        {selectedCustomer.position && ` (${selectedCustomer.position})`}<br/></>
+                    )}
+                    {selectedCustomer.email && <>📧 {selectedCustomer.email}<br/></>}
+                    {selectedCustomer.phone && <>📞 {selectedCustomer.phone}</>}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="font-bold text-sm">[BUYER COMPANY NAME]</div>
+                  <div className="text-xs text-slate-600 mt-1">
+                    [Country / Address]<br/>
+                    Attn: [Buyer Representative]
+                  </div>
+                </>
+              )}
             </div>
           </section>
 
@@ -192,7 +271,7 @@ export default function QuotationPage() {
               📋 PRODUCT SPECIFICATION
             </h3>
 
-            {/* DESKTOP — таблица */}
+            {/* DESKTOP table */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-100 text-slate-700 text-xs uppercase tracking-wider">
@@ -236,7 +315,7 @@ export default function QuotationPage() {
               </table>
             </div>
 
-            {/* MOBILE — карточки */}
+            {/* MOBILE cards */}
             <div className="sm:hidden space-y-3">
               <div className="bg-slate-50 rounded-lg p-3 border-l-4 border-orange-500">
                 <div className="flex justify-between items-start mb-2">
@@ -287,7 +366,6 @@ export default function QuotationPage() {
                 </div>
               </div>
 
-              {/* TOTAL card */}
               <div className="bg-slate-900 text-white rounded-lg p-4 flex justify-between items-center">
                 <div>
                   <div className="text-[10px] uppercase tracking-wider text-slate-400">Grand Total</div>
@@ -313,34 +391,16 @@ export default function QuotationPage() {
             <TermBlock label="Schedule" value={deal.shipmentSchedule === "single" ? "Single shipment" : `${deal.shipmentSchedule || "single"}`} />
           </section>
 
-          {/* 🆕 BANK DETAILS — новая секция (только если заполнены) */}
+          {/* BANK DETAILS */}
           {(settings.bankNameEn || settings.bankAccountUSD) && (
             <section className="bg-emerald-50 border-l-4 border-emerald-500 rounded p-4 mb-6">
               <h4 className="text-xs font-black text-emerald-900 uppercase tracking-wider mb-2">🏦 Banking Details (for advance payment)</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-emerald-900">
-                {settings.bankNameEn && (
-                  <div>
-                    <span className="opacity-70">Bank:</span> <strong>{settings.bankNameEn}</strong>
-                  </div>
-                )}
-                {settings.bankSWIFT && (
-                  <div>
-                    <span className="opacity-70">SWIFT:</span> <strong className="font-mono">{settings.bankSWIFT}</strong>
-                  </div>
-                )}
-                {settings.bankAccountUSD && (
-                  <div className="sm:col-span-2">
-                    <span className="opacity-70">Account USD:</span> <strong className="font-mono">{settings.bankAccountUSD}</strong>
-                  </div>
-                )}
-                {settings.bankCorrespondentUSD && (
-                  <div className="sm:col-span-2">
-                    <span className="opacity-70">Correspondent Bank:</span> <strong>{settings.bankCorrespondentUSD}</strong>
-                  </div>
-                )}
-                <div className="sm:col-span-2 mt-1">
-                  <span className="opacity-70">Beneficiary:</span> <strong>{settings.companyNameEn}</strong>
-                </div>
+                {settings.bankNameEn && <div><span className="opacity-70">Bank:</span> <strong>{settings.bankNameEn}</strong></div>}
+                {settings.bankSWIFT && <div><span className="opacity-70">SWIFT:</span> <strong className="font-mono">{settings.bankSWIFT}</strong></div>}
+                {settings.bankAccountUSD && <div className="sm:col-span-2"><span className="opacity-70">Account USD:</span> <strong className="font-mono">{settings.bankAccountUSD}</strong></div>}
+                {settings.bankCorrespondentUSD && <div className="sm:col-span-2"><span className="opacity-70">Correspondent Bank:</span> <strong>{settings.bankCorrespondentUSD}</strong></div>}
+                <div className="sm:col-span-2 mt-1"><span className="opacity-70">Beneficiary:</span> <strong>{settings.companyNameEn}</strong></div>
               </div>
             </section>
           )}
@@ -363,14 +423,14 @@ export default function QuotationPage() {
 
           {/* TERMS & CONDITIONS */}
           <section className="text-xs text-slate-600 space-y-2 mb-6 border-t pt-4">
-            <div><strong>Validity:</strong> This Quotation is valid until {validUntil}. After this date prices may be subject to revision.</div>
-            <div><strong>Quality:</strong> All goods shall meet GOST 8486-86 standard. 100% Pine (Pinus sylvestris), no admixture of Spruce.</div>
+            <div><strong>Validity:</strong> This Quotation is valid until {validUntil}.</div>
+            <div><strong>Quality:</strong> All goods shall meet GOST 8486-86 standard. 100% Pine (Pinus sylvestris).</div>
             <div><strong>Inspection:</strong> Pre-shipment inspection by SGS / Bureau Veritas available at Buyer's expense.</div>
             <div><strong>Force Majeure:</strong> Including sanctions, banking restrictions, port closures. Full terms in Contract.</div>
             <div><strong>Arbitration:</strong> ICAC at the Chamber of Commerce and Industry of the Russian Federation, Moscow.</div>
           </section>
 
-          {/* FOOTER / SIGNATURE */}
+          {/* FOOTER */}
           <footer className="border-t-2 border-slate-200 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
             <div>
               <div className="text-xs text-slate-500 mb-1">Issued by:</div>
@@ -400,6 +460,122 @@ function TermBlock({ label, value }) {
     <div className="bg-slate-50 rounded p-2.5">
       <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">{label}</div>
       <div className="text-sm font-bold text-slate-900 mt-0.5">{value}</div>
+    </div>
+  );
+}
+
+// 🆕 МОДАЛКА ВЫБОРА КЛИЕНТА
+function CustomerPickerModal({ customers, onSelect, onClose }) {
+  const [search, setSearch] = useState("");
+
+  const filtered = customers.filter(c => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return `${c.companyName} ${c.contactPerson} ${c.country} ${c.email}`.toLowerCase().includes(q);
+  });
+
+  // Сортировка: Hot → Warm → Cold
+  const tempOrder = { hot: 0, warm: 1, cold: 2 };
+  const sorted = [...filtered].sort((a, b) => {
+    return (tempOrder[a.temperature] ?? 3) - (tempOrder[b.temperature] ?? 3);
+  });
+
+  return (
+    <div className="fixed inset-0 bg-slate-900/80 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 print:hidden">
+      <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl shadow-2xl max-h-[90vh] flex flex-col rounded-t-2xl">
+        {/* Header */}
+        <div className="p-4 border-b flex items-center justify-between">
+          <h3 className="font-black text-lg">👥 Select Buyer from CRM</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-2xl">✕</button>
+        </div>
+
+        {/* Search */}
+        <div className="p-3 border-b">
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="🔍 Search company, name, country..."
+            autoFocus
+            className="w-full p-2 border-2 border-slate-300 rounded-lg text-sm focus:border-purple-500 outline-none"
+          />
+          <div className="text-xs text-slate-500 mt-1">
+            {sorted.length} of {customers.length} customers
+          </div>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {customers.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-5xl mb-2">👥</div>
+              <div className="font-bold text-slate-700">Нет клиентов в CRM</div>
+              <div className="text-xs text-slate-500 mt-1">Сначала добавь клиентов</div>
+              <Link
+                href="/captain/customers"
+                className="inline-block mt-3 bg-purple-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-purple-700"
+              >
+                ⚓ Open CRM →
+              </Link>
+            </div>
+          ) : sorted.length === 0 ? (
+            <div className="text-center py-12 text-slate-500 text-sm">
+              Никого не найдено
+            </div>
+          ) : (
+            sorted.map(c => (
+              <button
+                key={c.id}
+                onClick={() => onSelect(c)}
+                className="w-full text-left bg-slate-50 hover:bg-purple-50 hover:border-purple-300 border-2 border-transparent rounded-lg p-3 transition-colors active:scale-[0.98]"
+              >
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-slate-900 truncate">{c.companyName || "Без названия"}</div>
+                    {c.contactPerson && (
+                      <div className="text-xs text-slate-600 truncate">
+                        {c.contactPerson}
+                        {c.position && <span className="text-slate-400"> · {c.position}</span>}
+                      </div>
+                    )}
+                    {c.country && (
+                      <div className="text-xs text-slate-500 mt-0.5">
+                        {c.country} {c.city && `· ${c.city}`}
+                      </div>
+                    )}
+                    {c.interest && (
+                      <div className="text-xs text-purple-600 mt-1 italic truncate">
+                        💼 {c.interest}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 shrink-0">
+                    {c.temperature === "hot" && <span className="text-[10px] bg-rose-500 text-white px-2 py-0.5 rounded-full font-bold">🔥 Hot</span>}
+                    {c.temperature === "warm" && <span className="text-[10px] bg-amber-400 text-amber-900 px-2 py-0.5 rounded-full font-bold">🟡 Warm</span>}
+                    {c.temperature === "cold" && <span className="text-[10px] bg-blue-200 text-blue-900 px-2 py-0.5 rounded-full font-bold">🧊 Cold</span>}
+                  </div>
+                </div>
+              </button>
+            ))
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-3 border-t flex gap-2">
+          <Link
+            href="/captain/customers"
+            className="text-xs text-purple-600 hover:text-purple-800 underline"
+          >
+            + Add new customer in CRM
+          </Link>
+          <button
+            onClick={onClose}
+            className="ml-auto text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
