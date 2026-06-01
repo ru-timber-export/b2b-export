@@ -283,9 +283,24 @@ function Tile({ href, icon, title, subtitle, description, color, stat, active, c
 
       {comingSoon ? (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 rounded-xl backdrop-blur-sm">
-          <div className="bg-slate-900/80 text-slate-300 px-4 py-2 rounded-lg text-xs font-bold border border-slate-700">
-            🚧 Coming soon
-          </div>
+          <Link
+  href="/captain/settings"
+  className="block bg-gradient-to-br from-emerald-700 to-emerald-900 text-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all active:scale-95 hover:scale-[1.02]"
+>
+  <div className="flex items-start justify-between mb-3">
+    <div className="text-4xl">⚙</div>
+    <div className="text-[10px] bg-amber-400 text-emerald-900 px-2 py-0.5 rounded-full font-bold">
+      NEW
+    </div>
+  </div>
+  <h3 className="text-xl font-black">Business Settings</h3>
+  <p className="text-sm opacity-90 mt-1">
+    Реквизиты ИП, банк, контакты, логистика — всё в одном месте
+  </p>
+  <div className="text-xs opacity-75 mt-3 flex items-center gap-1">
+    Open <span>→</span>
+  </div>
+</Link>
         </div>
       ) : (
         <div className="mt-4 text-xs font-bold text-white/90 flex items-center gap-1">
