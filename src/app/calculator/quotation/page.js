@@ -1,13 +1,15 @@
 "use client";
 
 import { useDeal } from "../../context/DealContext";
+import { useBusinessSettings } from "../../hooks/useBusinessSettings";
 import Link from "next/link";
 import Reminder from "../../components/Reminder";
 
 export default function QuotationPage() {
-  const { deal, seller, isLoaded } = useDeal();
+  const { deal, isLoaded: dealLoaded } = useDeal();
+  const { settings, isLoaded: settingsLoaded } = useBusinessSettings();
 
-  if (!isLoaded) {
+  if (!dealLoaded || !settingsLoaded) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
@@ -24,6 +26,9 @@ export default function QuotationPage() {
   const today = new Date().toLocaleDateString("en-GB");
   const validUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString("en-GB");
   const quotationNumber = `QT-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`;
+
+  // 🆕 Проверка заполненности настроек
+  const settingsIncomplete = !settings.inn || !settings.bankAccountUSD || !settings.companyNameEn;
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans">
@@ -67,6 +72,28 @@ export default function QuotationPage() {
         </div>
       </div>
 
+      {/* 🆕 Предупреждение если Settings не заполнены */}
+      {settingsIncomplete && (
+        <div className="max-w-5xl mx-auto p-4 print:hidden">
+          <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-4 flex items-start gap-3">
+            <div className="text-2xl">⚠️</div>
+            <div className="flex-1">
+              <div className="font-bold text-amber-900">Заполни Business Settings</div>
+              <div className="text-xs text-amber-800 mt-1">
+                В Quotation нужны: ИНН, банковский USD-счёт, название компании на английском.
+                Без них документ выглядит непрофессионально.
+              </div>
+              <Link
+                href="/captain/settings"
+                className="inline-block mt-2 bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-amber-700 active:scale-95"
+              >
+                ⚙ Открыть Settings →
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Reminders */}
       <div className="max-w-5xl mx-auto p-4 print:hidden space-y-2">
         <Reminder
@@ -108,9 +135,9 @@ export default function QuotationPage() {
                   </div>
                 </div>
                 <div className="text-xs text-slate-600">
-                  {seller?.companyName || "Individual Entrepreneur"}<br/>
-                  {seller?.legalAddress || "Moscow, Russian Federation"}<br/>
-                  📞 +7 915 349 00 07 · 📧 info@ru-timber.com
+                  {settings.companyNameEn || settings.companyName || "Individual Entrepreneur"}<br/>
+                  {settings.warehouseAddressEn || settings.warehouseAddress || "Russian Federation"}<br/>
+                  📞 {settings.phone} · 📧 {settings.email}
                 </div>
               </div>
               <div className="text-right">
@@ -130,10 +157,12 @@ export default function QuotationPage() {
           <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div className="bg-slate-50 rounded-lg p-3">
               <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">FROM (Seller)</div>
-              <div className="font-bold text-sm">{seller?.companyName || "RU-TIMBER EXPORT"}</div>
+              <div className="font-bold text-sm">{settings.companyNameEn || settings.companyName || "RU-TIMBER EXPORT"}</div>
               <div className="text-xs text-slate-600 mt-1">
-                {seller?.legalAddress || "Russian Federation"}<br/>
-                INN: {seller?.inn || "—"}
+                {settings.warehouseAddressEn || settings.warehouseAddress || "Russian Federation"}<br/>
+                TIN: {settings.inn || "—"}<br/>
+                {settings.ogrnip && <>OGRNIP: {settings.ogrnip}<br/></>}
+                {settings.website && <>Web: {settings.website}</>}
               </div>
             </div>
             <div className="bg-orange-50 rounded-lg p-3 border border-orange-200">
@@ -153,7 +182,7 @@ export default function QuotationPage() {
               Sawn Timber Export — {deal.species || "Pine"} — {containerCount} × {deal.containerType || "40HC"} Container{containerCount > 1 ? "s" : ""}
             </div>
             <div className="text-xs text-slate-300 mt-1">
-              {deal.loadingPort || "Novorossiysk"} → {deal.destinationPort || "Jebel Ali, UAE"} · CIF Incoterms 2020
+              {deal.loadingPort || settings.defaultPort || "Novorossiysk"} → {deal.destinationPort || "Jebel Ali, UAE"} · {settings.defaultIncoterm || "CIF"} Incoterms 2020
             </div>
           </section>
 
@@ -274,15 +303,47 @@ export default function QuotationPage() {
 
           {/* TERMS GRID */}
           <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-            <TermBlock label="Incoterms" value={`${deal.incoterm || "CIF"} ${deal.destinationPort || "Jebel Ali"}`} />
-            <TermBlock label="Lead Time" value={`${deal.leadTime || 45} days from advance`} />
-            <TermBlock label="Payment" value="30% advance + 70% vs B/L copy" />
+            <TermBlock label="Incoterms" value={`${deal.incoterm || settings.defaultIncoterm || "CIF"} ${deal.destinationPort || "Jebel Ali"}`} />
+            <TermBlock label="Lead Time" value={`${deal.leadTime || settings.defaultTransitDays || 45} days from advance`} />
+            <TermBlock label="Payment" value={settings.paymentTerms || "30% advance + 70% vs B/L copy"} />
             <TermBlock label="Document Release" value="⚡ Telex Release (no DHL)" />
-            <TermBlock label="Loading Port" value={deal.loadingPort || "Novorossiysk, RU"} />
+            <TermBlock label="Loading Port" value={deal.loadingPort || settings.defaultPort || "Novorossiysk, RU"} />
             <TermBlock label="Destination" value={deal.destinationPort || "Jebel Ali, UAE"} />
             <TermBlock label="Container Type" value={`${containerCount} × ${deal.containerType || "40HC"}`} />
             <TermBlock label="Schedule" value={deal.shipmentSchedule === "single" ? "Single shipment" : `${deal.shipmentSchedule || "single"}`} />
           </section>
+
+          {/* 🆕 BANK DETAILS — новая секция (только если заполнены) */}
+          {(settings.bankNameEn || settings.bankAccountUSD) && (
+            <section className="bg-emerald-50 border-l-4 border-emerald-500 rounded p-4 mb-6">
+              <h4 className="text-xs font-black text-emerald-900 uppercase tracking-wider mb-2">🏦 Banking Details (for advance payment)</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-emerald-900">
+                {settings.bankNameEn && (
+                  <div>
+                    <span className="opacity-70">Bank:</span> <strong>{settings.bankNameEn}</strong>
+                  </div>
+                )}
+                {settings.bankSWIFT && (
+                  <div>
+                    <span className="opacity-70">SWIFT:</span> <strong className="font-mono">{settings.bankSWIFT}</strong>
+                  </div>
+                )}
+                {settings.bankAccountUSD && (
+                  <div className="sm:col-span-2">
+                    <span className="opacity-70">Account USD:</span> <strong className="font-mono">{settings.bankAccountUSD}</strong>
+                  </div>
+                )}
+                {settings.bankCorrespondentUSD && (
+                  <div className="sm:col-span-2">
+                    <span className="opacity-70">Correspondent Bank:</span> <strong>{settings.bankCorrespondentUSD}</strong>
+                  </div>
+                )}
+                <div className="sm:col-span-2 mt-1">
+                  <span className="opacity-70">Beneficiary:</span> <strong>{settings.companyNameEn}</strong>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* DOCUMENTS */}
           <section className="bg-blue-50 border-l-4 border-blue-500 rounded p-4 mb-6">
@@ -313,8 +374,9 @@ export default function QuotationPage() {
           <footer className="border-t-2 border-slate-200 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
             <div>
               <div className="text-xs text-slate-500 mb-1">Issued by:</div>
-              <div className="font-bold">{seller?.director || "Director Name"}</div>
-              <div className="text-xs text-slate-600">{seller?.companyName || "RU-TIMBER EXPORT"}</div>
+              <div className="font-bold">{settings.signatureName || settings.fullName || "Director Name"}</div>
+              <div className="text-xs text-slate-600">{settings.position}</div>
+              <div className="text-xs text-slate-600">{settings.companyNameEn || settings.companyName || "RU-TIMBER EXPORT"}</div>
               <div className="text-xs text-slate-500 mt-2 italic">
                 This Quotation is an offer subject to final Contract signing.
               </div>
