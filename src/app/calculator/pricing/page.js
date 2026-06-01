@@ -13,15 +13,16 @@ import {
 
 // 🆕 Дефолтные значения для редактируемых параметров
 const DEFAULT_COSTS = {
-  containerCapacity: 50,        // m³ per 40HC
-  factoryLoading: 6,            // $/m³
-  landTransport: 1500,          // $/container
-  portTHC: 250,                 // $/container
-  portBL: 100,                  // $/container
-  portTelex: 50,                // $/container
-  portOther: 0,                 // $/container
-  insuranceRate: 1.1,           // %
-  exportDutyRate: 6.5,          // %
+  containerCapacity: 50,
+  millPriceOverride: null,        // 🆕 null = использовать расчёт по породе/сушке/упаковке
+  factoryLoading: 6,
+  landTransport: 1500,
+  portTHC: 250,
+  portBL: 100,
+  portTelex: 50,
+  portOther: 0,
+  insuranceRate: 1.1,
+  exportDutyRate: 6.5,
 };
 
 const STORAGE_KEY = "ru-timber-pricing-costs";
@@ -49,17 +50,18 @@ const Tooltip = ({ text }) => {
   );
 };
 
-// 🆕 Компонент строки расхода с per m³ / per container / total
+// 🆕 Компонент строки расхода с правильным выравниванием
 const CostRow = ({ icon, label, perM3, perContainer, total, badge, editable, value, onChange, unit, danger, success }) => {
   const color = danger ? "text-rose-600" : success ? "text-emerald-600" : "text-slate-700";
   return (
     <div className={`py-3 border-b border-slate-200 ${color}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
+      <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
+        {/* Левая часть: label + цифры */}
+        <div className="min-w-0">
           <div className="text-sm font-semibold flex items-center flex-wrap gap-2">
             <span>{icon} {label}</span>
             {badge && (
-              <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-bold">
+              <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-bold whitespace-nowrap">
                 {badge}
               </span>
             )}
@@ -68,18 +70,22 @@ const CostRow = ({ icon, label, perM3, perContainer, total, badge, editable, val
             ${perM3.toFixed(2)}/m³ · ${perContainer.toFixed(0)}/cont · <span className="font-bold">${total.toFixed(0)} total</span>
           </div>
         </div>
-        {editable && (
-          <div className="flex items-center gap-1">
+
+        {/* Правая часть: input (одинаковая ширина для всех!) */}
+        {editable ? (
+          <div className="flex items-center gap-1 w-[110px] flex-shrink-0">
             <input
               type="number"
               value={value}
               onChange={onChange}
               onFocus={(e) => e.target.select()}
               step="0.01"
-              className="w-20 p-1.5 text-right text-sm border-2 border-slate-300 rounded font-mono font-bold focus:border-orange-500 outline-none"
+              className="w-[70px] p-1.5 text-right text-sm border-2 border-slate-300 rounded font-mono font-bold focus:border-orange-500 outline-none"
             />
-            <span className="text-xs text-slate-400 whitespace-nowrap">{unit}</span>
+            <span className="text-[10px] text-slate-400 whitespace-nowrap w-[36px]">{unit}</span>
           </div>
+        ) : (
+          <div className="w-[110px] flex-shrink-0"></div>
         )}
       </div>
     </div>
@@ -133,15 +139,21 @@ export default function PricingPage() {
 
   // 🆕 Сохраняем costs
   const updateCost = (field, value) => {
+  let newValue;
+  if (value === null || value === undefined) {
+    newValue = null;
+  } else {
     const num = parseFloat(value);
-    const newCosts = { ...costs, [field]: isNaN(num) ? 0 : num };
-    setCosts(newCosts);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newCosts));
-    } catch (e) {
-      console.error("Save costs failed:", e);
-    }
-  };
+    newValue = isNaN(num) ? 0 : num;
+  }
+  const newCosts = { ...costs, [field]: newValue };
+  setCosts(newCosts);
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(newCosts));
+  } catch (e) {
+    console.error("Save costs failed:", e);
+  }
+};
 
   // 🆕 Сброс costs к дефолтам
   const resetCosts = () => {
@@ -211,8 +223,11 @@ export default function PricingPage() {
   const dryingAdd = DRYING_SURCHARGE[moisture] || 0;
   const packAdd = PACKAGING_SURCHARGE[packaging] || 0;
 
-  // Mill price (per m³)
-  const millPricePerM3 = speciesBase + dryingAdd + packAdd;
+  // 🆕 Mill price — можно переопределить вручную
+const calculatedMillPrice = speciesBase + dryingAdd + packAdd;
+const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverride !== undefined
+  ? costs.millPriceOverride
+  : calculatedMillPrice;
   const millPriceTotal = millPricePerM3 * totalVol;
   const millPricePerContainer = containers > 0 ? millPriceTotal / containers : 0;
 
@@ -541,14 +556,42 @@ export default function PricingPage() {
             actual {totalVol.toFixed(1)} m³ ({fillRate.toFixed(0)}% fill)
           </div>
 
-          {/* Mill price */}
-          <CostRow
-            icon="🪵"
-            label={`Mill price (${species} ${moisture} ${packaging})`}
-            perM3={millPricePerM3}
-            perContainer={millPricePerContainer}
-            total={millPriceTotal}
-          />
+          {/* 🆕 Mill price — редактируемый */}
+<CostRow
+  icon="🪵"
+  label={`Mill price (${species} ${moisture} ${packaging})${costs.millPriceOverride !== null ? " ✏️" : ""}`}
+  perM3={millPricePerM3}
+  perContainer={millPricePerContainer}
+  total={millPriceTotal}
+  badge={costs.millPriceOverride !== null ? "MANUAL" : null}
+  editable
+  value={costs.millPriceOverride !== null ? costs.millPriceOverride : calculatedMillPrice}
+  onChange={(e) => {
+    const v = e.target.value;
+    if (v === "" || v === null) {
+      updateCost("millPriceOverride", null);
+    } else {
+      updateCost("millPriceOverride", parseFloat(v) || 0);
+    }
+  }}
+  unit="$/m³"
+/>
+
+{/* 🆕 Подсказка для Mill price */}
+{costs.millPriceOverride !== null && (
+  <div className="mt-2 mb-3 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 flex items-center justify-between">
+    <span>
+      ⚠️ Mill price вручную переопределён. 
+      Расчёт по породе был: <span className="font-mono font-bold">${calculatedMillPrice.toFixed(2)}/m³</span>
+    </span>
+    <button
+      onClick={() => updateCost("millPriceOverride", null)}
+      className="ml-2 bg-amber-600 text-white text-xs px-2 py-1 rounded hover:bg-amber-700 active:scale-95 whitespace-nowrap"
+    >
+      🔄 Auto
+    </button>
+  </div>
+)}
 
           {/* Factory loading (per m³, редактируемое) */}
           {["fca-factory", "fca-port", "fob", "cif"].includes(incoterm) && (
