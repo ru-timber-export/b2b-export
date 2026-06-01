@@ -11,6 +11,21 @@ import {
   COUNTRY_MARGINS,
 } from "../../context/DealContext";
 
+// 🆕 Дефолтные значения для редактируемых параметров
+const DEFAULT_COSTS = {
+  containerCapacity: 50,        // m³ per 40HC
+  factoryLoading: 6,            // $/m³
+  landTransport: 1500,          // $/container
+  portTHC: 250,                 // $/container
+  portBL: 100,                  // $/container
+  portTelex: 50,                // $/container
+  portOther: 0,                 // $/container
+  insuranceRate: 1.1,           // %
+  exportDutyRate: 6.5,          // %
+};
+
+const STORAGE_KEY = "ru-timber-pricing-costs";
+
 const Tooltip = ({ text }) => {
   const [open, setOpen] = useState(false);
   return (
@@ -34,6 +49,43 @@ const Tooltip = ({ text }) => {
   );
 };
 
+// 🆕 Компонент строки расхода с per m³ / per container / total
+const CostRow = ({ icon, label, perM3, perContainer, total, badge, editable, value, onChange, unit, danger, success }) => {
+  const color = danger ? "text-rose-600" : success ? "text-emerald-600" : "text-slate-700";
+  return (
+    <div className={`py-3 border-b border-slate-200 ${color}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold flex items-center flex-wrap gap-2">
+            <span>{icon} {label}</span>
+            {badge && (
+              <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-bold">
+                {badge}
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-slate-500 mt-1 font-mono">
+            ${perM3.toFixed(2)}/m³ · ${perContainer.toFixed(0)}/cont · <span className="font-bold">${total.toFixed(0)} total</span>
+          </div>
+        </div>
+        {editable && (
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              value={value}
+              onChange={onChange}
+              onFocus={(e) => e.target.select()}
+              step="0.01"
+              className="w-20 p-1.5 text-right text-sm border-2 border-slate-300 rounded font-mono font-bold focus:border-orange-500 outline-none"
+            />
+            <span className="text-xs text-slate-400 whitespace-nowrap">{unit}</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function PricingPage() {
   const { deal, updateDeal, isLoaded } = useDeal();
   const [cbrLoading, setCbrLoading] = useState(false);
@@ -45,22 +97,33 @@ export default function PricingPage() {
   const [customFreightRate, setCustomFreightRate] = useState(2400);
   const [customFreightDate, setCustomFreightDate] = useState("");
 
-  // 🆕 Загружаем custom freight из localStorage
+  // 🆕 Редактируемые costs
+  const [costs, setCosts] = useState(DEFAULT_COSTS);
+
+  // 🆕 Ручное переопределение количества контейнеров
+  const [manualContainers, setManualContainers] = useState(null);
+
+  // Загружаем custom freight и costs из localStorage
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("ru-timber-custom-freight");
-      if (saved) {
-        const parsed = JSON.parse(saved);
+      const savedFreight = localStorage.getItem("ru-timber-custom-freight");
+      if (savedFreight) {
+        const parsed = JSON.parse(savedFreight);
         setUseCustomFreight(parsed.enabled || false);
         setCustomFreightRate(parsed.rate || 2400);
         setCustomFreightDate(parsed.date || "");
       }
+      const savedCosts = localStorage.getItem(STORAGE_KEY);
+      if (savedCosts) {
+        const parsed = JSON.parse(savedCosts);
+        setCosts({ ...DEFAULT_COSTS, ...parsed });
+      }
     } catch (e) {
-      console.error("Failed to load custom freight:", e);
+      console.error("Failed to load saved data:", e);
     }
   }, []);
 
-  // 🆕 Сохраняем custom freight
+  // Сохраняем custom freight
   const saveCustomFreight = (enabled, rate) => {
     const today = new Date().toLocaleDateString("ru-RU");
     const data = { enabled, rate, date: today };
@@ -68,7 +131,27 @@ export default function PricingPage() {
     setCustomFreightDate(today);
   };
 
-  // Автозагрузка курса ЦБ РФ
+  // 🆕 Сохраняем costs
+  const updateCost = (field, value) => {
+    const num = parseFloat(value);
+    const newCosts = { ...costs, [field]: isNaN(num) ? 0 : num };
+    setCosts(newCosts);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newCosts));
+    } catch (e) {
+      console.error("Save costs failed:", e);
+    }
+  };
+
+  // 🆕 Сброс costs к дефолтам
+  const resetCosts = () => {
+    if (confirm("Сбросить все параметры к дефолтным значениям?")) {
+      setCosts(DEFAULT_COSTS);
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  };
+
+  // Курс ЦБ РФ
   const fetchCBR = async () => {
     setCbrLoading(true);
     setCbrError(false);
@@ -115,37 +198,96 @@ export default function PricingPage() {
   const rate = deal.usdRubRate === "" ? 76.25 : parseFloat(deal.usdRubRate) || 76.25;
 
   const freightPreset = FREIGHT_PRESETS[deal.freightRoute] || FREIGHT_PRESETS["vlv-chennai"];
-  
-  // 🆕 Используем custom freight если включено
   const effectiveFreightRate = useCustomFreight ? customFreightRate : freightPreset.rate;
-  const effectiveFreightLabel = useCustomFreight 
-    ? `Custom Rate (manual)` 
-    : freightPreset.label;
+  const effectiveFreightLabel = useCustomFreight ? `Custom Rate (manual)` : freightPreset.label;
 
+  // 🆕 РАСЧЁТ КОНТЕЙНЕРОВ (округление вверх)
+  const autoContainers = totalVol > 0 ? Math.ceil(totalVol / costs.containerCapacity) : 0;
+  const containers = manualContainers !== null ? manualContainers : autoContainers;
+  const fillRate = containers > 0 ? (totalVol / (containers * costs.containerCapacity)) * 100 : 0;
+
+  // 🆕 РАСЧЁТЫ ЦЕН
   const speciesBase = SPECIES_BASE_PRICES[species] || 160;
   const dryingAdd = DRYING_SURCHARGE[moisture] || 0;
   const packAdd = PACKAGING_SURCHARGE[packaging] || 0;
-  const millPrice = speciesBase + dryingAdd + packAdd;
 
-  const loadFactory = 6;
-  const landTransport = totalVol > 0 ? 1500 / totalVol : 0;
-  const portFees = totalVol > 0 ? 400 / totalVol : 0;
-  const ocean = totalVol > 0 ? effectiveFreightRate / totalVol : 0;
-  const insurance = 0.011 * (millPrice + loadFactory + landTransport + portFees + ocean);
+  // Mill price (per m³)
+  const millPricePerM3 = speciesBase + dryingAdd + packAdd;
+  const millPriceTotal = millPricePerM3 * totalVol;
+  const millPricePerContainer = containers > 0 ? millPriceTotal / containers : 0;
 
-  let totalCost = millPrice;
-  if (incoterm === "fca-factory") totalCost = millPrice + loadFactory;
-  if (incoterm === "fca-port") totalCost = millPrice + loadFactory + landTransport;
-  if (incoterm === "fob") totalCost = millPrice + loadFactory + landTransport + portFees;
-  if (incoterm === "cif") totalCost = millPrice + loadFactory + landTransport + portFees + ocean + insurance;
+  // Factory loading (per m³)
+  const factoryLoadingPerM3 = costs.factoryLoading;
+  const factoryLoadingTotal = factoryLoadingPerM3 * totalVol;
+  const factoryLoadingPerContainer = containers > 0 ? factoryLoadingTotal / containers : 0;
 
+  // Land transport (per container)
+  const landTransportPerContainer = costs.landTransport;
+  const landTransportTotal = landTransportPerContainer * containers;
+  const landTransportPerM3 = totalVol > 0 ? landTransportTotal / totalVol : 0;
+
+  // Port THC (per container)
+  const portTHCTotal = costs.portTHC * containers;
+  const portTHCPerM3 = totalVol > 0 ? portTHCTotal / totalVol : 0;
+
+  // Port B/L (per container)
+  const portBLTotal = costs.portBL * containers;
+  const portBLPerM3 = totalVol > 0 ? portBLTotal / totalVol : 0;
+
+  // Port Telex (per container)
+  const portTelexTotal = costs.portTelex * containers;
+  const portTelexPerM3 = totalVol > 0 ? portTelexTotal / totalVol : 0;
+
+  // Port Other (per container)
+  const portOtherTotal = costs.portOther * containers;
+  const portOtherPerM3 = totalVol > 0 ? portOtherTotal / totalVol : 0;
+
+  // Ocean freight (per container)
+  const oceanPerContainer = effectiveFreightRate;
+  const oceanTotal = oceanPerContainer * containers;
+  const oceanPerM3 = totalVol > 0 ? oceanTotal / totalVol : 0;
+
+  // 🆕 СУММЫ ПО INCOTERMS
+  let totalCostPerM3 = millPricePerM3;
+  if (["fca-factory", "fca-port", "fob", "cif"].includes(incoterm)) {
+    totalCostPerM3 += factoryLoadingPerM3;
+  }
+  if (["fca-port", "fob", "cif"].includes(incoterm)) {
+    totalCostPerM3 += landTransportPerM3;
+  }
+  if (["fob", "cif"].includes(incoterm)) {
+    totalCostPerM3 += portTHCPerM3 + portBLPerM3 + portTelexPerM3 + portOtherPerM3;
+  }
+  if (incoterm === "cif") {
+    totalCostPerM3 += oceanPerM3;
+  }
+
+  // Insurance (только для CIF)
+  const insurancePerM3 = incoterm === "cif" ? (costs.insuranceRate / 100) * totalCostPerM3 : 0;
+  const insuranceTotal = insurancePerM3 * totalVol;
+  const insurancePerContainer = containers > 0 ? insuranceTotal / containers : 0;
+  
+  if (incoterm === "cif") {
+    totalCostPerM3 += insurancePerM3;
+  }
+
+  // Export duty
   const dutyFree = moisture === "kd" || deal.profileProcessing;
-  const duty = dutyFree ? 0 : totalCost * 0.065;
-  const totalCostWithDuty = totalCost + duty;
-  const sellPricePerM3 = totalCostWithDuty * (1 + margin / 100);
-  const profitPerM3 = sellPricePerM3 - totalCostWithDuty;
+  const dutyPerM3 = dutyFree ? 0 : (costs.exportDutyRate / 100) * totalCostPerM3;
+  const dutyTotal = dutyPerM3 * totalVol;
+  const dutyPerContainer = containers > 0 ? dutyTotal / containers : 0;
+
+  const totalCostWithDutyPerM3 = totalCostPerM3 + dutyPerM3;
+  const totalCostWithDutyTotal = totalCostWithDutyPerM3 * totalVol;
+  const totalCostPerContainer = containers > 0 ? totalCostWithDutyTotal / containers : 0;
+
+  // Pricing
+  const sellPricePerM3 = totalCostWithDutyPerM3 * (1 + margin / 100);
+  const sellPricePerContainer = containers > 0 ? (sellPricePerM3 * totalVol) / containers : 0;
+  const profitPerM3 = sellPricePerM3 - totalCostWithDutyPerM3;
   const totalAmount = sellPricePerM3 * totalVol;
   const totalProfit = profitPerM3 * totalVol;
+  const profitPerContainer = containers > 0 ? totalProfit / containers : 0;
 
   if (!isLoaded) {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>;
@@ -153,13 +295,12 @@ export default function PricingPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 pb-20">
-      {/* Header */}
       <header className="bg-slate-900 text-white px-4 py-3 sticky top-0 z-40">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <Link href="/" className="text-sm">← Home</Link>
           <div className="text-xs font-mono hidden sm:block">STEP 3.11 · PRICING</div>
           <div className="flex gap-1 text-xs">
-            <Link href="/calculator" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📐 Volume</Link>
+            <Link href="/calculator" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📐 Vol</Link>
             <Link href="/calculator/container" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📦 3D</Link>
             <Link href="/calculator/quotation" className="bg-emerald-600 px-2 py-1 rounded active:scale-95">📄 Quote</Link>
           </div>
@@ -171,41 +312,86 @@ export default function PricingPage() {
         <div className="bg-white rounded-xl p-5 shadow-sm">
           <h1 className="text-2xl font-black text-slate-900">Pricing Calculator</h1>
           <p className="text-sm text-slate-500 mt-1">
-            💰 Honest cost breakdown · EXW → FCA → FOB → CIF
+            💰 Editable cost breakdown · per m³ · per container · total
           </p>
         </div>
 
-        {/* Reminders */}
         <Reminder
           priority="high"
           icon="💱"
           title="Проверь курс USD/RUB перед отправкой Quotation"
-          description="Курс ЦБ РФ обновляется в 13:00 МСК ежедневно. Если квотация валидна 7 дней — закладывай запас 2-3% на колебание рубля."
+          description="Курс ЦБ РФ обновляется в 13:00 МСК. Закладывай запас 2-3% на колебания."
           dismissKey="usd-rate-tip-2026"
         />
 
-        <Reminder
-          priority="medium"
-          icon="🏦"
-          title="Валютный контроль (после регистрации ИП)"
-          description="Контракты на сумму >$50,000 обязательно ставятся на учёт в банке. За нарушение — штраф до 100% суммы сделки!"
-          dismissKey="vc-warning-2026"
-        />
-
-        {/* Volume info */}
+        {/* 🆕 VOLUME + CONTAINERS */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
-          <div className="text-xs text-slate-500">Volume from Step 3.10 (auto-synced)</div>
-          <div className="text-3xl font-black text-slate-900 mt-1">{totalVol.toFixed(2)} m³</div>
-          <Link href="/calculator" className="text-xs text-orange-500 mt-1 inline-block active:scale-95">
-            ✏ Edit Volume →
-          </Link>
+          <h2 className="font-bold text-slate-800 flex items-center mb-3">
+            📦 Volume & Containers
+            <Tooltip text="Объём из Step 3.10. Количество контейнеров считается автоматически (вверх). Можно изменить вручную." />
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="text-xs text-slate-500">Total Volume (m³)</label>
+              <div className="text-2xl font-black text-slate-900 mt-1">{totalVol.toFixed(2)}</div>
+              <Link href="/calculator" className="text-xs text-orange-500 active:scale-95">✏ Edit →</Link>
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 flex items-center">
+                Container Capacity (m³/40HC)
+                <Tooltip text="Стандарт для KD Pine в crate: 50 m³. Максимум 55 m³. Меняй если у тебя нестандартная упаковка." />
+              </label>
+              <input
+                type="number"
+                value={costs.containerCapacity}
+                onChange={(e) => updateCost("containerCapacity", e.target.value)}
+                onFocus={(e) => e.target.select()}
+                className="w-full mt-1 p-2 border-2 border-slate-300 rounded-lg text-lg font-bold focus:border-orange-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 flex items-center">
+                Containers (40HC)
+                <Tooltip text="Автоматически = округление вверх. Можно изменить вручную если хочешь полупустой контейнер." />
+              </label>
+              <input
+                type="number"
+                value={containers}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value);
+                  setManualContainers(isNaN(v) ? null : Math.max(1, v));
+                }}
+                onFocus={(e) => e.target.select()}
+                className="w-full mt-1 p-2 border-2 border-orange-500 rounded-lg text-lg font-bold focus:border-orange-600 outline-none"
+              />
+              <div className="text-xs text-slate-500 mt-1">
+                Заполнение: <span className={`font-bold ${fillRate < 90 ? "text-rose-500" : "text-emerald-600"}`}>
+                  {fillRate.toFixed(1)}%
+                </span>
+                {manualContainers !== null && (
+                  <button
+                    onClick={() => setManualContainers(null)}
+                    className="ml-2 text-orange-500 active:scale-95"
+                  >
+                    🔄 Auto
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+          {fillRate < 90 && containers > 0 && (
+            <div className="mt-3 p-3 bg-amber-50 border border-amber-300 rounded-lg text-xs text-amber-800">
+              ⚠️ Контейнер заполнен только на {fillRate.toFixed(0)}%. Рекомендуется ≥95% для оптимальной себестоимости. 
+              Добавь объём или уменьши количество контейнеров.
+            </div>
+          )}
         </section>
 
         {/* Freight Route */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
             🚢 Freight Route
-            <Tooltip text="Выберите готовый маршрут ИЛИ задайте свою ставку вручную ниже." />
+            <Tooltip text="Готовый маршрут ИЛИ ручная ставка ниже." />
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
             {Object.entries(FREIGHT_PRESETS).map(([key, val]) => {
@@ -232,30 +418,23 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* 🆕 CUSTOM FREIGHT RATE */}
+        {/* Custom Freight Rate */}
         <section className={`rounded-xl p-5 shadow-sm border-2 transition-all ${
-          useCustomFreight 
-            ? "bg-emerald-50 border-emerald-400" 
-            : "bg-white border-slate-200"
+          useCustomFreight ? "bg-emerald-50 border-emerald-400" : "bg-white border-slate-200"
         }`}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-slate-800 flex items-center">
               ✏️ Custom Freight Rate
-              <Tooltip text="Введи свою ставку фрахта вручную (например, полученную от форвардера или с Freightos). Сохраняется в браузере." />
+              <Tooltip text="Введи ставку от брокера. Сохраняется в браузере." />
             </h2>
             {useCustomFreight && (
-              <span className="bg-emerald-600 text-white text-xs px-2 py-1 rounded-full font-bold">
-                ACTIVE
-              </span>
+              <span className="bg-emerald-600 text-white text-xs px-2 py-1 rounded-full font-bold">ACTIVE</span>
             )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
-              <label className="text-xs text-slate-500 flex items-center">
-                Ставка фрахта (USD за 40HC контейнер)
-                <Tooltip text="Сумма ALL-IN: океанский фрахт + BAF + THC + B/L. Не включает таможню и доставку до порта." />
-              </label>
+              <label className="text-xs text-slate-500">Ставка фрахта (USD за 40HC)</label>
               <input
                 type="number"
                 value={customFreightRate}
@@ -287,52 +466,35 @@ export default function PricingPage() {
             </div>
           </div>
 
-          {/* 🆕 Шильдик источника */}
           <div className="mt-4 pt-4 border-t border-slate-200 flex flex-wrap items-center gap-3 text-xs">
-            <span className="text-slate-500">Источник данных:</span>
+            <span className="text-slate-500">Источник:</span>
             <a
               href="https://app.terminal.freightos.com/"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold hover:bg-blue-200 transition-colors"
+              className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold hover:bg-blue-200"
             >
-              📊 Freightos Baltic Index (FBX)
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-              </svg>
+              📊 Freightos FBX
             </a>
             <a
               href="https://www.drewry.co.uk/supply-chain-advisors/supply-chain-expertise/world-container-index-assessed-by-drewry"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold hover:bg-purple-200 transition-colors"
+              className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold hover:bg-purple-200"
             >
               📈 Drewry WCI
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                <path d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-              </svg>
             </a>
             {customFreightDate && (
-              <span className="text-slate-400 ml-auto">
-                Обновлено: {customFreightDate}
-              </span>
+              <span className="text-slate-400 ml-auto">Updated: {customFreightDate}</span>
             )}
           </div>
-
-          {useCustomFreight && (
-            <div className="mt-3 p-3 bg-emerald-100 border border-emerald-300 rounded-lg text-xs text-emerald-800">
-              ✓ Используется твоя ставка: <span className="font-mono font-bold">${customFreightRate}/40HC</span>
-              <br/>
-              <span className="opacity-75">Per m³ (на {totalVol.toFixed(0)} m³): ${(customFreightRate / totalVol).toFixed(2)}/m³</span>
-            </div>
-          )}
         </section>
 
         {/* Incoterms */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
             📋 Incoterms (Delivery Basis)
-            <Tooltip text="Международные условия поставки. EXW = товар на складе. FCA = +погрузка. FOB = +судно. CIF = +фрахт+страховка." />
+            <Tooltip text="EXW = склад. FCA = +погрузка. FOB = +судно. CIF = +фрахт+страховка." />
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">
             {[
@@ -358,72 +520,171 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* Cost Breakdown */}
+        {/* 🆕 EDITABLE COST BREAKDOWN */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
-          <h2 className="font-bold text-slate-800 flex items-center">
-            💰 Cost Breakdown
-            <Tooltip text="Честная себестоимость по компонентам. Меняется при смене Incoterms." />
-          </h2>
-          <div className="mt-4 space-y-2 text-sm">
-            <div className="flex justify-between border-b py-2">
-              <span className="flex items-center">
-                🪵 Mill price ({species} {moisture} {packaging})
-                <Tooltip text={`Заводская цена = База породы (${speciesBase}) + Сушка (${dryingAdd}) + Упаковка (${packAdd})`} />
-              </span>
-              <span className="font-mono font-bold">${millPrice.toFixed(2)}/m³</span>
-            </div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-slate-800 flex items-center">
+              💰 Cost Breakdown
+              <Tooltip text="Все цифры РЕДАКТИРУЕМЫЕ. Меняешь — сразу пересчитывается. Сохраняется в браузере." />
+            </h2>
+            <button
+              onClick={resetCosts}
+              className="text-xs text-rose-500 hover:text-rose-700 active:scale-95"
+              title="Сбросить к дефолтам"
+            >
+              🔄 Reset
+            </button>
+          </div>
 
-            {["fca-factory", "fca-port", "fob", "cif"].includes(incoterm) && (
-              <div className="flex justify-between py-2 border-b text-slate-600">
-                <span>🚚 Factory loading (погрузка в фуру)</span>
-                <span className="font-mono">+${loadFactory.toFixed(2)}/m³</span>
-              </div>
-            )}
+          <div className="bg-slate-100 px-3 py-2 rounded-lg text-xs text-slate-600 mb-3 font-mono">
+            📊 {containers} containers × {costs.containerCapacity} m³ = {(containers * costs.containerCapacity)} m³ slots · 
+            actual {totalVol.toFixed(1)} m³ ({fillRate.toFixed(0)}% fill)
+          </div>
 
-            {["fca-port", "fob", "cif"].includes(incoterm) && (
-              <div className="flex justify-between py-2 border-b text-slate-600">
-                <span>🚛 Land transport (до порта РФ)</span>
-                <span className="font-mono">+${landTransport.toFixed(2)}/m³</span>
-              </div>
-            )}
+          {/* Mill price */}
+          <CostRow
+            icon="🪵"
+            label={`Mill price (${species} ${moisture} ${packaging})`}
+            perM3={millPricePerM3}
+            perContainer={millPricePerContainer}
+            total={millPriceTotal}
+          />
 
-            {["fob", "cif"].includes(incoterm) && (
-              <div className="flex justify-between py-2 border-b text-slate-600">
-                <span>⚓ Port & THC + B/L</span>
-                <span className="font-mono">+${portFees.toFixed(2)}/m³</span>
-              </div>
-            )}
+          {/* Factory loading (per m³, редактируемое) */}
+          {["fca-factory", "fca-port", "fob", "cif"].includes(incoterm) && (
+            <CostRow
+              icon="🚚"
+              label="Factory loading"
+              perM3={factoryLoadingPerM3}
+              perContainer={factoryLoadingPerContainer}
+              total={factoryLoadingTotal}
+              editable
+              value={costs.factoryLoading}
+              onChange={(e) => updateCost("factoryLoading", e.target.value)}
+              unit="$/m³"
+            />
+          )}
 
-            {incoterm === "cif" && (
-              <>
-                <div className="flex justify-between py-2 border-b text-slate-600">
-                  <span>
-                    🚢 Ocean freight ({effectiveFreightLabel})
-                    {useCustomFreight && <span className="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">CUSTOM</span>}
-                  </span>
-                  <span className="font-mono">+${ocean.toFixed(2)}/m³</span>
-                </div>
-                <div className="flex justify-between py-2 border-b text-slate-600">
-                  <span>🛡 Insurance (1.1%)</span>
-                  <span className="font-mono">+${insurance.toFixed(2)}/m³</span>
-                </div>
-              </>
-            )}
+          {/* Land transport (per container) */}
+          {["fca-port", "fob", "cif"].includes(incoterm) && (
+            <CostRow
+              icon="🚛"
+              label="Land transport (до порта РФ)"
+              perM3={landTransportPerM3}
+              perContainer={landTransportPerContainer}
+              total={landTransportTotal}
+              editable
+              value={costs.landTransport}
+              onChange={(e) => updateCost("landTransport", e.target.value)}
+              unit="$/cont"
+            />
+          )}
 
-            <div className={`flex justify-between py-2 border-b ${dutyFree ? "text-emerald-600" : "text-rose-600"}`}>
-              <span className="flex items-center">
-                🏛 Export duty {dutyFree ? "(0% — KD/4409)" : "(6.5% — AD raw)"}
-                <Tooltip text="Экспортная пошлина РФ. 0% если: камерная сушка (KD) ИЛИ обработка по коду 4409 (фаска/паз)." />
-              </span>
-              <span className="font-mono">+${duty.toFixed(2)}/m³</span>
-            </div>
+          {/* Port fees — 4 строки */}
+          {["fob", "cif"].includes(incoterm) && (
+            <>
+              <CostRow
+                icon="⚓"
+                label="Port THC (Terminal Handling)"
+                perM3={portTHCPerM3}
+                perContainer={costs.portTHC}
+                total={portTHCTotal}
+                editable
+                value={costs.portTHC}
+                onChange={(e) => updateCost("portTHC", e.target.value)}
+                unit="$/cont"
+              />
+              <CostRow
+                icon="📄"
+                label="Bill of Lading (B/L)"
+                perM3={portBLPerM3}
+                perContainer={costs.portBL}
+                total={portBLTotal}
+                editable
+                value={costs.portBL}
+                onChange={(e) => updateCost("portBL", e.target.value)}
+                unit="$/cont"
+              />
+              <CostRow
+                icon="📡"
+                label="Telex Release"
+                perM3={portTelexPerM3}
+                perContainer={costs.portTelex}
+                total={portTelexTotal}
+                editable
+                value={costs.portTelex}
+                onChange={(e) => updateCost("portTelex", e.target.value)}
+                unit="$/cont"
+              />
+              <CostRow
+                icon="📋"
+                label="Other port fees"
+                perM3={portOtherPerM3}
+                perContainer={costs.portOther}
+                total={portOtherTotal}
+                editable
+                value={costs.portOther}
+                onChange={(e) => updateCost("portOther", e.target.value)}
+                unit="$/cont"
+              />
+            </>
+          )}
 
-            <div className="flex justify-between py-3 border-t-2 border-slate-900">
-              <span className="font-bold">TOTAL COST ({incoterm.toUpperCase()})</span>
-              <span className="font-mono font-black text-slate-900">${totalCostWithDuty.toFixed(2)}/m³</span>
+          {/* Ocean freight */}
+          {incoterm === "cif" && (
+            <CostRow
+              icon="🚢"
+              label={`Ocean freight (${effectiveFreightLabel})`}
+              perM3={oceanPerM3}
+              perContainer={oceanPerContainer}
+              total={oceanTotal}
+              badge={useCustomFreight ? "CUSTOM" : null}
+            />
+          )}
+
+          {/* Insurance */}
+          {incoterm === "cif" && (
+            <CostRow
+              icon="🛡"
+              label="Insurance"
+              perM3={insurancePerM3}
+              perContainer={insurancePerContainer}
+              total={insuranceTotal}
+              editable
+              value={costs.insuranceRate}
+              onChange={(e) => updateCost("insuranceRate", e.target.value)}
+              unit="%"
+            />
+          )}
+
+          {/* Export duty */}
+          <CostRow
+            icon="🏛"
+            label={`Export duty ${dutyFree ? "(0% — KD/4409)" : `(${costs.exportDutyRate}% — AD raw)`}`}
+            perM3={dutyPerM3}
+            perContainer={dutyPerContainer}
+            total={dutyTotal}
+            success={dutyFree}
+            danger={!dutyFree}
+            editable={!dutyFree}
+            value={costs.exportDutyRate}
+            onChange={(e) => updateCost("exportDutyRate", e.target.value)}
+            unit="%"
+          />
+
+          {/* TOTAL */}
+          <div className="mt-3 pt-3 border-t-2 border-slate-900 bg-slate-50 -mx-5 px-5 py-3">
+            <div className="font-bold text-lg text-slate-900">TOTAL COST ({incoterm.toUpperCase()})</div>
+            <div className="text-sm font-mono mt-1">
+              <span className="text-2xl font-black">${totalCostWithDutyPerM3.toFixed(2)}</span>/m³
+              <span className="text-slate-400 mx-2">·</span>
+              ${totalCostPerContainer.toFixed(0)}/cont
+              <span className="text-slate-400 mx-2">·</span>
+              <span className="font-bold">${totalCostWithDutyTotal.toFixed(0)} total</span>
             </div>
           </div>
 
+          {/* Profile processing checkbox */}
           <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
             <label className="flex items-start gap-2 cursor-pointer">
               <input
@@ -435,7 +696,7 @@ export default function PricingPage() {
               <div className="text-xs text-slate-700">
                 <div className="font-bold flex items-center">
                   ⚙ Profile processing (HS 4409 — фаска/паз)
-                  <Tooltip text="Лёгкая фаска 2×2мм переводит товар в код 4409 → 0% пошлины. Особенно выгодно для AD." />
+                  <Tooltip text="Лёгкая фаска 2×2мм переводит товар в код 4409 → 0% пошлины." />
                 </div>
                 <div className="opacity-75 mt-1">
                   Для AD-доски: фаска 2×2мм → 0% пошлины РФ. Экономия ~$7/m³.
@@ -449,7 +710,7 @@ export default function PricingPage() {
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
             📊 Margin & Exchange Rate
-            <Tooltip text="Ваша наценка к себестоимости." />
+            <Tooltip text="Твоя наценка к себестоимости." />
           </h2>
 
           <div className="mt-3">
@@ -478,10 +739,7 @@ export default function PricingPage() {
 
           <div className="grid grid-cols-2 gap-3 mt-4">
             <div>
-              <label className="text-xs text-slate-500 flex items-center">
-                Margin (%)
-                <Tooltip text="Типично 15-30%. Индия/Китай: 15-18%. ОАЭ/Саудовская: 25-30%." />
-              </label>
+              <label className="text-xs text-slate-500">Margin (%)</label>
               <input
                 type="number"
                 value={deal.margin}
@@ -492,10 +750,7 @@ export default function PricingPage() {
               <div className="text-xs text-emerald-600 mt-1">Profit: ${profitPerM3.toFixed(2)}/m³</div>
             </div>
             <div>
-              <label className="text-xs text-slate-500 flex items-center">
-                USD / RUB
-                <Tooltip text="Курс ЦБ РФ автоматически." />
-              </label>
+              <label className="text-xs text-slate-500">USD / RUB</label>
               <input
                 type="number"
                 value={deal.usdRubRate}
@@ -509,42 +764,60 @@ export default function PricingPage() {
                   disabled={cbrLoading}
                   className="text-xs text-orange-500 active:scale-95"
                 >
-                  {cbrLoading ? "⏳ Загрузка..." : "🔄 Обновить ЦБ"}
+                  {cbrLoading ? "⏳" : "🔄 ЦБ"}
                 </button>
-                {cbrDate && !cbrError && (
-                  <span className="text-[10px] text-slate-400">ЦБ РФ: {cbrDate}</span>
-                )}
-                {cbrError && (
-                  <span className="text-[10px] text-rose-500">⚠ Ошибка загрузки</span>
-                )}
+                {cbrDate && !cbrError && <span className="text-[10px] text-slate-400">{cbrDate}</span>}
+                {cbrError && <span className="text-[10px] text-rose-500">⚠ Ошибка</span>}
               </div>
             </div>
           </div>
         </section>
 
-        {/* Final pricing */}
+        {/* 🆕 FINAL PRICING с тремя метриками */}
         <section className="bg-slate-900 text-white rounded-xl p-5 shadow-lg">
           <h2 className="font-bold">🎯 Final Pricing</h2>
           <div className="text-xs opacity-60 mt-1">
-            {incoterm.toUpperCase()} · Margin {margin}% · {totalVol.toFixed(2)} m³ · ₽{rate}/$
+            {incoterm.toUpperCase()} · Margin {margin}% · {totalVol.toFixed(2)} m³ · {containers} × 40HC · ₽{rate}/$
           </div>
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <div className="text-xs opacity-60">SELLING PRICE PER m³</div>
-              <div className="text-3xl font-black">${sellPricePerM3.toFixed(2)}</div>
-              <div className="text-xs opacity-60">≈ ₽{(sellPricePerM3 * rate).toFixed(0)}</div>
+
+          {/* SELLING PRICE */}
+          <div className="mt-4 p-4 bg-slate-800 rounded-lg">
+            <div className="text-xs opacity-60 mb-2">💵 SELLING PRICE</div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div className="text-xl sm:text-2xl font-black">${sellPricePerM3.toFixed(2)}</div>
+                <div className="text-xs opacity-50">per m³</div>
+              </div>
+              <div className="border-l border-r border-slate-700">
+                <div className="text-xl sm:text-2xl font-black">${sellPricePerContainer.toFixed(0)}</div>
+                <div className="text-xs opacity-50">per cont</div>
+              </div>
+              <div>
+                <div className="text-xl sm:text-2xl font-black">${totalAmount.toFixed(0)}</div>
+                <div className="text-xs opacity-50">total deal</div>
+              </div>
             </div>
-            <div>
-              <div className="text-xs opacity-60">TOTAL DEAL ({incoterm.toUpperCase()})</div>
-              <div className="text-3xl font-black">${totalAmount.toFixed(0)}</div>
-              <div className="text-xs opacity-60">≈ ₽{(totalAmount * rate).toFixed(0)}</div>
-            </div>
+            <div className="text-center text-xs opacity-50 mt-2">≈ ₽{(totalAmount * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}</div>
           </div>
-          <div className="mt-4 p-3 bg-emerald-900/50 rounded-lg">
-            <div className="text-xs opacity-75">YOUR PROFIT</div>
-            <div className="text-2xl font-black text-emerald-400">
-              +${totalProfit.toFixed(0)} <span className="text-sm opacity-75">(+₽{(totalProfit * rate).toFixed(0)})</span>
+
+          {/* PROFIT */}
+          <div className="mt-3 p-4 bg-emerald-900/50 border border-emerald-700 rounded-lg">
+            <div className="text-xs opacity-75 mb-2">💚 YOUR PROFIT</div>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div className="text-lg sm:text-xl font-black text-emerald-400">${profitPerM3.toFixed(2)}</div>
+                <div className="text-xs opacity-50">per m³</div>
+              </div>
+              <div className="border-l border-r border-emerald-700/50">
+                <div className="text-lg sm:text-xl font-black text-emerald-400">${profitPerContainer.toFixed(0)}</div>
+                <div className="text-xs opacity-50">per cont</div>
+              </div>
+              <div>
+                <div className="text-lg sm:text-xl font-black text-emerald-400">${totalProfit.toFixed(0)}</div>
+                <div className="text-xs opacity-50">total</div>
+              </div>
             </div>
+            <div className="text-center text-xs opacity-50 mt-2">≈ ₽{(totalProfit * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}</div>
           </div>
 
           <Link
