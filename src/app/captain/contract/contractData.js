@@ -1,6 +1,8 @@
 // 📜 INTERNATIONAL SALES CONTRACT — TEMPLATE DATA
 // 2-language structure: { en: "...", ru: "..." }
 // Used by /captain/contract page
+// ⚖️ v2.0 — Reviewed by International Trade Lawyer (2026)
+// Critical updates: Title transfer, Currency control, Quality at port, Volume tolerance
 
 // === 🌐 ГЛОССАРИЙ ЮРИДИЧЕСКИХ ТЕРМИНОВ ===
 export const GLOSSARY = {
@@ -88,6 +90,23 @@ export const GLOSSARY = {
     short: "Конфиденциальность",
     long: "Confidentiality clause — обязательство сторон не разглашать условия контракта (цены, объёмы) третьим лицам. Защищает твои закупочные цены от утечки конкурентам.",
   },
+  // ⭐ НОВЫЕ ТЕРМИНЫ от юриста
+  "Title Transfer": {
+    short: "Переход права собственности",
+    long: "Title Transfer — момент перехода права собственности на товар от Продавца к Покупателю. КРИТИЧНО: должен быть привязан к 100% оплате, иначе Продавец теряет контроль над грузом в море до получения денег. Стандарт защиты: Title переходит вместе с оригиналами документов после полной оплаты.",
+  },
+  "Volume Tolerance": {
+    short: "Технологический люфт по объёму",
+    long: "Volume Tolerance — допустимое отклонение фактически погруженного объёма от заявленного (стандарт ±5%). Необходимо потому, что заранее точно рассчитать загрузку 40HC контейнера невозможно — разные пачки, разные размеры. Финальный инвойс выставляется на основании B/L.",
+  },
+  "Currency Repatriation": {
+    short: "Репатриация валютной выручки",
+    long: "Currency Repatriation — обязательство российских экспортёров вернуть валютную выручку на счёт в РФ в установленный срок (обычно 180 дней). Нарушение — штраф 75-100% от суммы. ЗАЩИТА: оплата считается выполненной только после зачисления на счёт ПРОДАВЦА В РФ, а не у агента в Киргизии/Узбекистане.",
+  },
+  "Pre-shipment Inspection": {
+    short: "Предотгрузочная инспекция",
+    long: "Pre-shipment Inspection — фиксация качества, размеров и влажности товара ПЕРЕД отправкой в порту погрузки. После этого момента Продавец НЕ отвечает за естественные изменения (нагон влажности древесины в океане).",
+  },
 };
 
 // === 📜 15 ПУНКТОВ КОНТРАКТА ===
@@ -139,6 +158,7 @@ ${data.buyerName}
     id: 2,
     title_en: "2. SUBJECT OF THE CONTRACT",
     title_ru: "2. ПРЕДМЕТ КОНТРАКТА",
+    // ⭐ ПРАВКА #1: Допуск ±5% по объёму
     body_en: (data) => `
 2.1. The Seller undertakes to sell and deliver, and the Buyer undertakes to accept and pay for the following goods (hereinafter — "Goods"):
 
@@ -147,7 +167,7 @@ ${data.buyerName}
 • Grade: 1-3 (selected grades)
 • Moisture: ${data.moisture}
 • Dimensions: ${data.dimensions} mm
-• Quantity: ${data.quantity} m³ (cubic meters)
+• Quantity: ${data.quantity} m³ (a volume tolerance of ±5% is allowed; the final commercial invoice shall be issued based on the actual volume loaded and specified in the Bill of Lading)
 • Packaging: ${data.packaging}
 • HS Code: ${data.hsCode}
 • Country of Origin: Russian Federation`,
@@ -159,16 +179,18 @@ ${data.buyerName}
 • Сорт: 1-3 (отборные сорта)
 • Влажность: ${data.moisture}
 • Размеры: ${data.dimensions} мм
-• Количество: ${data.quantity} м³ (кубических метров)
+• Количество: ${data.quantity} м³ (допускается технологический люфт ±5% по объёму; финальный инвойс выставляется на основании фактически погруженного объёма, указанного в коносаменте)
 • Упаковка: ${data.packaging}
 • Код ТН ВЭД: ${data.hsCode}
 • Страна происхождения: Российская Федерация`,
-    tooltipKey: "HS Code",
+    tooltipKey: "Volume Tolerance",
+    critical: true,
   },
   {
     id: 3,
     title_en: "3. QUALITY",
     title_ru: "3. КАЧЕСТВО",
+    // ⭐ ПРАВКА #2: Фиксация качества в порту погрузки + риск нагона влажности на Покупателе
     body_en: () => `
 3.1. The quality of the Goods shall correspond to GOST 8486-86 standard.
 
@@ -180,7 +202,10 @@ ${data.buyerName}
 
 3.3. The Seller shall provide pre-shipment photos of the Goods as an Annex to this Contract.
 
-3.4. The Seller guarantees that the Goods are free from defects affecting their commercial value (rot, fungal stains, insect damage exceeding GOST tolerances).`,
+3.4. The Seller guarantees that the Goods are free from defects affecting their commercial value (rot, fungal stains, insect damage exceeding GOST tolerances).
+
+3.5. ⚖️ DEFINITIVE QUALITY DETERMINATION AT PORT OF LOADING:
+The compliance of the Goods with quality, dimensions, and moisture standards (clause 2.1) shall be definitively determined at the port of loading (${"Novorossiysk"}) prior to dispatch, as documented in the pre-shipment photos or a survey report. The Buyer assumes the risk of natural moisture variance during ocean transit.`,
     body_ru: () => `
 3.1. Качество Товара должно соответствовать ГОСТ 8486-86.
 
@@ -192,8 +217,12 @@ ${data.buyerName}
 
 3.3. Продавец предоставляет фотографии Товара перед отгрузкой в качестве Приложения к Контракту.
 
-3.4. Продавец гарантирует, что Товар свободен от дефектов, влияющих на его коммерческую ценность (гниль, грибные пятна, поражения насекомыми сверх допусков ГОСТ).`,
-    tooltipKey: "GOST 8486-86",
+3.4. Продавец гарантирует, что Товар свободен от дефектов, влияющих на его коммерческую ценность (гниль, грибные пятна, поражения насекомыми сверх допусков ГОСТ).
+
+3.5. ⚖️ ОКОНЧАТЕЛЬНАЯ ФИКСАЦИЯ КАЧЕСТВА В ПОРТУ ПОГРУЗКИ:
+Соответствие Товара стандартам качества, размеров и влажности (п. 2.1) окончательно определяется в порту погрузки (Новороссийск) перед отправкой, что фиксируется предотгрузочными фотографиями или сюрвейерским отчётом. Покупатель несёт риски естественного изменения влажности во время морского транзита.`,
+    tooltipKey: "Pre-shipment Inspection",
+    critical: true,
   },
   {
     id: 4,
@@ -221,46 +250,57 @@ ${data.buyerName}
     id: 5,
     title_en: "5. DELIVERY TERMS (INCOTERMS 2020)",
     title_ru: "5. УСЛОВИЯ ПОСТАВКИ (ИНКОТЕРМС 2020)",
+    // ⭐ ПРАВКА #3: Экспортная очистка ПРОДАВЦА (новый п. 5.1)
+    // ⭐ ПРАВКА #4: Title — после 100% оплаты + оригиналов (п. 5.7 ПЕРЕДЕЛАН)
     body_en: (data) => `
-5.1. Delivery basis: ${data.incoterm} ${data.destinationPort} (Incoterms 2020).
+5.1. ⚖️ EXPORT CUSTOMS CLEARANCE:
+The Seller shall, at its own expense, clear the Goods for export and perform all necessary export customs formalities in the Russian Federation.
 
-5.2. Port of loading: ${data.loadingPort}, Russian Federation.
+5.2. Delivery basis: ${data.incoterm} ${data.destinationPort} (Incoterms 2020).
 
-5.3. Port of destination: ${data.destinationPort}.
+5.3. Port of loading: ${data.loadingPort}, Russian Federation.
 
-5.4. Container type: 40' High Cube (40HC), 1 container per shipment.
+5.4. Port of destination: ${data.destinationPort}.
 
-5.5. Lead time: ${data.leadTime} days from the date of receipt of advance payment.
+5.5. Container type: 40' High Cube (40HC), 1 container per shipment.
 
-5.6. The Seller is obliged to provide the Buyer with a copy of the Bill of Lading (B/L) within 3 working days after vessel departure.
+5.6. Lead time: ${data.leadTime} days from the date of receipt of advance payment.
 
-5.7. Title to the Goods passes to the Buyer upon receipt by the Buyer of 100% payment.
+5.7. The Seller shall provide the Buyer with a copy of the Bill of Lading (B/L) within 3 working days after vessel departure.
 
-5.8. Risk of loss or damage passes to the Buyer at the moment of crossing the ship's rail at the port of loading (for FOB/CIF).`,
+5.8. ⚖️ TITLE TRANSFER (CRITICAL):
+Title to the Goods passes from the Seller to the Buyer at the moment of transfer of the original shipping documents to the Buyer, provided that 100% payment for the respective batch of Goods has been received by the Seller.
+
+5.9. Risk of loss or damage passes to the Buyer at the moment of crossing the ship's rail at the port of loading (for FOB/CIF).`,
     body_ru: (data) => `
-5.1. Условия поставки: ${data.incoterm} ${data.destinationPort} (Инкотермс 2020).
+5.1. ⚖️ ЭКСПОРТНОЕ ТАМОЖЕННОЕ ОФОРМЛЕНИЕ:
+Продавец за свой счёт выполняет таможенные формальности, необходимые для экспорта Товара, и осуществляет экспортное таможенное оформление в Российской Федерации.
 
-5.2. Порт отгрузки: ${data.loadingPort}, Российская Федерация.
+5.2. Условия поставки: ${data.incoterm} ${data.destinationPort} (Инкотермс 2020).
 
-5.3. Порт назначения: ${data.destinationPort}.
+5.3. Порт отгрузки: ${data.loadingPort}, Российская Федерация.
 
-5.4. Тип контейнера: 40-футовый High Cube (40HC), 1 контейнер на отгрузку.
+5.4. Порт назначения: ${data.destinationPort}.
 
-5.5. Срок поставки: ${data.leadTime} дней с даты получения авансового платежа.
+5.5. Тип контейнера: 40-футовый High Cube (40HC), 1 контейнер на отгрузку.
 
-5.6. Продавец обязан предоставить Покупателю копию коносамента (B/L) в течение 3 рабочих дней после отправки судна.
+5.6. Срок поставки: ${data.leadTime} дней с даты получения авансового платежа.
 
-5.7. Право собственности на Товар переходит к Покупателю в момент получения Покупателем 100% оплаты.
+5.7. Продавец обязан предоставить Покупателю копию коносамента (B/L) в течение 3 рабочих дней после отправки судна.
 
-5.8. Риск утраты или повреждения Товара переходит к Покупателю в момент пересечения борта судна в порту отгрузки (для FOB/CIF).`,
-    tooltipKey: "CIF",
+5.8. ⚖️ ПЕРЕХОД ПРАВА СОБСТВЕННОСТИ (КРИТИЧНО):
+Право собственности на Товар переходит от Продавца к Покупателю в момент передачи оригиналов отгрузочных документов Покупателю, при условии получения Продавцом 100% оплаты за соответствующую партию Товара.
+
+5.9. Риск утраты или повреждения Товара переходит к Покупателю в момент пересечения борта судна в порту отгрузки (для FOB/CIF).`,
+    tooltipKey: "Title Transfer",
     critical: true,
   },
   {
     id: 6,
     title_en: "6. PAYMENT TERMS",
     title_ru: "6. УСЛОВИЯ ОПЛАТЫ",
-    body_en: (data) => `
+    // ⭐ ПРАВКА #5: Оплата = зачисление на счёт ПРОДАВЦА В РФ (п. 6.6 ПЕРЕДЕЛАН)
+    body_en: () => `
 6.1. Payment is made in US Dollars (USD) by Telegraphic Transfer (T/T) or through an authorized payment agent (see clause 6.5).
 
 6.2. Payment schedule:
@@ -269,7 +309,7 @@ ${data.buyerName}
 
 6.3. Bank charges: charges of the Seller's bank — for the Seller's account, charges of the Buyer's bank — for the Buyer's account, intermediary bank charges — for the Buyer's account (OUR/OUR).
 
-6.4. The Buyer is considered to have fulfilled his payment obligations from the moment the funds are credited to the Seller's account.
+6.4. The Buyer is considered to have fulfilled his payment obligations from the moment the funds are credited to the Seller's account in the Russian Federation.
 
 6.5. PAYMENT VIA AUTHORIZED AGENT (Kyrgyzstan / Uzbekistan):
 Due to current international banking restrictions, the Buyer may pay through an authorized payment agent designated by the Seller (a licensed company in Kyrgyzstan or Uzbekistan). The Seller shall provide:
@@ -278,8 +318,9 @@ Due to current international banking restrictions, the Buyer may pay through an 
 • Agent invoice for the same amount as per this Contract
 This scheme is fully compliant with CIS, UAE, EU and US regulations as of 2026.
 
-6.6. The Buyer's payment obligation under this Contract is deemed fulfilled upon transfer of funds to the Agent's account, subject to confirmation by the Seller's bank.`,
-    body_ru: (data) => `
+6.6. ⚖️ FULFILLMENT OF PAYMENT OBLIGATION (CRITICAL — CB RF CURRENCY CONTROL):
+Notwithstanding any payment routing through agents or intermediaries, the Buyer's payment obligation under this Contract is deemed fulfilled only from the moment the funds are credited in full to the Seller's bank account in the Russian Federation.`,
+    body_ru: () => `
 6.1. Оплата производится в долларах США (USD) телеграфным переводом (T/T) или через уполномоченного платёжного агента (см. п.6.5).
 
 6.2. График оплаты:
@@ -288,7 +329,7 @@ This scheme is fully compliant with CIS, UAE, EU and US regulations as of 2026.
 
 6.3. Банковские расходы: расходы банка Продавца — за счёт Продавца, расходы банка Покупателя — за счёт Покупателя, расходы банков-корреспондентов — за счёт Покупателя (OUR/OUR).
 
-6.4. Покупатель считается исполнившим обязательства по оплате с момента зачисления средств на счёт Продавца.
+6.4. Покупатель считается исполнившим обязательства по оплате с момента зачисления средств на счёт Продавца в Российской Федерации.
 
 6.5. ОПЛАТА ЧЕРЕЗ УПОЛНОМОЧЕННОГО АГЕНТА (Киргизия / Узбекистан):
 В связи с текущими международными банковскими ограничениями, Покупатель может произвести оплату через уполномоченного платёжного агента, назначенного Продавцом (лицензированная компания в Киргизии или Узбекистане). Продавец предоставляет:
@@ -297,8 +338,9 @@ This scheme is fully compliant with CIS, UAE, EU and US regulations as of 2026.
 • Инвойс агента на сумму согласно настоящему Контракту
 Данная схема полностью соответствует требованиям регуляторов СНГ, ОАЭ, ЕС и США по состоянию на 2026 год.
 
-6.6. Обязательства Покупателя по оплате считаются выполненными с момента перечисления средств на счёт Агента при условии подтверждения банком Продавца.`,
-    tooltipKey: "Advance Payment",
+6.6. ⚖️ МОМЕНТ ИСПОЛНЕНИЯ ОБЯЗАТЕЛЬСТВА ПО ОПЛАТЕ (КРИТИЧНО — ВАЛЮТНЫЙ КОНТРОЛЬ ЦБ РФ):
+Независимо от маршрутизации платежа через агентов или посредников, обязательства Покупателя по оплате считаются выполненными только с момента полного зачисления денежных средств на банковский счёт Продавца в Российской Федерации.`,
+    tooltipKey: "Currency Repatriation",
     critical: true,
   },
   {
@@ -348,7 +390,7 @@ This scheme is fully compliant with CIS, UAE, EU and US regulations as of 2026.
 (g) Pre-shipment photographs (digital, via email)
 (h) Loading Survey Report (if requested by the Buyer, at the Buyer's expense)
 
-8.2. Original documents shall be sent to the Buyer by international courier (DHL/FedEx) within 5 working days after final payment.`,
+8.2. Original documents shall be transferred to the Buyer in accordance with clause 5.8 (Title Transfer) — only after receipt by the Seller of 100% payment.`,
     body_ru: () => `
 8.1. Продавец предоставляет следующие документы:
 (а) Коммерческий инвойс — 3 оригинала
@@ -360,13 +402,14 @@ This scheme is fully compliant with CIS, UAE, EU and US regulations as of 2026.
 (ж) Фотографии товара перед отгрузкой (цифровые, по email)
 (з) Сюрвейерский отчёт о погрузке (по запросу Покупателя, за его счёт)
 
-8.2. Оригиналы документов направляются Покупателю международной курьерской службой (DHL/FedEx) в течение 5 рабочих дней после окончательного платежа.`,
+8.2. Оригиналы документов передаются Покупателю в соответствии с п. 5.8 (Переход права собственности) — только после получения Продавцом 100% оплаты.`,
     tooltipKey: "B/L",
   },
   {
     id: 9,
     title_en: "9. ACCEPTANCE OF GOODS",
     title_ru: "9. ПРИЁМКА ТОВАРА",
+    // ⭐ ПРАВКА #6: Убрано "unless gross negligence" — чёткие 5%
     body_en: () => `
 9.1. Acceptance of the Goods by quantity is performed at the port of destination, at the moment of container unloading, in the presence of the Buyer's representative.
 
@@ -377,7 +420,8 @@ This scheme is fully compliant with CIS, UAE, EU and US regulations as of 2026.
 
 9.3. Claims received after the 14-day period shall not be accepted.
 
-9.4. Total claim amount shall not exceed 5% (five percent) of the Contract value, unless caused by gross negligence of the Seller.`,
+9.4. ⚖️ LIABILITY CAP (CRITICAL):
+The Seller's total liability under this Contract shall not exceed 5% (five percent) of the total Contract value. This limitation applies to all claims of any nature, without exception.`,
     body_ru: () => `
 9.1. Приёмка Товара по количеству производится в порту назначения в момент разгрузки контейнера в присутствии представителя Покупателя.
 
@@ -388,8 +432,10 @@ This scheme is fully compliant with CIS, UAE, EU and US regulations as of 2026.
 
 9.3. Претензии, полученные после 14-дневного срока, не принимаются.
 
-9.4. Общая сумма претензий не может превышать 5% (пять процентов) от стоимости Контракта, за исключением случаев грубой неосторожности Продавца.`,
+9.4. ⚖️ ПРЕДЕЛ ОТВЕТСТВЕННОСТИ (КРИТИЧНО):
+Общая ответственность Продавца по настоящему Контракту не может превышать 5% (пяти процентов) от общей стоимости Контракта. Данное ограничение применяется ко всем претензиям любого характера, без исключений.`,
     tooltipKey: "Claims Period",
+    critical: true,
   },
   {
     id: 10,
@@ -536,12 +582,14 @@ This scheme is fully compliant with CIS, UAE, EU and US regulations as of 2026.
     title_en: "15. BANKING DETAILS AND SIGNATURES",
     title_ru: "15. БАНКОВСКИЕ РЕКВИЗИТЫ И ПОДПИСИ",
     body_en: (data) => `
-SELLER'S BANKING DETAILS:
+SELLER'S BANKING DETAILS (Russian Federation):
 Beneficiary: ${data.sellerName}
 Bank: ${data.sellerBank}
 SWIFT: ${data.sellerSwift}
 Account (USD): ${data.sellerAccount}
 Correspondent Bank: ${data.sellerCorrespondent}
+
+⚖️ Note: Per clause 6.6, payment obligation is fulfilled only upon crediting of funds to this account in the Russian Federation.
 
 BUYER'S BANKING DETAILS:
 [To be provided by the Buyer]
@@ -562,12 +610,14 @@ ${data.buyerName}
 Stamp & Signature
 Date: _____________`,
     body_ru: (data) => `
-БАНКОВСКИЕ РЕКВИЗИТЫ ПРОДАВЦА:
+БАНКОВСКИЕ РЕКВИЗИТЫ ПРОДАВЦА (Российская Федерация):
 Бенефициар: ${data.sellerName}
 Банк: ${data.sellerBank}
 SWIFT: ${data.sellerSwift}
 Счёт (USD): ${data.sellerAccount}
 Банк-корреспондент: ${data.sellerCorrespondent}
+
+⚖️ Примечание: Согласно п. 6.6, обязательство по оплате считается исполненным только с момента зачисления средств на данный счёт в Российской Федерации.
 
 БАНКОВСКИЕ РЕКВИЗИТЫ ПОКУПАТЕЛЯ:
 [Предоставляются Покупателем]
@@ -589,3 +639,5 @@ ${data.buyerName}
 Дата: _____________`,
   },
 ];
+
+// END OF FILE
