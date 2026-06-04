@@ -1,165 +1,183 @@
 "use client";
 
-// 🎨 RU-TIMBER EXPORT — Official Stamp Component
+// 📜 RU-TIMBER EXPORT — Official Company Stamp
 // Точное соответствие реальной печати ИП
+// Автоматически берёт данные из BusinessSettings
 
 import { useBusinessSettings } from "../context/BusinessContext";
 
-export function CompanyStamp({ size = 180, opacity = 0.85 }) {
-  // Попробуем взять из контекста (если будет настроен)
-  let settings;
-  try {
-    settings = useBusinessSettings();
-  } catch {
-    settings = null;
-  }
+export function CompanyStamp({
+  size = 200,
+  rotation = 0,
+  opacity = 1,
+  color = "#1e3a8a", // navy blue
+}) {
+  const settings = useBusinessSettings();
 
-  // Fallback — реальные данные с печати
-  const data = settings || {
-    companyName: "RU-TIMBER EXPORT",
-    companyType: "ИП",
-    inn: "7716179565514",
-    ogrn: "326774600405782",
-    city: "MOSCOW",
-  };
+  // Данные с печати
+  const companyName = settings.stampCompanyName || "RU-TIMBER EXPORT";
+  const companyType = settings.stampType || "ИП";
+  const city = settings.stampCity || "MOSCOW";
+  const inn = settings.inn || "771617956514";
+  const ogrnip = settings.ogrnip || "326774600405782";
 
-  const radius = size / 2;
-  const center = radius;
+  // Геометрия (в долях от size)
+  const center = size / 2;
+  const outerRadius = size * 0.48; // внешний круг
+  const innerRadius = size * 0.40; // внутренний круг
+  const arcRadius = size * 0.42; // радиус дуг для текста
 
   return (
     <div
-      className="relative inline-block select-none print:opacity-100"
-      style={{ width: size, height: size, opacity }}
+      style={{
+        width: size,
+        height: size,
+        opacity,
+        transform: `rotate(${rotation}deg)`,
+        transformOrigin: "center center",
+        display: "inline-block",
+      }}
     >
       <svg
         width={size}
         height={size}
         viewBox={`0 0 ${size} ${size}`}
         xmlns="http://www.w3.org/2000/svg"
-        style={{
-          filter: "drop-shadow(0 1px 2px rgba(30, 64, 175, 0.15))",
-        }}
+        style={{ display: "block" }}
       >
         <defs>
-          {/* Верхняя дуга: компания */}
+          {/* Верхняя дуга для текста — слева направо по верху */}
           <path
             id="topArc"
-            d={`M ${center - (radius - 15)},${center} A ${radius - 15},${radius - 15} 0 0,1 ${center + (radius - 15)},${center}`}
+            d={`M ${center - arcRadius},${center} 
+                A ${arcRadius},${arcRadius} 0 0,1 ${center + arcRadius},${center}`}
             fill="none"
           />
-          {/* Нижняя дуга: город + ИНН */}
+          {/* Нижняя дуга для текста — слева направо по низу */}
           <path
             id="bottomArc"
-            d={`M ${center - (radius - 15)},${center} A ${radius - 15},${radius - 15} 0 0,0 ${center + (radius - 15)},${center}`}
+            d={`M ${center - arcRadius},${center} 
+                A ${arcRadius},${arcRadius} 0 0,0 ${center + arcRadius},${center}`}
             fill="none"
           />
         </defs>
 
-        {/* === ВНЕШНЯЯ ГРАНИЦА === */}
+        {/* === ВНЕШНИЙ КРУГ === */}
         <circle
           cx={center}
           cy={center}
-          r={radius - 4}
+          r={outerRadius}
           fill="none"
-          stroke="#1e3a8a"
-          strokeWidth="2.5"
+          stroke={color}
+          strokeWidth={size * 0.012}
         />
 
-        {/* === ВНУТРЕННЯЯ ГРАНИЦА === */}
+        {/* === ВНУТРЕННИЙ КРУГ === */}
         <circle
           cx={center}
           cy={center}
-          r={radius - 20}
+          r={innerRadius}
           fill="none"
-          stroke="#1e3a8a"
-          strokeWidth="1.5"
+          stroke={color}
+          strokeWidth={size * 0.008}
         />
 
-        {/* === ВЕРХНЯЯ НАДПИСЬ (по дуге) === */}
+        {/* === ВЕРХНЯЯ НАДПИСЬ ПО ДУГЕ === */}
         <text
-          fill="#1e3a8a"
-          fontSize={size * 0.085}
+          fill={color}
+          fontSize={size * 0.082}
           fontWeight="bold"
-          fontFamily="'Times New Roman', serif"
-          letterSpacing="1.5"
+          fontFamily="'Times New Roman', Times, serif"
+          letterSpacing={size * 0.008}
         >
-          <textPath href="#topArc" startOffset="50%" textAnchor="middle">
-            · {data.companyName} ·
+          <textPath
+            href="#topArc"
+            startOffset="50%"
+            textAnchor="middle"
+          >
+            · {companyName} ·
           </textPath>
         </text>
 
         {/* === ЗВЕЗДА СВЕРХУ === */}
         <text
           x={center}
-          y={center - radius * 0.42}
+          y={center - size * 0.20}
           textAnchor="middle"
-          fill="#1e3a8a"
-          fontSize={size * 0.09}
+          fill={color}
+          fontSize={size * 0.10}
+          dominantBaseline="middle"
         >
           ★
         </text>
 
-        {/* === ЦЕНТР: ИП === */}
+        {/* === ЦЕНТР: "ИП" БОЛЬШИМИ БУКВАМИ === */}
         <text
           x={center}
-          y={center - 2}
+          y={center - size * 0.02}
           textAnchor="middle"
-          fill="#1e3a8a"
+          fill={color}
           fontSize={size * 0.22}
           fontWeight="900"
-          fontFamily="'Times New Roman', serif"
-          letterSpacing="2"
+          fontFamily="'Times New Roman', Times, serif"
+          letterSpacing={size * 0.005}
+          dominantBaseline="middle"
         >
-          {data.companyType || "ИП"}
+          {companyType}
         </text>
 
         {/* === ОГРНИП === */}
         <text
           x={center}
-          y={center + size * 0.13}
+          y={center + size * 0.10}
           textAnchor="middle"
-          fill="#1e3a8a"
+          fill={color}
           fontSize={size * 0.052}
           fontWeight="600"
-          fontFamily="'Times New Roman', serif"
+          fontFamily="'Times New Roman', Times, serif"
+          letterSpacing={size * 0.002}
         >
-          ОГРНИП {data.ogrn}
+          ОГРНИП {ogrnip}
         </text>
 
-        {/* === ЛИНИЯ ПОД ОГРН === */}
+        {/* === ЛИНИЯ ПОД ОГРНИП === */}
         <line
-          x1={center - radius * 0.35}
-          y1={center + size * 0.17}
-          x2={center + radius * 0.35}
-          y2={center + size * 0.17}
-          stroke="#1e3a8a"
-          strokeWidth="1"
+          x1={center - size * 0.18}
+          y1={center + size * 0.135}
+          x2={center + size * 0.18}
+          y2={center + size * 0.135}
+          stroke={color}
+          strokeWidth={size * 0.005}
         />
 
-        {/* === EXPORT СО ЗВЁЗДАМИ === */}
+        {/* === * EXPORT * === */}
         <text
           x={center}
-          y={center + size * 0.23}
+          y={center + size * 0.185}
           textAnchor="middle"
-          fill="#1e3a8a"
-          fontSize={size * 0.055}
+          fill={color}
+          fontSize={size * 0.058}
           fontWeight="bold"
-          fontFamily="'Times New Roman', serif"
-          letterSpacing="2"
+          fontFamily="'Times New Roman', Times, serif"
+          letterSpacing={size * 0.008}
         >
           ★ EXPORT ★
         </text>
 
-        {/* === НИЖНЯЯ НАДПИСЬ (по дуге) === */}
+        {/* === НИЖНЯЯ НАДПИСЬ ПО ДУГЕ === */}
         <text
-          fill="#1e3a8a"
-          fontSize={size * 0.07}
+          fill={color}
+          fontSize={size * 0.072}
           fontWeight="bold"
-          fontFamily="'Times New Roman', serif"
-          letterSpacing="1.2"
+          fontFamily="'Times New Roman', Times, serif"
+          letterSpacing={size * 0.006}
         >
-          <textPath href="#bottomArc" startOffset="50%" textAnchor="middle">
-            {data.city} · ИНН {data.inn}
+          <textPath
+            href="#bottomArc"
+            startOffset="50%"
+            textAnchor="middle"
+          >
+            {city} · ИНН {inn}
           </textPath>
         </text>
       </svg>
@@ -167,50 +185,57 @@ export function CompanyStamp({ size = 180, opacity = 0.85 }) {
   );
 }
 
-// === КОМПОНЕНТ С ПОДПИСЬЮ ===
-export function SignatureWithStamp({
-  name,
-  role,
-  companyName,
-  inn,
-  ogrn,
-  city = "MOSCOW",
+// === КОМПОНЕНТ С ПОДПИСЬЮ И ПЕЧАТЬЮ === //
+// Для использования в контракте
+export function SignatureBlock({
+  showStamp = true,
+  stampSize = 180,
+  stampRotation = -8,
 }) {
+  const settings = useBusinessSettings();
+
   return (
-    <div className="relative inline-block">
-      {/* Подпись */}
+    <div className="relative inline-block" style={{ minHeight: stampSize }}>
+      {/* Подпись (SVG-роспись) */}
       <div className="relative z-10">
-        <div className="font-serif italic text-2xl text-blue-900 mb-1">
-          {/* Можно вставить SVG-роспись если есть */}
-          <svg width="180" height="50" viewBox="0 0 180 50">
-            <path
-              d="M 10,30 Q 30,5 50,30 T 90,25 Q 110,10 130,30 T 170,20"
-              stroke="#1e3a8a"
-              strokeWidth="1.5"
-              fill="none"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
+        <svg
+          width="200"
+          height="60"
+          viewBox="0 0 200 60"
+          style={{ display: "block" }}
+        >
+          <path
+            d="M 15,40 Q 35,10 55,35 T 95,30 Q 115,12 135,35 T 180,25"
+            stroke="#1e3a8a"
+            strokeWidth="2"
+            fill="none"
+            strokeLinecap="round"
+          />
+        </svg>
         <div className="border-b-2 border-slate-700 w-64 -mt-3 mb-2"></div>
-        <div className="text-xs font-bold text-slate-700">{name}</div>
-        {role && <div className="text-xs text-slate-600">{role}</div>}
+        <div className="text-sm font-bold text-slate-800">
+          {settings.signatureName || "K. Semakin"}
+        </div>
+        <div className="text-xs text-slate-600">
+          {settings.position || "Founder & Export Director"}
+        </div>
+        <div className="text-xs text-slate-600 mt-1">
+          {settings.companyNameEn || "IE Semakin Konstantin"}
+        </div>
       </div>
 
-      {/* Печать поверх подписи (со смещением) */}
-      <div
-        className="absolute pointer-events-none"
-        style={{
-          top: "-10px",
-          left: "140px",
-          transform: "rotate(-8deg)",
-        }}
-      >
-        <CompanyStamp
-          size={160}
-          opacity={0.7}
-        />
-      </div>
+      {/* Печать поверх (со смещением и наклоном) */}
+      {showStamp && (
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: "-20px",
+            left: "160px",
+          }}
+        >
+          <CompanyStamp size={stampSize} rotation={stampRotation} />
+        </div>
+      )}
     </div>
   );
 }
