@@ -239,3 +239,6 @@ export function SignatureBlock({
     </div>
   );
 }
+// === АЛИАС ДЛЯ СОВМЕСТИМОСТИ ===
+// Старое имя — чтобы не ломать существующий код в contract/page.js
+export const SignatureWithStamp = SignatureBlock;
