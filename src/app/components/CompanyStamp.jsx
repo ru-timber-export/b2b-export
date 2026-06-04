@@ -1,234 +1,214 @@
 "use client";
 
-/**
- * 🏛️ Cyber-Stamp Component
- * Имитация чернильной печати российского ИП/ООО
- * 
- * Usage:
- *   <CompanyStamp size={150} rotation={-12} smudge={true} />
- * 
- * Props:
- *   size — диаметр в px (default 180)
- *   rotation — угол поворота (default -8°)
- *   smudge — добавить эффект смаза (default true)
- *   color — 'blue' | 'red' (default 'blue')
- *   companyName — название компании
- *   inn — ИНН
- *   ogrn — ОГРН
- */
-export default function CompanyStamp({
-  size = 180,
-  rotation = -8,
-  smudge = true,
-  color = "blue",
-  companyName = "RU-TIMBER EXPORT",
-  inn = "1234567890",
-  ogrn = "1234567890123",
-  city = "MOSCOW",
-}) {
-  const strokeColor = color === "blue" ? "#1e3a8a" : "#991b1b";
-  const fillColor = color === "blue" ? "#1e3a8a" : "#991b1b";
+// 🎨 RU-TIMBER EXPORT — Official Stamp Component
+// Точное соответствие реальной печати ИП
 
-  // Уникальный ID для фильтров (если несколько печатей на странице)
-  const uniqueId = `stamp-${Math.random().toString(36).substring(7)}`;
+import { useBusinessSettings } from "../context/BusinessContext";
+
+export function CompanyStamp({ size = 180, opacity = 0.85 }) {
+  // Попробуем взять из контекста (если будет настроен)
+  let settings;
+  try {
+    settings = useBusinessSettings();
+  } catch {
+    settings = null;
+  }
+
+  // Fallback — реальные данные с печати
+  const data = settings || {
+    companyName: "RU-TIMBER EXPORT",
+    companyType: "ИП",
+    inn: "7716179565514",
+    ogrn: "326774600405782",
+    city: "MOSCOW",
+  };
+
+  const radius = size / 2;
+  const center = radius;
 
   return (
     <div
-      className="inline-block relative"
-      style={{
-        width: `${size}px`,
-        height: `${size}px`,
-        transform: `rotate(${rotation}deg)`,
-        opacity: smudge ? 0.78 : 0.92,
-        filter: smudge ? "blur(0.4px) contrast(1.1)" : "none",
-      }}
+      className="relative inline-block select-none print:opacity-100"
+      style={{ width: size, height: size, opacity }}
     >
       <svg
-        viewBox="0 0 200 200"
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
         xmlns="http://www.w3.org/2000/svg"
-        style={{ width: "100%", height: "100%" }}
+        style={{
+          filter: "drop-shadow(0 1px 2px rgba(30, 64, 175, 0.15))",
+        }}
       >
         <defs>
-          {/* 🎨 Фильтр "смаз чернил" */}
-          {smudge && (
-            <filter id={`${uniqueId}-smudge`}>
-              <feTurbulence
-                type="fractalNoise"
-                baseFrequency="0.9"
-                numOctaves="2"
-                seed="3"
-              />
-              <feDisplacementMap in="SourceGraphic" scale="2" />
-              <feGaussianBlur stdDeviation="0.3" />
-            </filter>
-          )}
-
-          {/* 🌀 Путь для текста по кругу — ВЕРХ */}
+          {/* Верхняя дуга: компания */}
           <path
-            id={`${uniqueId}-circle-top`}
-            d="M 100,100 m -75,0 a 75,75 0 1,1 150,0"
+            id="topArc"
+            d={`M ${center - (radius - 15)},${center} A ${radius - 15},${radius - 15} 0 0,1 ${center + (radius - 15)},${center}`}
             fill="none"
           />
-
-          {/* 🌀 Путь для текста по кругу — НИЗ */}
+          {/* Нижняя дуга: город + ИНН */}
           <path
-            id={`${uniqueId}-circle-bottom`}
-            d="M 100,100 m -75,0 a 75,75 0 1,0 150,0"
+            id="bottomArc"
+            d={`M ${center - (radius - 15)},${center} A ${radius - 15},${radius - 15} 0 0,0 ${center + (radius - 15)},${center}`}
             fill="none"
           />
         </defs>
 
-        <g
-          stroke={strokeColor}
-          fill={fillColor}
-          filter={smudge ? `url(#${uniqueId}-smudge)` : undefined}
+        {/* === ВНЕШНЯЯ ГРАНИЦА === */}
+        <circle
+          cx={center}
+          cy={center}
+          r={radius - 4}
+          fill="none"
+          stroke="#1e3a8a"
+          strokeWidth="2.5"
+        />
+
+        {/* === ВНУТРЕННЯЯ ГРАНИЦА === */}
+        <circle
+          cx={center}
+          cy={center}
+          r={radius - 20}
+          fill="none"
+          stroke="#1e3a8a"
+          strokeWidth="1.5"
+        />
+
+        {/* === ВЕРХНЯЯ НАДПИСЬ (по дуге) === */}
+        <text
+          fill="#1e3a8a"
+          fontSize={size * 0.085}
+          fontWeight="bold"
+          fontFamily="'Times New Roman', serif"
+          letterSpacing="1.5"
         >
-          {/* Внешний круг */}
-          <circle
-            cx="100"
-            cy="100"
-            r="90"
-            fill="none"
-            strokeWidth="2.5"
-          />
+          <textPath href="#topArc" startOffset="50%" textAnchor="middle">
+            · {data.companyName} ·
+          </textPath>
+        </text>
 
-          {/* Внутренний круг */}
-          <circle
-            cx="100"
-            cy="100"
-            r="78"
-            fill="none"
-            strokeWidth="1.2"
-          />
+        {/* === ЗВЕЗДА СВЕРХУ === */}
+        <text
+          x={center}
+          y={center - radius * 0.42}
+          textAnchor="middle"
+          fill="#1e3a8a"
+          fontSize={size * 0.09}
+        >
+          ★
+        </text>
 
-          {/* Текст по кругу — ВЕРХ (название компании) */}
-          <text
-            fontSize="11"
-            fontWeight="bold"
-            letterSpacing="2.5"
-            fontFamily="Arial, sans-serif"
-          >
-            <textPath
-              href={`#${uniqueId}-circle-top`}
-              startOffset="50%"
-              textAnchor="middle"
-            >
-              • {companyName} •
-            </textPath>
-          </text>
+        {/* === ЦЕНТР: ИП === */}
+        <text
+          x={center}
+          y={center - 2}
+          textAnchor="middle"
+          fill="#1e3a8a"
+          fontSize={size * 0.22}
+          fontWeight="900"
+          fontFamily="'Times New Roman', serif"
+          letterSpacing="2"
+        >
+          {data.companyType || "ИП"}
+        </text>
 
-          {/* Текст по кругу — НИЗ (город + ИНН) */}
-          <text
-            fontSize="8"
-            fontWeight="bold"
-            letterSpacing="1.5"
-            fontFamily="Arial, sans-serif"
-          >
-            <textPath
-              href={`#${uniqueId}-circle-bottom`}
-              startOffset="50%"
-              textAnchor="middle"
-            >
-              {city} • ИНН {inn}
-            </textPath>
-          </text>
+        {/* === ОГРНИП === */}
+        <text
+          x={center}
+          y={center + size * 0.13}
+          textAnchor="middle"
+          fill="#1e3a8a"
+          fontSize={size * 0.052}
+          fontWeight="600"
+          fontFamily="'Times New Roman', serif"
+        >
+          ОГРНИП {data.ogrn}
+        </text>
 
-          {/* Центральная звезда (как на советских печатях) */}
-          <g transform="translate(100, 75)">
-            <polygon
-              points="0,-12 3.5,-3.7 12,-3.7 5.5,2.3 8,11.5 0,6 -8,11.5 -5.5,2.3 -12,-3.7 -3.5,-3.7"
-              strokeWidth="0.8"
-            />
-          </g>
+        {/* === ЛИНИЯ ПОД ОГРН === */}
+        <line
+          x1={center - radius * 0.35}
+          y1={center + size * 0.17}
+          x2={center + radius * 0.35}
+          y2={center + size * 0.17}
+          stroke="#1e3a8a"
+          strokeWidth="1"
+        />
 
-          {/* Текст в центре */}
-          <text
-            x="100"
-            y="105"
-            textAnchor="middle"
-            fontSize="10"
-            fontWeight="bold"
-            fontFamily="Arial, sans-serif"
-          >
-            ИП
-          </text>
+        {/* === EXPORT СО ЗВЁЗДАМИ === */}
+        <text
+          x={center}
+          y={center + size * 0.23}
+          textAnchor="middle"
+          fill="#1e3a8a"
+          fontSize={size * 0.055}
+          fontWeight="bold"
+          fontFamily="'Times New Roman', serif"
+          letterSpacing="2"
+        >
+          ★ EXPORT ★
+        </text>
 
-          <text
-            x="100"
-            y="120"
-            textAnchor="middle"
-            fontSize="6.5"
-            fontFamily="Arial, sans-serif"
-            letterSpacing="0.5"
-          >
-            ОГРН {ogrn}
-          </text>
-
-          {/* Подпись внизу */}
-          <text
-            x="100"
-            y="135"
-            textAnchor="middle"
-            fontSize="5.5"
-            fontFamily="Arial, sans-serif"
-            fontStyle="italic"
-            opacity="0.7"
-          >
-            * EXPORT *
-          </text>
-        </g>
-
-        {/* 💧 Декоративные кляксы для реалистичности */}
-        {smudge && (
-          <g fill={fillColor} opacity="0.25">
-            <ellipse cx="155" cy="60" rx="3" ry="1.5" transform="rotate(35 155 60)" />
-            <ellipse cx="42" cy="145" rx="2" ry="1" transform="rotate(-20 42 145)" />
-            <circle cx="170" cy="130" r="1.2" />
-            <circle cx="30" cy="80" r="0.8" />
-          </g>
-        )}
+        {/* === НИЖНЯЯ НАДПИСЬ (по дуге) === */}
+        <text
+          fill="#1e3a8a"
+          fontSize={size * 0.07}
+          fontWeight="bold"
+          fontFamily="'Times New Roman', serif"
+          letterSpacing="1.2"
+        >
+          <textPath href="#bottomArc" startOffset="50%" textAnchor="middle">
+            {data.city} · ИНН {data.inn}
+          </textPath>
+        </text>
       </svg>
     </div>
   );
 }
 
-/**
- * 📝 SignatureLine — линия для подписи + штамп
- */
-export function SignatureWithStamp({ name, role, companyName, inn, ogrn, city }) {
+// === КОМПОНЕНТ С ПОДПИСЬЮ ===
+export function SignatureWithStamp({
+  name,
+  role,
+  companyName,
+  inn,
+  ogrn,
+  city = "MOSCOW",
+}) {
   return (
-    <div className="inline-block relative">
-      {/* Линия подписи */}
-      <div className="border-b-2 border-slate-700 w-64 mb-2 h-12 relative">
-        {/* Сигнатура (фейковая) */}
-        <svg
-          viewBox="0 0 200 50"
-          className="absolute bottom-1 left-4 w-32 h-10 opacity-70"
-          style={{ transform: "rotate(-3deg)" }}
-        >
-          <path
-            d="M 10,30 Q 25,5 40,25 T 70,20 Q 90,35 110,15 T 150,25"
-            stroke="#1e3a8a"
-            strokeWidth="1.8"
-            fill="none"
-            strokeLinecap="round"
-          />
-        </svg>
+    <div className="relative inline-block">
+      {/* Подпись */}
+      <div className="relative z-10">
+        <div className="font-serif italic text-2xl text-blue-900 mb-1">
+          {/* Можно вставить SVG-роспись если есть */}
+          <svg width="180" height="50" viewBox="0 0 180 50">
+            <path
+              d="M 10,30 Q 30,5 50,30 T 90,25 Q 110,10 130,30 T 170,20"
+              stroke="#1e3a8a"
+              strokeWidth="1.5"
+              fill="none"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
+        <div className="border-b-2 border-slate-700 w-64 -mt-3 mb-2"></div>
+        <div className="text-xs font-bold text-slate-700">{name}</div>
+        {role && <div className="text-xs text-slate-600">{role}</div>}
       </div>
 
-      <div className="text-xs font-bold">{name}</div>
-      <div className="text-xs text-slate-600">{role}</div>
-
-      {/* Печать накладывается на подпись */}
-      <div className="absolute -right-12 -top-4 pointer-events-none print:opacity-90">
+      {/* Печать поверх подписи (со смещением) */}
+      <div
+        className="absolute pointer-events-none"
+        style={{
+          top: "-10px",
+          left: "140px",
+          transform: "rotate(-8deg)",
+        }}
+      >
         <CompanyStamp
-          size={130}
-          rotation={-10}
-          smudge={true}
-          companyName={companyName}
-          inn={inn}
-          ogrn={ogrn}
-          city={city}
+          size={160}
+          opacity={0.7}
         />
       </div>
     </div>
