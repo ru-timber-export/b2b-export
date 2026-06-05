@@ -86,6 +86,9 @@ const defaultDeal = {
   destinationPort: "Jebel Ali, UAE",
   leadTime: 45,
   transitDays: 21,
+  
+  // 🆕 МУЛЬТИ-ПОЗИЦИИ (корзина для Quotation)
+  positions: [],
 };
 
 const defaultSeller = {
@@ -104,25 +107,16 @@ const defaultSeller = {
   correspondentBank: "",
 };
 
-// 🌊 Mission default — ОБНОВЛЁННАЯ структура
+// 🌊 Mission default
 const defaultMission = {
-  // 💰 Текущий капитал (накоплено всего)
   currentCapital: 0,
-  
-  // 💵 Прибыль на контейнер (в USD)
   avgProfitPerContainer_usd: 1000,
-  
-  // 📦 Темп производства
   containersPerMonth: 2,
-  
-  // 💱 Курс USD/RUB для расчёта
   targetUsdRubRate: 85,
-  
-  // 🎯 4 цели в ₽
-  goal_ship: 60000000,      // 🚢 Корабль
-  goal_house: 50000000,     // 🏠 Дом
-  goal_wedding: 5000000,    // 💍 Свадьба
-  goal_reserve: 25000000,   // 💰 Резерв (5 лет × 5 млн)
+  goal_ship: 60000000,
+  goal_house: 50000000,
+  goal_wedding: 5000000,
+  goal_reserve: 25000000,
 };
 
 const defaultChecklist = {
@@ -206,10 +200,54 @@ export function DealProvider({ children }) {
   const resetDeal = () => setDeal(defaultDeal);
 
   // ═══════════════════════════════════════════════
-  // 📊 missionStats — ПОЛНОСТЬЮ ПЕРЕДЕЛАНО
+  // 🆕 ФУНКЦИИ КОРЗИНЫ (МУЛЬТИ-ПОЗИЦИИ)
+  // ═══════════════════════════════════════════════
+
+  // 🛒 Добавить позицию в корзину
+  // Принимает объект с данными позиции, сама генерирует ID и timestamp
+  const addPosition = (positionData) => {
+    const newPosition = {
+      id: `pos-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      createdAt: new Date().toISOString(),
+      ...positionData,
+    };
+    setDeal((prev) => ({
+      ...prev,
+      positions: [...(prev.positions || []), newPosition],
+    }));
+    return newPosition;
+  };
+
+  // 🗑 Удалить позицию по ID
+  const removePosition = (id) => {
+    setDeal((prev) => ({
+      ...prev,
+      positions: (prev.positions || []).filter((p) => p.id !== id),
+    }));
+  };
+
+  // 🧹 Очистить всю корзину
+  const clearPositions = () => {
+    setDeal((prev) => ({
+      ...prev,
+      positions: [],
+    }));
+  };
+
+  // ✏️ Обновить позицию (если понадобится редактирование)
+  const updatePosition = (id, updates) => {
+    setDeal((prev) => ({
+      ...prev,
+      positions: (prev.positions || []).map((p) =>
+        p.id === id ? { ...p, ...updates } : p
+      ),
+    }));
+  };
+
+  // ═══════════════════════════════════════════════
+  // 📊 missionStats
   // ═══════════════════════════════════════════════
   const missionStats = (() => {
-    // Безопасные значения с дефолтами
     const currentCapital = mission.currentCapital || 0;
     const profitPerContainer_usd = mission.avgProfitPerContainer_usd || 1000;
     const containersPerMonth = mission.containersPerMonth || 2;
@@ -220,64 +258,44 @@ export function DealProvider({ children }) {
     const goal_wedding = mission.goal_wedding || 0;
     const goal_reserve = mission.goal_reserve || 0;
     
-    // Общая цель в ₽
     const totalGoal = goal_ship + goal_house + goal_wedding + goal_reserve;
     
-    // Прогресс %
     const overallProgress = totalGoal > 0 
       ? Math.min((currentCapital / totalGoal) * 100, 100)
       : 0;
     
-    // Сколько осталось накопить
     const remaining = Math.max(totalGoal - currentCapital, 0);
-    
-    // Прибыль за контейнер в ₽
     const profitPerContainer_rub = profitPerContainer_usd * usdRubRate;
     
-    // Сколько контейнеров нужно
     const containersNeeded = profitPerContainer_rub > 0
       ? Math.ceil(remaining / profitPerContainer_rub)
       : 0;
     
-    // Сколько месяцев нужно
     const monthsNeeded = containersPerMonth > 0
       ? Math.ceil(containersNeeded / containersPerMonth)
       : 0;
     
-    // Сколько лет
     const yearsNeeded = monthsNeeded / 12;
-    
-    // Прибыль в месяц (₽)
     const profitPerMonthRub = containersPerMonth * profitPerContainer_rub;
-    
-    // Прибыль в год (₽)
     const profitPerYearRub = profitPerMonthRub * 12;
     
-    // Целевая дата (когда выйдешь в океан)
     const targetDate = new Date();
     targetDate.setMonth(targetDate.getMonth() + monthsNeeded);
     
     return {
-      // Базовое
       totalGoal,
-      totalTarget: totalGoal,       // алиас для обратной совместимости
-      totalCurrent: currentCapital, // алиас
+      totalTarget: totalGoal,
+      totalCurrent: currentCapital,
       currentCapital,
       remaining,
       overallProgress,
-      
-      // Расчёты
       containersNeeded,
       monthsNeeded,
-      monthsToGoal: monthsNeeded,   // алиас
+      monthsToGoal: monthsNeeded,
       yearsNeeded,
-      
-      // Прибыль
       profitPerContainer_rub,
       profitPerMonthRub,
       profitPerYearRub,
-      
-      // Дата
       targetDate,
     };
   })();
@@ -304,6 +322,11 @@ export function DealProvider({ children }) {
         updateMission,
         toggleChecklistItem,
         resetDeal,
+        // 🆕 Функции корзины
+        addPosition,
+        removePosition,
+        clearPositions,
+        updatePosition,
       }}
     >
       {children}
