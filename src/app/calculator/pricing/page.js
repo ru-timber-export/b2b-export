@@ -14,7 +14,7 @@ import {
 // 🆕 Дефолтные значения для редактируемых параметров
 const DEFAULT_COSTS = {
   containerCapacity: 50,
-  millPriceOverride: null,        // 🆕 null = использовать расчёт по породе/сушке/упаковке
+  millPriceOverride: null,
   factoryLoading: 6,
   landTransport: 1500,
   portTHC: 250,
@@ -50,13 +50,11 @@ const Tooltip = ({ text }) => {
   );
 };
 
-// 🆕 Компонент строки расхода с правильным выравниванием
 const CostRow = ({ icon, label, perM3, perContainer, total, badge, editable, value, onChange, unit, danger, success }) => {
   const color = danger ? "text-rose-600" : success ? "text-emerald-600" : "text-slate-700";
   return (
     <div className={`py-3 border-b border-slate-200 ${color}`}>
       <div className="grid grid-cols-[1fr_auto] gap-3 items-center">
-        {/* Левая часть: label + цифры */}
         <div className="min-w-0">
           <div className="text-sm font-semibold flex items-center flex-wrap gap-2">
             <span>{icon} {label}</span>
@@ -70,8 +68,6 @@ const CostRow = ({ icon, label, perM3, perContainer, total, badge, editable, val
             ${perM3.toFixed(2)}/m³ · ${perContainer.toFixed(0)}/cont · <span className="font-bold">${total.toFixed(0)} total</span>
           </div>
         </div>
-
-        {/* Правая часть: input (одинаковая ширина для всех!) */}
         {editable ? (
           <div className="flex items-center gap-1 w-[110px] flex-shrink-0">
             <input
@@ -98,18 +94,13 @@ export default function PricingPage() {
   const [cbrDate, setCbrDate] = useState(null);
   const [cbrError, setCbrError] = useState(false);
 
-  // 🆕 Custom freight rate
   const [useCustomFreight, setUseCustomFreight] = useState(false);
   const [customFreightRate, setCustomFreightRate] = useState(2400);
   const [customFreightDate, setCustomFreightDate] = useState("");
 
-  // 🆕 Редактируемые costs
   const [costs, setCosts] = useState(DEFAULT_COSTS);
-
-  // 🆕 Ручное переопределение количества контейнеров
   const [manualContainers, setManualContainers] = useState(null);
 
-  // Загружаем custom freight и costs из localStorage
   useEffect(() => {
     try {
       const savedFreight = localStorage.getItem("ru-timber-custom-freight");
@@ -129,7 +120,6 @@ export default function PricingPage() {
     }
   }, []);
 
-  // Сохраняем custom freight
   const saveCustomFreight = (enabled, rate) => {
     const today = new Date().toLocaleDateString("ru-RU");
     const data = { enabled, rate, date: today };
@@ -137,25 +127,23 @@ export default function PricingPage() {
     setCustomFreightDate(today);
   };
 
-  // 🆕 Сохраняем costs
   const updateCost = (field, value) => {
-  let newValue;
-  if (value === null || value === undefined) {
-    newValue = null;
-  } else {
-    const num = parseFloat(value);
-    newValue = isNaN(num) ? 0 : num;
-  }
-  const newCosts = { ...costs, [field]: newValue };
-  setCosts(newCosts);
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newCosts));
-  } catch (e) {
-    console.error("Save costs failed:", e);
-  }
-};
+    let newValue;
+    if (value === null || value === undefined) {
+      newValue = null;
+    } else {
+      const num = parseFloat(value);
+      newValue = isNaN(num) ? 0 : num;
+    }
+    const newCosts = { ...costs, [field]: newValue };
+    setCosts(newCosts);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newCosts));
+    } catch (e) {
+      console.error("Save costs failed:", e);
+    }
+  };
 
-  // 🆕 Сброс costs к дефолтам
   const resetCosts = () => {
     if (confirm("Сбросить все параметры к дефолтным значениям?")) {
       setCosts(DEFAULT_COSTS);
@@ -163,7 +151,6 @@ export default function PricingPage() {
     }
   };
 
-  // Курс ЦБ РФ
   const fetchCBR = async () => {
     setCbrLoading(true);
     setCbrError(false);
@@ -213,56 +200,45 @@ export default function PricingPage() {
   const effectiveFreightRate = useCustomFreight ? customFreightRate : freightPreset.rate;
   const effectiveFreightLabel = useCustomFreight ? `Custom Rate (manual)` : freightPreset.label;
 
-  // 🆕 РАСЧЁТ КОНТЕЙНЕРОВ (округление вверх)
   const autoContainers = totalVol > 0 ? Math.ceil(totalVol / costs.containerCapacity) : 0;
   const containers = manualContainers !== null ? manualContainers : autoContainers;
   const fillRate = containers > 0 ? (totalVol / (containers * costs.containerCapacity)) * 100 : 0;
 
-  // 🆕 РАСЧЁТЫ ЦЕН
   const speciesBase = SPECIES_BASE_PRICES[species] || 160;
   const dryingAdd = DRYING_SURCHARGE[moisture] || 0;
   const packAdd = PACKAGING_SURCHARGE[packaging] || 0;
 
-  // 🆕 Mill price — можно переопределить вручную
-const calculatedMillPrice = speciesBase + dryingAdd + packAdd;
-const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverride !== undefined
-  ? costs.millPriceOverride
-  : calculatedMillPrice;
+  const calculatedMillPrice = speciesBase + dryingAdd + packAdd;
+  const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverride !== undefined
+    ? costs.millPriceOverride
+    : calculatedMillPrice;
   const millPriceTotal = millPricePerM3 * totalVol;
   const millPricePerContainer = containers > 0 ? millPriceTotal / containers : 0;
 
-  // Factory loading (per m³)
   const factoryLoadingPerM3 = costs.factoryLoading;
   const factoryLoadingTotal = factoryLoadingPerM3 * totalVol;
   const factoryLoadingPerContainer = containers > 0 ? factoryLoadingTotal / containers : 0;
 
-  // Land transport (per container)
   const landTransportPerContainer = costs.landTransport;
   const landTransportTotal = landTransportPerContainer * containers;
   const landTransportPerM3 = totalVol > 0 ? landTransportTotal / totalVol : 0;
 
-  // Port THC (per container)
   const portTHCTotal = costs.portTHC * containers;
   const portTHCPerM3 = totalVol > 0 ? portTHCTotal / totalVol : 0;
 
-  // Port B/L (per container)
   const portBLTotal = costs.portBL * containers;
   const portBLPerM3 = totalVol > 0 ? portBLTotal / totalVol : 0;
 
-  // Port Telex (per container)
   const portTelexTotal = costs.portTelex * containers;
   const portTelexPerM3 = totalVol > 0 ? portTelexTotal / totalVol : 0;
 
-  // Port Other (per container)
   const portOtherTotal = costs.portOther * containers;
   const portOtherPerM3 = totalVol > 0 ? portOtherTotal / totalVol : 0;
 
-  // Ocean freight (per container)
   const oceanPerContainer = effectiveFreightRate;
   const oceanTotal = oceanPerContainer * containers;
   const oceanPerM3 = totalVol > 0 ? oceanTotal / totalVol : 0;
 
-  // 🆕 СУММЫ ПО INCOTERMS
   let totalCostPerM3 = millPricePerM3;
   if (["fca-factory", "fca-port", "fob", "cif"].includes(incoterm)) {
     totalCostPerM3 += factoryLoadingPerM3;
@@ -277,7 +253,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
     totalCostPerM3 += oceanPerM3;
   }
 
-  // Insurance (только для CIF)
   const insurancePerM3 = incoterm === "cif" ? (costs.insuranceRate / 100) * totalCostPerM3 : 0;
   const insuranceTotal = insurancePerM3 * totalVol;
   const insurancePerContainer = containers > 0 ? insuranceTotal / containers : 0;
@@ -286,7 +261,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
     totalCostPerM3 += insurancePerM3;
   }
 
-  // Export duty
   const dutyFree = moisture === "kd" || deal.profileProcessing;
   const dutyPerM3 = dutyFree ? 0 : (costs.exportDutyRate / 100) * totalCostPerM3;
   const dutyTotal = dutyPerM3 * totalVol;
@@ -296,13 +270,47 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
   const totalCostWithDutyTotal = totalCostWithDutyPerM3 * totalVol;
   const totalCostPerContainer = containers > 0 ? totalCostWithDutyTotal / containers : 0;
 
-  // Pricing
   const sellPricePerM3 = totalCostWithDutyPerM3 * (1 + margin / 100);
   const sellPricePerContainer = containers > 0 ? (sellPricePerM3 * totalVol) / containers : 0;
   const profitPerM3 = sellPricePerM3 - totalCostWithDutyPerM3;
   const totalAmount = sellPricePerM3 * totalVol;
   const totalProfit = profitPerM3 * totalVol;
   const profitPerContainer = containers > 0 ? totalProfit / containers : 0;
+
+  // 🆕 SYNC: Сохраняем результаты Pricing в DealContext для Quotation
+  useEffect(() => {
+    if (!isLoaded) return;
+    if (totalVol <= 0 || sellPricePerM3 <= 0) return;
+
+    const needsUpdate =
+      deal.finalPricePerM3 !== sellPricePerM3 ||
+      deal.finalContainers !== containers ||
+      deal.finalTotalAmount !== totalAmount ||
+      deal.finalCostPerM3 !== totalCostWithDutyPerM3;
+
+    if (needsUpdate) {
+      updateDeal({
+        finalPricePerM3: sellPricePerM3,
+        finalCostPerM3: totalCostWithDutyPerM3,
+        finalContainers: containers,
+        finalTotalAmount: totalAmount,
+        finalProfitPerM3: profitPerM3,
+        finalProfitTotal: totalProfit,
+        finalIncoterm: incoterm,
+        finalFreightRoute: deal.freightRoute,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isLoaded,
+    sellPricePerM3,
+    totalCostWithDutyPerM3,
+    containers,
+    totalAmount,
+    profitPerM3,
+    totalProfit,
+    incoterm,
+  ]);
 
   if (!isLoaded) {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>;
@@ -323,7 +331,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
       </header>
 
       <div className="max-w-4xl mx-auto p-4 space-y-6">
-        {/* Title */}
         <div className="bg-white rounded-xl p-5 shadow-sm">
           <h1 className="text-2xl font-black text-slate-900">Pricing Calculator</h1>
           <p className="text-sm text-slate-500 mt-1">
@@ -339,7 +346,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
           dismissKey="usd-rate-tip-2026"
         />
 
-        {/* 🆕 VOLUME + CONTAINERS */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center mb-3">
             📦 Volume & Containers
@@ -354,7 +360,7 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
             <div>
               <label className="text-xs text-slate-500 flex items-center">
                 Container Capacity (m³/40HC)
-                <Tooltip text="Стандарт для KD Pine в crate: 50 m³. Максимум 55 m³. Меняй если у тебя нестандартная упаковка." />
+                <Tooltip text="Стандарт для KD Pine в crate: 50 m³. Максимум 55 m³." />
               </label>
               <input
                 type="number"
@@ -367,7 +373,7 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
             <div>
               <label className="text-xs text-slate-500 flex items-center">
                 Containers (40HC)
-                <Tooltip text="Автоматически = округление вверх. Можно изменить вручную если хочешь полупустой контейнер." />
+                <Tooltip text="Автоматически = округление вверх. Можно изменить вручную." />
               </label>
               <input
                 type="number"
@@ -396,13 +402,11 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
           </div>
           {fillRate < 90 && containers > 0 && (
             <div className="mt-3 p-3 bg-amber-50 border border-amber-300 rounded-lg text-xs text-amber-800">
-              ⚠️ Контейнер заполнен только на {fillRate.toFixed(0)}%. Рекомендуется ≥95% для оптимальной себестоимости. 
-              Добавь объём или уменьши количество контейнеров.
+              ⚠️ Контейнер заполнен только на {fillRate.toFixed(0)}%. Рекомендуется ≥95%.
             </div>
           )}
         </section>
 
-        {/* Freight Route */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
             🚢 Freight Route
@@ -433,7 +437,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
           </div>
         </section>
 
-        {/* Custom Freight Rate */}
         <section className={`rounded-xl p-5 shadow-sm border-2 transition-all ${
           useCustomFreight ? "bg-emerald-50 border-emerald-400" : "bg-white border-slate-200"
         }`}>
@@ -505,7 +508,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
           </div>
         </section>
 
-        {/* Incoterms */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
             📋 Incoterms (Delivery Basis)
@@ -535,12 +537,11 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
           </div>
         </section>
 
-        {/* 🆕 EDITABLE COST BREAKDOWN */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-slate-800 flex items-center">
               💰 Cost Breakdown
-              <Tooltip text="Все цифры РЕДАКТИРУЕМЫЕ. Меняешь — сразу пересчитывается. Сохраняется в браузере." />
+              <Tooltip text="Все цифры РЕДАКТИРУЕМЫЕ. Меняешь — сразу пересчитывается." />
             </h2>
             <button
               onClick={resetCosts}
@@ -556,44 +557,41 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
             actual {totalVol.toFixed(1)} m³ ({fillRate.toFixed(0)}% fill)
           </div>
 
-          {/* 🆕 Mill price — редактируемый */}
-<CostRow
-  icon="🪵"
-  label={`Mill price (${species} ${moisture} ${packaging})${costs.millPriceOverride !== null ? " ✏️" : ""}`}
-  perM3={millPricePerM3}
-  perContainer={millPricePerContainer}
-  total={millPriceTotal}
-  badge={costs.millPriceOverride !== null ? "MANUAL" : null}
-  editable
-  value={costs.millPriceOverride !== null ? costs.millPriceOverride : calculatedMillPrice}
-  onChange={(e) => {
-    const v = e.target.value;
-    if (v === "" || v === null) {
-      updateCost("millPriceOverride", null);
-    } else {
-      updateCost("millPriceOverride", parseFloat(v) || 0);
-    }
-  }}
-  unit="$/m³"
-/>
+          <CostRow
+            icon="🪵"
+            label={`Mill price (${species} ${moisture} ${packaging})${costs.millPriceOverride !== null ? " ✏️" : ""}`}
+            perM3={millPricePerM3}
+            perContainer={millPricePerContainer}
+            total={millPriceTotal}
+            badge={costs.millPriceOverride !== null ? "MANUAL" : null}
+            editable
+            value={costs.millPriceOverride !== null ? costs.millPriceOverride : calculatedMillPrice}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "" || v === null) {
+                updateCost("millPriceOverride", null);
+              } else {
+                updateCost("millPriceOverride", parseFloat(v) || 0);
+              }
+            }}
+            unit="$/m³"
+          />
 
-{/* 🆕 Подсказка для Mill price */}
-{costs.millPriceOverride !== null && (
-  <div className="mt-2 mb-3 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 flex items-center justify-between">
-    <span>
-      ⚠️ Mill price вручную переопределён. 
-      Расчёт по породе был: <span className="font-mono font-bold">${calculatedMillPrice.toFixed(2)}/m³</span>
-    </span>
-    <button
-      onClick={() => updateCost("millPriceOverride", null)}
-      className="ml-2 bg-amber-600 text-white text-xs px-2 py-1 rounded hover:bg-amber-700 active:scale-95 whitespace-nowrap"
-    >
-      🔄 Auto
-    </button>
-  </div>
-)}
+          {costs.millPriceOverride !== null && (
+            <div className="mt-2 mb-3 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 flex items-center justify-between">
+              <span>
+                ⚠️ Mill price вручную переопределён. 
+                Расчёт по породе был: <span className="font-mono font-bold">${calculatedMillPrice.toFixed(2)}/m³</span>
+              </span>
+              <button
+                onClick={() => updateCost("millPriceOverride", null)}
+                className="ml-2 bg-amber-600 text-white text-xs px-2 py-1 rounded hover:bg-amber-700 active:scale-95 whitespace-nowrap"
+              >
+                🔄 Auto
+              </button>
+            </div>
+          )}
 
-          {/* Factory loading (per m³, редактируемое) */}
           {["fca-factory", "fca-port", "fob", "cif"].includes(incoterm) && (
             <CostRow
               icon="🚚"
@@ -608,7 +606,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
             />
           )}
 
-          {/* Land transport (per container) */}
           {["fca-port", "fob", "cif"].includes(incoterm) && (
             <CostRow
               icon="🚛"
@@ -623,7 +620,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
             />
           )}
 
-          {/* Port fees — 4 строки */}
           {["fob", "cif"].includes(incoterm) && (
             <>
               <CostRow
@@ -673,7 +669,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
             </>
           )}
 
-          {/* Ocean freight */}
           {incoterm === "cif" && (
             <CostRow
               icon="🚢"
@@ -685,7 +680,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
             />
           )}
 
-          {/* Insurance */}
           {incoterm === "cif" && (
             <CostRow
               icon="🛡"
@@ -700,7 +694,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
             />
           )}
 
-          {/* Export duty */}
           <CostRow
             icon="🏛"
             label={`Export duty ${dutyFree ? "(0% — KD/4409)" : `(${costs.exportDutyRate}% — AD raw)`}`}
@@ -715,7 +708,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
             unit="%"
           />
 
-          {/* TOTAL */}
           <div className="mt-3 pt-3 border-t-2 border-slate-900 bg-slate-50 -mx-5 px-5 py-3">
             <div className="font-bold text-lg text-slate-900">TOTAL COST ({incoterm.toUpperCase()})</div>
             <div className="text-sm font-mono mt-1">
@@ -727,7 +719,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
             </div>
           </div>
 
-          {/* Profile processing checkbox */}
           <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
             <label className="flex items-start gap-2 cursor-pointer">
               <input
@@ -749,7 +740,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
           </div>
         </section>
 
-        {/* Margin + Rate */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
             📊 Margin & Exchange Rate
@@ -816,14 +806,12 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
           </div>
         </section>
 
-        {/* 🆕 FINAL PRICING с тремя метриками */}
         <section className="bg-slate-900 text-white rounded-xl p-5 shadow-lg">
           <h2 className="font-bold">🎯 Final Pricing</h2>
           <div className="text-xs opacity-60 mt-1">
             {incoterm.toUpperCase()} · Margin {margin}% · {totalVol.toFixed(2)} m³ · {containers} × 40HC · ₽{rate}/$
           </div>
 
-          {/* SELLING PRICE */}
           <div className="mt-4 p-4 bg-slate-800 rounded-lg">
             <div className="text-xs opacity-60 mb-2">💵 SELLING PRICE</div>
             <div className="grid grid-cols-3 gap-2 text-center">
@@ -843,7 +831,6 @@ const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverri
             <div className="text-center text-xs opacity-50 mt-2">≈ ₽{(totalAmount * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}</div>
           </div>
 
-          {/* PROFIT */}
           <div className="mt-3 p-4 bg-emerald-900/50 border border-emerald-700 rounded-lg">
             <div className="text-xs opacity-75 mb-2">💚 YOUR PROFIT</div>
             <div className="grid grid-cols-3 gap-2 text-center">

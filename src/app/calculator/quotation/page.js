@@ -14,13 +14,11 @@ export default function QuotationPage() {
   const { customers, isLoaded: customersLoaded } = useCustomers();
   const { nextNumber, commitNumber, isLoaded: counterLoaded } = useQuotationCounter();
 
-  // 🆕 State для выбранного клиента и модалки
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showCustomerPicker, setShowCustomerPicker] = useState(false);
   const [quotationNumber, setQuotationNumber] = useState("");
   const [numberCommitted, setNumberCommitted] = useState(false);
 
-  // Установить превью-номер при загрузке
   useEffect(() => {
     if (counterLoaded && !quotationNumber) {
       setQuotationNumber(nextNumber);
@@ -32,7 +30,6 @@ export default function QuotationPage() {
   }
 
   const handlePrint = () => {
-    // Зафиксировать номер при первой печати
     if (!numberCommitted) {
       const committed = commitNumber();
       setQuotationNumber(committed);
@@ -41,13 +38,51 @@ export default function QuotationPage() {
     setTimeout(() => window.print(), 100);
   };
 
-  // Расчёты
-  const volumePerContainer = deal.volumeTotal || 0;
-  const pricePerM3 = deal.pricingPerM3 || 0;
-  const containerCount = deal.containerCount || 1;
-  const totalPerContainer = volumePerContainer * pricePerM3;
-  const grandTotal = totalPerContainer * containerCount;
-  const totalVolume = volumePerContainer * containerCount;
+  // 🆕 ИСПРАВЛЕНО: читаем те поля что РЕАЛЬНО есть в DealContext
+  const totalVolume = parseFloat(deal.totalVolume) || 0;
+  const pricePerM3 = parseFloat(deal.finalPricePerM3) || 0;
+  const containerCount = parseInt(deal.finalContainers) || 1;
+  const volumePerContainer = containerCount > 0 ? totalVolume / containerCount : 0;
+  const grandTotal = parseFloat(deal.finalTotalAmount) || (totalVolume * pricePerM3);
+
+  // 🆕 Маппинг полей калькулятора → Quotation
+  const dimensions = `${deal.thickness || 50}×${deal.width || 150}×${deal.length || 6000}`;
+
+  const moistureLabel = {
+    kd: "KD 10-12% (Kiln Dried)",
+    ad: "AD 18-22% (Air Dried)",
+    fresh: "Fresh 22-30%",
+  }[deal.moisture] || "KD 10-12%";
+
+  const packagingLabel = {
+    none: "Bulk (no packaging)",
+    crate: "Strapped bundles + crate",
+    shrink: "Shrink-wrap + crate (premium)",
+  }[deal.packaging] || "Strapped bundles, AST treated";
+
+  const speciesNames = {
+    pine: "Pine (Pinus sylvestris)",
+    spruce: "Spruce (Picea abies)",
+    larch: "Larch (Larix sibirica)",
+    cedar: "Cedar (Pinus sibirica)",
+    birch: "Birch (Betula)",
+    oak: "Oak (Quercus)",
+    aspen: "Aspen (Populus tremula)",
+    "pine-spruce-50-50": "Pine + Spruce 50/50",
+    "pine-spruce-70-30": "Pine + Spruce 70/30",
+    spf: "SPF (Spruce/Pine/Fir)",
+  };
+  const speciesName = speciesNames[deal.species] || "Pine (Pinus sylvestris)";
+
+  const destinationMap = {
+    "vlv-chennai": "Chennai, India",
+    "vlv-mundra": "Mundra, India",
+    "vlv-jebel-ali": "Jebel Ali, UAE",
+    "vlv-istanbul": "Istanbul, Türkiye",
+    "vlv-alexandria": "Alexandria, Egypt",
+    "vlv-shanghai": "Shanghai, China",
+  };
+  const destinationPort = destinationMap[deal.freightRoute] || "Jebel Ali, UAE";
 
   const today = new Date().toLocaleDateString("en-GB");
   const validUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString("en-GB");
@@ -65,7 +100,6 @@ export default function QuotationPage() {
         }
       `}</style>
 
-      {/* NAV */}
       <nav className="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-lg print:hidden">
         <div className="max-w-5xl mx-auto flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2">
@@ -79,7 +113,6 @@ export default function QuotationPage() {
         </div>
       </nav>
 
-      {/* Controls */}
       <div className="max-w-5xl mx-auto p-4 print:hidden">
         <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
           <div className="flex flex-wrap gap-3 items-center justify-between">
@@ -99,7 +132,6 @@ export default function QuotationPage() {
             </button>
           </div>
 
-          {/* 🆕 Customer selector */}
           <div className="border-t pt-3 flex flex-wrap items-center gap-2">
             <span className="text-xs font-bold text-slate-600">👥 Buyer:</span>
             {selectedCustomer ? (
@@ -141,7 +173,6 @@ export default function QuotationPage() {
         </div>
       </div>
 
-      {/* 🆕 Customer Picker Modal */}
       {showCustomerPicker && (
         <CustomerPickerModal
           customers={customers}
@@ -150,7 +181,6 @@ export default function QuotationPage() {
         />
       )}
 
-      {/* Warning if settings incomplete */}
       {settingsIncomplete && (
         <div className="max-w-5xl mx-auto p-4 print:hidden">
           <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-4 flex items-start gap-3">
@@ -168,7 +198,6 @@ export default function QuotationPage() {
         </div>
       )}
 
-      {/* Reminders */}
       <div className="max-w-5xl mx-auto p-4 print:hidden space-y-2">
         <Reminder title="KYC проверка покупателя" tone="warning" icon="🔍">
           Перед отправкой Quotation убедись что проверил покупателя: реальный сайт, юридический адрес, отзывы, торговая лицензия (Trade License в ОАЭ).
@@ -181,11 +210,9 @@ export default function QuotationPage() {
         </Reminder>
       </div>
 
-      {/* QUOTATION DOCUMENT */}
       <div className="max-w-5xl mx-auto p-4 pb-12">
         <div className="quotation-page bg-white shadow-2xl rounded-xl p-6 sm:p-10">
 
-          {/* HEADER */}
           <header className="border-b-4 border-orange-500 pb-6 mb-6">
             <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
               <div>
@@ -215,7 +242,6 @@ export default function QuotationPage() {
             </div>
           </header>
 
-          {/* TO / FROM */}
           <section className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <div className="bg-slate-50 rounded-lg p-3">
               <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mb-1">FROM (Seller)</div>
@@ -254,24 +280,21 @@ export default function QuotationPage() {
             </div>
           </section>
 
-          {/* SUBJECT */}
           <section className="bg-slate-900 text-white rounded-lg p-4 mb-6">
             <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Subject</div>
             <div className="font-bold text-base sm:text-lg">
-              Sawn Timber Export — {deal.species || "Pine"} — {containerCount} × {deal.containerType || "40HC"} Container{containerCount > 1 ? "s" : ""}
+              Sawn Timber Export — {speciesName} — {containerCount} × 40HC Container{containerCount > 1 ? "s" : ""}
             </div>
             <div className="text-xs text-slate-300 mt-1">
-              {deal.loadingPort || settings.defaultPort || "Novorossiysk"} → {deal.destinationPort || "Jebel Ali, UAE"} · {settings.defaultIncoterm || "CIF"} Incoterms 2020
+              {settings.defaultPort || "Novorossiysk"} → {destinationPort} · {(deal.incoterm || "CIF").toUpperCase()} Incoterms 2020
             </div>
           </section>
 
-          {/* PRODUCT SPECIFICATION */}
           <section className="mb-6">
             <h3 className="text-xs sm:text-sm font-black text-orange-500 mb-3 tracking-wider">
               📋 PRODUCT SPECIFICATION
             </h3>
 
-            {/* DESKTOP table */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-100 text-slate-700 text-xs uppercase tracking-wider">
@@ -287,14 +310,14 @@ export default function QuotationPage() {
                 <tbody>
                   <tr className="border-b border-slate-100">
                     <td className="p-3">
-                      <div className="font-bold">{deal.species || "Pine"} (Pinus sylvestris)</div>
+                      <div className="font-bold">{speciesName}</div>
                       <div className="text-xs text-slate-500">GOST 8486-86, Grade 1-3</div>
                       <div className="text-xs text-orange-600 font-semibold">🟠 REDWOOD</div>
                     </td>
                     <td className="p-3">
-                      <div className="font-mono text-xs">{deal.dimensions || "50x150x6000"} mm</div>
-                      <div className="text-xs text-slate-500">{deal.drying || "KD 10-12%"}</div>
-                      <div className="text-xs text-slate-500">{deal.packaging || "Strapped bundles, AST"}</div>
+                      <div className="font-mono text-xs">{dimensions} mm</div>
+                      <div className="text-xs text-slate-500">{moistureLabel}</div>
+                      <div className="text-xs text-slate-500">{packagingLabel}</div>
                     </td>
                     <td className="p-3 text-right font-mono">{volumePerContainer.toFixed(2)}</td>
                     <td className="p-3 text-right font-mono font-bold">{containerCount}</td>
@@ -305,7 +328,7 @@ export default function QuotationPage() {
                 <tfoot className="bg-slate-50 font-bold">
                   <tr>
                     <td colSpan="5" className="p-3 text-right">
-                      TOTAL ({containerCount} × {deal.containerType || "40HC"}, {totalVolume.toFixed(1)} m³):
+                      TOTAL ({containerCount} × 40HC, {totalVolume.toFixed(1)} m³):
                     </td>
                     <td className="p-3 text-right font-mono text-orange-500 text-base">
                       ${grandTotal.toFixed(0)}
@@ -315,12 +338,11 @@ export default function QuotationPage() {
               </table>
             </div>
 
-            {/* MOBILE cards */}
             <div className="sm:hidden space-y-3">
               <div className="bg-slate-50 rounded-lg p-3 border-l-4 border-orange-500">
                 <div className="flex justify-between items-start mb-2">
                   <div>
-                    <div className="font-black text-slate-900 text-sm">{deal.species || "Pine"} (Pinus sylvestris)</div>
+                    <div className="font-black text-slate-900 text-sm">{speciesName}</div>
                     <div className="text-xs text-slate-500">GOST 8486-86, Grade 1-3</div>
                     <div className="text-xs text-orange-600 font-bold mt-0.5">🟠 REDWOOD</div>
                   </div>
@@ -332,11 +354,11 @@ export default function QuotationPage() {
                 <div className="grid grid-cols-2 gap-2 text-xs mt-3">
                   <div className="bg-white rounded p-2">
                     <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Dimensions</div>
-                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{deal.dimensions || "50x150x6000"} mm</div>
+                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{dimensions} mm</div>
                   </div>
                   <div className="bg-white rounded p-2">
                     <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Moisture</div>
-                    <div className="font-bold text-slate-900 mt-0.5 text-xs">{deal.drying || "KD 10-12%"}</div>
+                    <div className="font-bold text-slate-900 mt-0.5 text-xs">{moistureLabel}</div>
                   </div>
                   <div className="bg-white rounded p-2">
                     <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Vol/Cont</div>
@@ -344,11 +366,11 @@ export default function QuotationPage() {
                   </div>
                   <div className="bg-white rounded p-2">
                     <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Containers</div>
-                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{containerCount} × {deal.containerType || "40HC"}</div>
+                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{containerCount} × 40HC</div>
                   </div>
                   <div className="bg-white rounded p-2 col-span-2">
                     <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Packaging</div>
-                    <div className="text-xs text-slate-800 mt-0.5">{deal.packaging || "Strapped bundles, AST treated"}</div>
+                    <div className="text-xs text-slate-800 mt-0.5">{packagingLabel}</div>
                   </div>
                   <div className="bg-white rounded p-2">
                     <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Price/m³</div>
@@ -369,7 +391,7 @@ export default function QuotationPage() {
               <div className="bg-slate-900 text-white rounded-lg p-4 flex justify-between items-center">
                 <div>
                   <div className="text-[10px] uppercase tracking-wider text-slate-400">Grand Total</div>
-                  <div className="text-xs text-slate-500">{containerCount} × {deal.containerType || "40HC"}</div>
+                  <div className="text-xs text-slate-500">{containerCount} × 40HC</div>
                 </div>
                 <div className="text-right">
                   <div className="font-mono font-black text-2xl text-orange-400">${grandTotal.toFixed(0)}</div>
@@ -379,19 +401,17 @@ export default function QuotationPage() {
             </div>
           </section>
 
-          {/* TERMS GRID */}
           <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-            <TermBlock label="Incoterms" value={`${deal.incoterm || settings.defaultIncoterm || "CIF"} ${deal.destinationPort || "Jebel Ali"}`} />
-            <TermBlock label="Lead Time" value={`${deal.leadTime || settings.defaultTransitDays || 45} days from advance`} />
+            <TermBlock label="Incoterms" value={`${(deal.incoterm || "CIF").toUpperCase()} ${destinationPort}`} />
+            <TermBlock label="Lead Time" value={`${settings.defaultTransitDays || 45} days from advance`} />
             <TermBlock label="Payment" value={settings.paymentTerms || "30% advance + 70% vs B/L copy"} />
             <TermBlock label="Document Release" value="⚡ Telex Release (no DHL)" />
-            <TermBlock label="Loading Port" value={deal.loadingPort || settings.defaultPort || "Novorossiysk, RU"} />
-            <TermBlock label="Destination" value={deal.destinationPort || "Jebel Ali, UAE"} />
-            <TermBlock label="Container Type" value={`${containerCount} × ${deal.containerType || "40HC"}`} />
-            <TermBlock label="Schedule" value={deal.shipmentSchedule === "single" ? "Single shipment" : `${deal.shipmentSchedule || "single"}`} />
+            <TermBlock label="Loading Port" value={settings.defaultPort || "Novorossiysk, RU"} />
+            <TermBlock label="Destination" value={destinationPort} />
+            <TermBlock label="Container Type" value={`${containerCount} × 40HC`} />
+            <TermBlock label="Schedule" value="Single shipment" />
           </section>
 
-          {/* BANK DETAILS */}
           {(settings.bankNameEn || settings.bankAccountUSD) && (
             <section className="bg-emerald-50 border-l-4 border-emerald-500 rounded p-4 mb-6">
               <h4 className="text-xs font-black text-emerald-900 uppercase tracking-wider mb-2">🏦 Banking Details (for advance payment)</h4>
@@ -405,7 +425,6 @@ export default function QuotationPage() {
             </section>
           )}
 
-          {/* DOCUMENTS */}
           <section className="bg-blue-50 border-l-4 border-blue-500 rounded p-4 mb-6">
             <h4 className="text-xs font-black text-blue-900 uppercase tracking-wider mb-2">📑 Documents provided</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs text-blue-800">
@@ -421,16 +440,14 @@ export default function QuotationPage() {
             </div>
           </section>
 
-          {/* TERMS & CONDITIONS */}
           <section className="text-xs text-slate-600 space-y-2 mb-6 border-t pt-4">
             <div><strong>Validity:</strong> This Quotation is valid until {validUntil}.</div>
-            <div><strong>Quality:</strong> All goods shall meet GOST 8486-86 standard. 100% Pine (Pinus sylvestris).</div>
+            <div><strong>Quality:</strong> All goods shall meet GOST 8486-86 standard.</div>
             <div><strong>Inspection:</strong> Pre-shipment inspection by SGS / Bureau Veritas available at Buyer's expense.</div>
             <div><strong>Force Majeure:</strong> Including sanctions, banking restrictions, port closures. Full terms in Contract.</div>
             <div><strong>Arbitration:</strong> ICAC at the Chamber of Commerce and Industry of the Russian Federation, Moscow.</div>
           </section>
 
-          {/* FOOTER */}
           <footer className="border-t-2 border-slate-200 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
             <div>
               <div className="text-xs text-slate-500 mb-1">Issued by:</div>
@@ -453,8 +470,6 @@ export default function QuotationPage() {
   );
 }
 
-// ============ COMPONENTS ============
-
 function TermBlock({ label, value }) {
   return (
     <div className="bg-slate-50 rounded p-2.5">
@@ -464,7 +479,6 @@ function TermBlock({ label, value }) {
   );
 }
 
-// 🆕 МОДАЛКА ВЫБОРА КЛИЕНТА
 function CustomerPickerModal({ customers, onSelect, onClose }) {
   const [search, setSearch] = useState("");
 
@@ -474,7 +488,6 @@ function CustomerPickerModal({ customers, onSelect, onClose }) {
     return `${c.companyName} ${c.contactPerson} ${c.country} ${c.email}`.toLowerCase().includes(q);
   });
 
-  // Сортировка: Hot → Warm → Cold
   const tempOrder = { hot: 0, warm: 1, cold: 2 };
   const sorted = [...filtered].sort((a, b) => {
     return (tempOrder[a.temperature] ?? 3) - (tempOrder[b.temperature] ?? 3);
@@ -483,13 +496,11 @@ function CustomerPickerModal({ customers, onSelect, onClose }) {
   return (
     <div className="fixed inset-0 bg-slate-900/80 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 print:hidden">
       <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl shadow-2xl max-h-[90vh] flex flex-col rounded-t-2xl">
-        {/* Header */}
         <div className="p-4 border-b flex items-center justify-between">
           <h3 className="font-black text-lg">👥 Select Buyer from CRM</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-700 text-2xl">✕</button>
         </div>
 
-        {/* Search */}
         <div className="p-3 border-b">
           <input
             type="text"
@@ -504,7 +515,6 @@ function CustomerPickerModal({ customers, onSelect, onClose }) {
           </div>
         </div>
 
-        {/* List */}
         <div className="flex-1 overflow-y-auto p-3 space-y-2">
           {customers.length === 0 ? (
             <div className="text-center py-12">
@@ -560,7 +570,6 @@ function CustomerPickerModal({ customers, onSelect, onClose }) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="p-3 border-t flex gap-2">
           <Link
             href="/captain/customers"
@@ -579,5 +588,3 @@ function CustomerPickerModal({ customers, onSelect, onClose }) {
     </div>
   );
 }
-
-// END OF FILE
