@@ -8,8 +8,47 @@ import { useQuotationCounter } from "../../hooks/useQuotationCounter";
 import Link from "next/link";
 import Reminder from "../../components/Reminder";
 
+// 🏷 Маппинг для отображения
+const SPECIES_NAMES = {
+  pine: "Pine (Pinus sylvestris)",
+  spruce: "Spruce (Picea abies)",
+  larch: "Larch (Larix sibirica)",
+  cedar: "Cedar (Pinus sibirica)",
+  birch: "Birch (Betula)",
+  oak: "Oak (Quercus)",
+  aspen: "Aspen (Populus tremula)",
+  "pine-spruce-50-50": "Pine + Spruce 50/50",
+  "pine-spruce-70-30": "Pine + Spruce 70/30",
+  spf: "SPF (Spruce/Pine/Fir)",
+};
+
+const MOISTURE_LABELS = {
+  kd: "KD 10-12% (Kiln Dried)",
+  ad: "AD 18-22% (Air Dried)",
+  fresh: "Fresh 22-30%",
+};
+
+const PACKAGING_LABELS = {
+  none: "Bulk (no packaging)",
+  crate: "Strapped bundles + crate",
+  shrink: "Shrink-wrap + crate (premium)",
+  strapped: "Strapped bundles",
+  premium: "Premium packaging",
+};
+
+const DESTINATION_MAP = {
+  "nvr-jebelali": "Jebel Ali, UAE",
+  "nvr-dammam": "Dammam, Saudi Arabia",
+  "nvr-doha": "Doha, Qatar",
+  "nvr-alex": "Alexandria, Egypt",
+  "nvr-istanbul": "Istanbul, Türkiye",
+  "spb-jebelali": "Jebel Ali, UAE",
+  "vlv-mumbai": "Mumbai, India",
+  "vlv-chennai": "Chennai, India",
+};
+
 export default function QuotationPage() {
-  const { deal, isLoaded: dealLoaded } = useDeal();
+  const { deal, isLoaded: dealLoaded, clearPositions } = useDeal();
   const { settings, isLoaded: settingsLoaded } = useBusinessSettings();
   const { customers, isLoaded: customersLoaded } = useCustomers();
   const { nextNumber, commitNumber, isLoaded: counterLoaded } = useQuotationCounter();
@@ -38,51 +77,50 @@ export default function QuotationPage() {
     setTimeout(() => window.print(), 100);
   };
 
-  // 🆕 ИСПРАВЛЕНО: читаем те поля что РЕАЛЬНО есть в DealContext
-  const totalVolume = parseFloat(deal.totalVolume) || 0;
-  const pricePerM3 = parseFloat(deal.finalPricePerM3) || 0;
-  const containerCount = parseInt(deal.finalContainers) || 1;
-  const volumePerContainer = containerCount > 0 ? totalVolume / containerCount : 0;
-  const grandTotal = parseFloat(deal.finalTotalAmount) || (totalVolume * pricePerM3);
+  // 🆕 МУЛЬТИ-ПОЗИЦИИ ИЗ КОРЗИНЫ
+  const basketPositions = deal.positions || [];
+  const hasBasket = basketPositions.length > 0;
 
-  // 🆕 Маппинг полей калькулятора → Quotation
-  const dimensions = `${deal.thickness || 50}×${deal.width || 150}×${deal.length || 6000}`;
-
-  const moistureLabel = {
-    kd: "KD 10-12% (Kiln Dried)",
-    ad: "AD 18-22% (Air Dried)",
-    fresh: "Fresh 22-30%",
-  }[deal.moisture] || "KD 10-12%";
-
-  const packagingLabel = {
-    none: "Bulk (no packaging)",
-    crate: "Strapped bundles + crate",
-    shrink: "Shrink-wrap + crate (premium)",
-  }[deal.packaging] || "Strapped bundles, AST treated";
-
-  const speciesNames = {
-    pine: "Pine (Pinus sylvestris)",
-    spruce: "Spruce (Picea abies)",
-    larch: "Larch (Larix sibirica)",
-    cedar: "Cedar (Pinus sibirica)",
-    birch: "Birch (Betula)",
-    oak: "Oak (Quercus)",
-    aspen: "Aspen (Populus tremula)",
-    "pine-spruce-50-50": "Pine + Spruce 50/50",
-    "pine-spruce-70-30": "Pine + Spruce 70/30",
-    spf: "SPF (Spruce/Pine/Fir)",
+  // 🆕 Если корзина пустая — fallback на одну позицию из калькулятора
+  const fallbackPosition = {
+    id: "fallback",
+    species: deal.species || "pine",
+    speciesLabel: SPECIES_NAMES[deal.species] || "Pine (Pinus sylvestris)",
+    thickness: parseFloat(deal.thickness) || 50,
+    width: parseFloat(deal.width) || 150,
+    length: parseFloat(deal.length) || 6000,
+    moisture: deal.moisture || "kd",
+    moistureLabel: MOISTURE_LABELS[deal.moisture] || "KD 10-12%",
+    packaging: deal.packaging || "crate",
+    packagingLabel: PACKAGING_LABELS[deal.packaging] || "Strapped bundles + crate",
+    totalVolume: parseFloat(deal.totalVolume) || 0,
+    containers: parseInt(deal.finalContainers) || 1,
+    volumePerContainer: 0, // вычислим ниже
+    pricePerM3: parseFloat(deal.finalPricePerM3) || 0,
+    totalAmount: parseFloat(deal.finalTotalAmount) || 0,
   };
-  const speciesName = speciesNames[deal.species] || "Pine (Pinus sylvestris)";
+  fallbackPosition.volumePerContainer = 
+    fallbackPosition.containers > 0 ? fallbackPosition.totalVolume / fallbackPosition.containers : 0;
+  if (!fallbackPosition.totalAmount) {
+    fallbackPosition.totalAmount = fallbackPosition.totalVolume * fallbackPosition.pricePerM3;
+  }
 
-  const destinationMap = {
-    "vlv-chennai": "Chennai, India",
-    "vlv-mundra": "Mundra, India",
-    "vlv-jebel-ali": "Jebel Ali, UAE",
-    "vlv-istanbul": "Istanbul, Türkiye",
-    "vlv-alexandria": "Alexandria, Egypt",
-    "vlv-shanghai": "Shanghai, China",
-  };
-  const destinationPort = destinationMap[deal.freightRoute] || "Jebel Ali, UAE";
+  // ✅ Финальный массив позиций для отображения
+  const positions = hasBasket ? basketPositions : [fallbackPosition];
+
+  // ✅ Общие итоги
+  const totalVolume = positions.reduce((sum, p) => sum + (p.totalVolume || 0), 0);
+  const totalContainers = positions.reduce((sum, p) => sum + (p.containers || 0), 0);
+  const grandTotal = positions.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+
+  // 🆕 Общие условия сделки (берём из текущего deal)
+  const destinationPort = DESTINATION_MAP[deal.freightRoute] || "Jebel Ali, UAE";
+  const incotermLabel = (deal.incoterm || "CIF").toUpperCase();
+
+  // ✅ Subject строка
+  const speciesListInSubject = [...new Set(positions.map(p => 
+    (p.speciesLabel || SPECIES_NAMES[p.species] || "Pine").split(" (")[0]
+  ))].join(" + ");
 
   const today = new Date().toLocaleDateString("en-GB");
   const validUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString("en-GB");
@@ -117,19 +155,41 @@ export default function QuotationPage() {
         <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
           <div className="flex flex-wrap gap-3 items-center justify-between">
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900">📄 Quotation</h1>
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900">
+                📄 Quotation
+                {hasBasket && (
+                  <span className="ml-2 text-sm bg-purple-100 text-purple-800 px-2 py-1 rounded-full font-bold">
+                    🛒 {positions.length} positions
+                  </span>
+                )}
+              </h1>
               <p className="text-xs text-slate-500">
                 Number: <span className="font-mono font-bold text-orange-500">{quotationNumber}</span>
                 {!numberCommitted && <span className="ml-2 text-slate-400">(preview)</span>}
                 {numberCommitted && <span className="ml-2 text-emerald-500">✓ committed</span>}
               </p>
             </div>
-            <button
-              onClick={handlePrint}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 active:scale-95"
-            >
-              🖨 Print / PDF
-            </button>
+            <div className="flex gap-2">
+              {hasBasket && (
+                <button
+                  onClick={() => {
+                    if (confirm("Очистить корзину после печати?\n\nQuotation останется на экране, но позиции удалятся из корзины.")) {
+                      clearPositions();
+                    }
+                  }}
+                  className="bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-2 rounded-lg font-bold text-xs active:scale-95"
+                  title="Clear basket"
+                >
+                  🗑 Clear basket
+                </button>
+              )}
+              <button
+                onClick={handlePrint}
+                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 active:scale-95"
+              >
+                🖨 Print / PDF
+              </button>
+            </div>
           </div>
 
           <div className="border-t pt-3 flex flex-wrap items-center gap-2">
@@ -179,6 +239,25 @@ export default function QuotationPage() {
           onSelect={(c) => { setSelectedCustomer(c); setShowCustomerPicker(false); }}
           onClose={() => setShowCustomerPicker(false)}
         />
+      )}
+
+      {/* 🆕 ИНФО О ПУСТОЙ КОРЗИНЕ */}
+      {!hasBasket && totalVolume > 0 && (
+        <div className="max-w-5xl mx-auto p-4 print:hidden">
+          <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 flex items-start gap-3">
+            <div className="text-2xl">💡</div>
+            <div className="flex-1">
+              <div className="font-bold text-blue-900">Quotation на 1 позицию</div>
+              <div className="text-xs text-blue-800 mt-1">
+                Если хочешь добавить ещё позиции (Сосна + Лиственница + Ель) — 
+                иди в Pricing и нажми "Add to Quotation Basket".
+              </div>
+              <Link href="/calculator/pricing" className="inline-block mt-2 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-blue-700 active:scale-95">
+                💰 Add more positions →
+              </Link>
+            </div>
+          </div>
+        </div>
       )}
 
       {settingsIncomplete && (
@@ -283,52 +362,69 @@ export default function QuotationPage() {
           <section className="bg-slate-900 text-white rounded-lg p-4 mb-6">
             <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold mb-1">Subject</div>
             <div className="font-bold text-base sm:text-lg">
-              Sawn Timber Export — {speciesName} — {containerCount} × 40HC Container{containerCount > 1 ? "s" : ""}
+              Sawn Timber Export — {speciesListInSubject} — {totalContainers} × 40HC Container{totalContainers > 1 ? "s" : ""}
+              {hasBasket && positions.length > 1 && (
+                <span className="text-sm font-normal opacity-80"> ({positions.length} positions)</span>
+              )}
             </div>
             <div className="text-xs text-slate-300 mt-1">
-              {settings.defaultPort || "Novorossiysk"} → {destinationPort} · {(deal.incoterm || "CIF").toUpperCase()} Incoterms 2020
+              {settings.defaultPort || "Novorossiysk"} → {destinationPort} · {incotermLabel} Incoterms 2020
             </div>
           </section>
 
           <section className="mb-6">
             <h3 className="text-xs sm:text-sm font-black text-orange-500 mb-3 tracking-wider">
               📋 PRODUCT SPECIFICATION
+              {hasBasket && (
+                <span className="ml-2 text-purple-600">({positions.length} positions)</span>
+              )}
             </h3>
 
+            {/* DESKTOP TABLE */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-100 text-slate-700 text-xs uppercase tracking-wider">
                   <tr>
+                    <th className="text-left p-3 font-bold w-12">#</th>
                     <th className="text-left p-3 font-bold">Product</th>
                     <th className="text-left p-3 font-bold">Specification</th>
-                    <th className="text-right p-3 font-bold">Vol/Cont (m³)</th>
+                    <th className="text-right p-3 font-bold">Vol (m³)</th>
                     <th className="text-right p-3 font-bold">Qty (cont)</th>
                     <th className="text-right p-3 font-bold">Price (USD/m³)</th>
                     <th className="text-right p-3 font-bold">Total (USD)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-b border-slate-100">
-                    <td className="p-3">
-                      <div className="font-bold">{speciesName}</div>
-                      <div className="text-xs text-slate-500">GOST 8486-86, Grade 1-3</div>
-                      <div className="text-xs text-orange-600 font-semibold">🟠 REDWOOD</div>
-                    </td>
-                    <td className="p-3">
-                      <div className="font-mono text-xs">{dimensions} mm</div>
-                      <div className="text-xs text-slate-500">{moistureLabel}</div>
-                      <div className="text-xs text-slate-500">{packagingLabel}</div>
-                    </td>
-                    <td className="p-3 text-right font-mono">{volumePerContainer.toFixed(2)}</td>
-                    <td className="p-3 text-right font-mono font-bold">{containerCount}</td>
-                    <td className="p-3 text-right font-mono">${pricePerM3.toFixed(0)}</td>
-                    <td className="p-3 text-right font-mono font-bold">${grandTotal.toFixed(0)}</td>
-                  </tr>
+                  {positions.map((p, idx) => {
+                    const speciesLabel = p.speciesLabel || SPECIES_NAMES[p.species] || "Pine (Pinus sylvestris)";
+                    const moistureLabel = p.moistureLabel || MOISTURE_LABELS[p.moisture] || "KD 10-12%";
+                    const packagingLabel = p.packagingLabel || PACKAGING_LABELS[p.packaging] || "Strapped bundles";
+                    const dimensions = `${p.thickness}×${p.width}×${p.length}`;
+                    
+                    return (
+                      <tr key={p.id} className="border-b border-slate-100">
+                        <td className="p-3 font-bold text-orange-500">{idx + 1}</td>
+                        <td className="p-3">
+                          <div className="font-bold">{speciesLabel}</div>
+                          <div className="text-xs text-slate-500">GOST 8486-86, Grade 1-3</div>
+                        </td>
+                        <td className="p-3">
+                          <div className="font-mono text-xs">{dimensions} mm</div>
+                          <div className="text-xs text-slate-500">{moistureLabel}</div>
+                          <div className="text-xs text-slate-500">{packagingLabel}</div>
+                        </td>
+                        <td className="p-3 text-right font-mono">{(p.totalVolume || 0).toFixed(2)}</td>
+                        <td className="p-3 text-right font-mono font-bold">{p.containers || 1}</td>
+                        <td className="p-3 text-right font-mono">${(p.pricePerM3 || 0).toFixed(0)}</td>
+                        <td className="p-3 text-right font-mono font-bold">${(p.totalAmount || 0).toFixed(0)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
                 <tfoot className="bg-slate-50 font-bold">
                   <tr>
-                    <td colSpan="5" className="p-3 text-right">
-                      TOTAL ({containerCount} × 40HC, {totalVolume.toFixed(1)} m³):
+                    <td colSpan="6" className="p-3 text-right">
+                      TOTAL ({totalContainers} × 40HC, {totalVolume.toFixed(1)} m³):
                     </td>
                     <td className="p-3 text-right font-mono text-orange-500 text-base">
                       ${grandTotal.toFixed(0)}
@@ -338,60 +434,69 @@ export default function QuotationPage() {
               </table>
             </div>
 
+            {/* MOBILE CARDS */}
             <div className="sm:hidden space-y-3">
-              <div className="bg-slate-50 rounded-lg p-3 border-l-4 border-orange-500">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <div className="font-black text-slate-900 text-sm">{speciesName}</div>
-                    <div className="text-xs text-slate-500">GOST 8486-86, Grade 1-3</div>
-                    <div className="text-xs text-orange-600 font-bold mt-0.5">🟠 REDWOOD</div>
-                  </div>
-                  <div className="bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">
-                    Pos. 1
-                  </div>
-                </div>
+              {positions.map((p, idx) => {
+                const speciesLabel = p.speciesLabel || SPECIES_NAMES[p.species] || "Pine (Pinus sylvestris)";
+                const moistureLabel = p.moistureLabel || MOISTURE_LABELS[p.moisture] || "KD 10-12%";
+                const packagingLabel = p.packagingLabel || PACKAGING_LABELS[p.packaging] || "Strapped bundles";
+                const dimensions = `${p.thickness}×${p.width}×${p.length}`;
+                
+                return (
+                  <div key={p.id} className="bg-slate-50 rounded-lg p-3 border-l-4 border-orange-500">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="font-black text-slate-900 text-sm">{speciesLabel}</div>
+                        <div className="text-xs text-slate-500">GOST 8486-86, Grade 1-3</div>
+                      </div>
+                      <div className="bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">
+                        Pos. {idx + 1}
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-2 text-xs mt-3">
-                  <div className="bg-white rounded p-2">
-                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Dimensions</div>
-                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{dimensions} mm</div>
+                    <div className="grid grid-cols-2 gap-2 text-xs mt-3">
+                      <div className="bg-white rounded p-2">
+                        <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Dimensions</div>
+                        <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{dimensions} mm</div>
+                      </div>
+                      <div className="bg-white rounded p-2">
+                        <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Moisture</div>
+                        <div className="font-bold text-slate-900 mt-0.5 text-xs">{moistureLabel}</div>
+                      </div>
+                      <div className="bg-white rounded p-2">
+                        <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Volume</div>
+                        <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{(p.totalVolume || 0).toFixed(2)} m³</div>
+                      </div>
+                      <div className="bg-white rounded p-2">
+                        <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Containers</div>
+                        <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{p.containers || 1} × 40HC</div>
+                      </div>
+                      <div className="bg-white rounded p-2 col-span-2">
+                        <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Packaging</div>
+                        <div className="text-xs text-slate-800 mt-0.5">{packagingLabel}</div>
+                      </div>
+                      <div className="bg-white rounded p-2">
+                        <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Price/m³</div>
+                        <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">${(p.pricePerM3 || 0).toFixed(0)}</div>
+                      </div>
+                      <div className="bg-white rounded p-2">
+                        <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Line Total</div>
+                        <div className="font-mono font-bold text-emerald-600 mt-0.5 text-sm">${(p.totalAmount || 0).toFixed(0)}</div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="bg-white rounded p-2">
-                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Moisture</div>
-                    <div className="font-bold text-slate-900 mt-0.5 text-xs">{moistureLabel}</div>
-                  </div>
-                  <div className="bg-white rounded p-2">
-                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Vol/Cont</div>
-                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{volumePerContainer.toFixed(2)} m³</div>
-                  </div>
-                  <div className="bg-white rounded p-2">
-                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Containers</div>
-                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{containerCount} × 40HC</div>
-                  </div>
-                  <div className="bg-white rounded p-2 col-span-2">
-                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Packaging</div>
-                    <div className="text-xs text-slate-800 mt-0.5">{packagingLabel}</div>
-                  </div>
-                  <div className="bg-white rounded p-2">
-                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Price/m³</div>
-                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">${pricePerM3.toFixed(0)}</div>
-                  </div>
-                  <div className="bg-white rounded p-2">
-                    <div className="text-slate-500 uppercase tracking-wider text-[9px] font-bold">Total Volume</div>
-                    <div className="font-mono font-bold text-slate-900 mt-0.5 text-xs">{totalVolume.toFixed(1)} m³</div>
-                  </div>
-                </div>
+                );
+              })}
 
-                <div className="mt-3 pt-3 border-t-2 border-orange-200 flex justify-between items-center">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600">Line Total:</span>
-                  <span className="font-mono font-black text-base text-orange-500">${grandTotal.toFixed(0)}</span>
-                </div>
-              </div>
-
+              {/* Grand Total mobile */}
               <div className="bg-slate-900 text-white rounded-lg p-4 flex justify-between items-center">
                 <div>
                   <div className="text-[10px] uppercase tracking-wider text-slate-400">Grand Total</div>
-                  <div className="text-xs text-slate-500">{containerCount} × 40HC</div>
+                  <div className="text-xs text-slate-500">
+                    {positions.length} position{positions.length > 1 ? "s" : ""} · 
+                    {totalContainers} × 40HC · 
+                    {totalVolume.toFixed(1)} m³
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="font-mono font-black text-2xl text-orange-400">${grandTotal.toFixed(0)}</div>
@@ -402,13 +507,13 @@ export default function QuotationPage() {
           </section>
 
           <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-            <TermBlock label="Incoterms" value={`${(deal.incoterm || "CIF").toUpperCase()} ${destinationPort}`} />
+            <TermBlock label="Incoterms" value={`${incotermLabel} ${destinationPort}`} />
             <TermBlock label="Lead Time" value={`${settings.defaultTransitDays || 45} days from advance`} />
             <TermBlock label="Payment" value={settings.paymentTerms || "30% advance + 70% vs B/L copy"} />
             <TermBlock label="Document Release" value="⚡ Telex Release (no DHL)" />
             <TermBlock label="Loading Port" value={settings.defaultPort || "Novorossiysk, RU"} />
             <TermBlock label="Destination" value={destinationPort} />
-            <TermBlock label="Container Type" value={`${containerCount} × 40HC`} />
+            <TermBlock label="Container Type" value={`${totalContainers} × 40HC`} />
             <TermBlock label="Schedule" value="Single shipment" />
           </section>
 
