@@ -11,7 +11,6 @@ import {
   COUNTRY_MARGINS,
 } from "../../context/DealContext";
 
-// 🆕 Дефолтные значения для редактируемых параметров
 const DEFAULT_COSTS = {
   containerCapacity: 50,
   millPriceOverride: null,
@@ -26,6 +25,34 @@ const DEFAULT_COSTS = {
 };
 
 const STORAGE_KEY = "ru-timber-pricing-costs";
+
+// 🏷 Красивые имена пород
+const SPECIES_NAMES = {
+  pine: "Pine",
+  spruce: "Spruce",
+  larch: "Larch",
+  cedar: "Cedar",
+  birch: "Birch",
+  oak: "Oak",
+  aspen: "Aspen",
+  "pine-spruce-50-50": "Pine+Spruce 50/50",
+  "pine-spruce-70-30": "Pine+Spruce 70/30",
+  spf: "SPF",
+};
+
+const MOISTURE_LABELS = {
+  kd: "KD 10-12%",
+  ad: "AD 18-22%",
+  fresh: "Fresh 22-30%",
+};
+
+const PACKAGING_LABELS = {
+  none: "Bulk",
+  crate: "Crate",
+  shrink: "Shrink+Crate",
+  strapped: "Strapped",
+  premium: "Premium",
+};
 
 const Tooltip = ({ text }) => {
   const [open, setOpen] = useState(false);
@@ -89,7 +116,16 @@ const CostRow = ({ icon, label, perM3, perContainer, total, badge, editable, val
 };
 
 export default function PricingPage() {
-  const { deal, updateDeal, isLoaded } = useDeal();
+  const { 
+    deal, 
+    updateDeal, 
+    isLoaded,
+    // 🆕 Функции корзины
+    addPosition,
+    removePosition,
+    clearPositions,
+  } = useDeal();
+  
   const [cbrLoading, setCbrLoading] = useState(false);
   const [cbrDate, setCbrDate] = useState(null);
   const [cbrError, setCbrError] = useState(false);
@@ -100,6 +136,9 @@ export default function PricingPage() {
 
   const [costs, setCosts] = useState(DEFAULT_COSTS);
   const [manualContainers, setManualContainers] = useState(null);
+
+  // 🆕 Состояние для анимации "✓ Added!"
+  const [justAdded, setJustAdded] = useState(false);
 
   useEffect(() => {
     try {
@@ -196,7 +235,7 @@ export default function PricingPage() {
   const margin = deal.margin === "" ? 0 : parseFloat(deal.margin) || 18;
   const rate = deal.usdRubRate === "" ? 76.25 : parseFloat(deal.usdRubRate) || 76.25;
 
-  const freightPreset = FREIGHT_PRESETS[deal.freightRoute] || FREIGHT_PRESETS["vlv-chennai"];
+  const freightPreset = FREIGHT_PRESETS[deal.freightRoute] || FREIGHT_PRESETS["nvr-jebelali"];
   const effectiveFreightRate = useCustomFreight ? customFreightRate : freightPreset.rate;
   const effectiveFreightLabel = useCustomFreight ? `Custom Rate (manual)` : freightPreset.label;
 
@@ -312,6 +351,55 @@ export default function PricingPage() {
     incoterm,
   ]);
 
+  // 🆕 ДОБАВЛЕНИЕ ПОЗИЦИИ В КОРЗИНУ
+  const handleAddToBasket = () => {
+    if (totalVol <= 0 || sellPricePerM3 <= 0) {
+      alert("Сначала заполни калькулятор: объём, размеры, цена");
+      return;
+    }
+
+    addPosition({
+      // Данные доски
+      species,
+      speciesLabel: SPECIES_NAMES[species] || species,
+      thickness: parseFloat(deal.thickness) || 50,
+      width: parseFloat(deal.width) || 150,
+      length: parseFloat(deal.length) || 6000,
+      moisture,
+      moistureLabel: MOISTURE_LABELS[moisture] || moisture,
+      packaging,
+      packagingLabel: PACKAGING_LABELS[packaging] || packaging,
+      
+      // Объёмы
+      totalVolume: totalVol,
+      containers,
+      volumePerContainer: containers > 0 ? totalVol / containers : 0,
+      
+      // Цены
+      pricePerM3: sellPricePerM3,
+      costPerM3: totalCostWithDutyPerM3,
+      profitPerM3,
+      totalAmount,
+      totalProfit,
+      
+      // Условия (общие для всех — фиксируются)
+      incoterm,
+      freightRoute: deal.freightRoute,
+      margin,
+    });
+
+    // Анимация "Added!"
+    setJustAdded(true);
+    setTimeout(() => setJustAdded(false), 2000);
+  };
+
+  // 🆕 РАСЧЁТ ИТОГОВ ПО КОРЗИНЕ
+  const positions = deal.positions || [];
+  const basketTotalVolume = positions.reduce((sum, p) => sum + (p.totalVolume || 0), 0);
+  const basketTotalContainers = positions.reduce((sum, p) => sum + (p.containers || 0), 0);
+  const basketTotalAmount = positions.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+  const basketTotalProfit = positions.reduce((sum, p) => sum + (p.totalProfit || 0), 0);
+
   if (!isLoaded) {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>;
   }
@@ -325,7 +413,9 @@ export default function PricingPage() {
           <div className="flex gap-1 text-xs">
             <Link href="/calculator" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📐 Vol</Link>
             <Link href="/calculator/container" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📦 3D</Link>
-            <Link href="/calculator/quotation" className="bg-emerald-600 px-2 py-1 rounded active:scale-95">📄 Quote</Link>
+            <Link href="/calculator/quotation" className="bg-emerald-600 px-2 py-1 rounded active:scale-95">
+              📄 Quote {positions.length > 0 && <span className="bg-orange-500 ml-1 px-1.5 rounded-full">{positions.length}</span>}
+            </Link>
           </div>
         </div>
       </header>
@@ -338,6 +428,85 @@ export default function PricingPage() {
           </p>
         </div>
 
+        {/* 🆕 МИНИ-КОРЗИНА (если есть позиции) */}
+        {positions.length > 0 && (
+          <section className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-bold text-purple-900 flex items-center gap-2">
+                🛒 Quotation Basket
+                <span className="bg-purple-600 text-white text-xs px-2 py-0.5 rounded-full">
+                  {positions.length} position{positions.length > 1 ? "s" : ""}
+                </span>
+              </h2>
+              <button
+                onClick={() => {
+                  if (confirm("Очистить корзину? Все позиции будут удалены.")) {
+                    clearPositions();
+                  }
+                }}
+                className="text-xs text-rose-600 hover:text-rose-800 active:scale-95"
+              >
+                🗑 Clear all
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {positions.map((p, idx) => (
+                <div
+                  key={p.id}
+                  className="bg-white rounded-lg p-3 flex items-start gap-3 shadow-sm"
+                >
+                  <div className="bg-purple-100 text-purple-800 font-bold text-sm w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0">
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-sm text-slate-900">
+                      🌲 {p.speciesLabel} {p.thickness}×{p.width}×{p.length}mm
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      {p.moistureLabel} · {p.packagingLabel} · {p.containers} × 40HC
+                    </div>
+                    <div className="text-xs font-mono text-slate-700 mt-1">
+                      {p.totalVolume.toFixed(1)} m³ × ${p.pricePerM3.toFixed(0)}/m³ = 
+                      <span className="font-bold text-emerald-600 ml-1">${p.totalAmount.toFixed(0)}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => removePosition(p.id)}
+                    className="text-rose-500 hover:text-rose-700 text-xl active:scale-95 flex-shrink-0"
+                    title="Remove position"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Итого по корзине */}
+            <div className="mt-3 pt-3 border-t-2 border-purple-300 grid grid-cols-3 gap-3">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-purple-700">Total Vol</div>
+                <div className="font-mono font-black text-purple-900">{basketTotalVolume.toFixed(1)} m³</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-purple-700">Containers</div>
+                <div className="font-mono font-black text-purple-900">{basketTotalContainers} × 40HC</div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] uppercase tracking-wider text-purple-700">Grand Total</div>
+                <div className="font-mono font-black text-emerald-600 text-lg">${basketTotalAmount.toFixed(0)}</div>
+              </div>
+            </div>
+
+            <Link
+              href="/calculator/quotation"
+              className="block w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white text-center py-3 rounded-lg font-bold active:scale-95"
+            >
+              📄 Generate Quotation ({positions.length} positions) →
+            </Link>
+          </section>
+        )}
+
         <Reminder
           priority="high"
           icon="💱"
@@ -349,7 +518,7 @@ export default function PricingPage() {
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center mb-3">
             📦 Volume & Containers
-            <Tooltip text="Объём из Step 3.10. Количество контейнеров считается автоматически (вверх). Можно изменить вручную." />
+            <Tooltip text="Объём из калькулятора. Количество контейнеров считается автоматически." />
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
@@ -443,7 +612,7 @@ export default function PricingPage() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-slate-800 flex items-center">
               ✏️ Custom Freight Rate
-              <Tooltip text="Введи ставку от брокера. Сохраняется в браузере." />
+              <Tooltip text="Введи ставку от брокера." />
             </h2>
             {useCustomFreight && (
               <span className="bg-emerald-600 text-white text-xs px-2 py-1 rounded-full font-bold">ACTIVE</span>
@@ -850,9 +1019,33 @@ export default function PricingPage() {
             <div className="text-center text-xs opacity-50 mt-2">≈ ₽{(totalProfit * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}</div>
           </div>
 
+          {/* 🆕 КНОПКА "ADD TO BASKET" */}
+          <button
+            onClick={handleAddToBasket}
+            className={`block w-full mt-5 text-white text-center py-4 rounded-lg font-black text-lg transition-all active:scale-95 ${
+              justAdded
+                ? "bg-emerald-500 shadow-lg shadow-emerald-500/50"
+                : "bg-purple-600 hover:bg-purple-700"
+            }`}
+          >
+            {justAdded ? (
+              <>✓ ADDED TO BASKET! ({positions.length + 1 - 1}/{positions.length})</>
+            ) : (
+              <>➕ ADD TO QUOTATION BASKET</>
+            )}
+          </button>
+
+          <div className="mt-2 text-center text-xs opacity-50">
+            {positions.length === 0 ? (
+              "💡 Добавляй разные позиции — Quotation объединит все"
+            ) : (
+              <>📦 В корзине {positions.length} позиц{positions.length === 1 ? "ия" : "ии"} · ${basketTotalAmount.toFixed(0)} total</>
+            )}
+          </div>
+
           <Link
             href="/calculator/container"
-            className="block w-full mt-5 bg-orange-500 text-white text-center py-3 rounded-lg font-bold active:scale-95"
+            className="block w-full mt-3 bg-orange-500 text-white text-center py-3 rounded-lg font-bold active:scale-95"
           >
             📦 Continue to 3D View →
           </Link>
@@ -860,7 +1053,7 @@ export default function PricingPage() {
             href="/calculator/quotation"
             className="block w-full mt-2 bg-emerald-600 text-white text-center py-3 rounded-lg font-bold active:scale-95"
           >
-            📄 Generate Commercial Quotation →
+            📄 {positions.length > 0 ? `Generate Quotation (${positions.length} pos)` : "Generate Commercial Quotation"} →
           </Link>
         </section>
 
