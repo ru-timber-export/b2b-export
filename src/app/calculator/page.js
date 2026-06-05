@@ -127,7 +127,18 @@ const END_USES = [
 ];
 
 export default function CalculatorPage() {
-  const { deal, updateDeal, resetDeal, isLoaded } = useDeal();
+  const { 
+    deal, 
+    updateDeal, 
+    resetDeal, 
+    isLoaded,
+    // 🆕 Функции корзины
+    removePosition,
+    clearPositions,
+  } = useDeal();
+
+  // 🆕 Развёрнутая корзина или нет
+  const [basketExpanded, setBasketExpanded] = useState(false);
 
   const handleNum = (field) => (e) => {
     const v = e.target.value;
@@ -160,13 +171,11 @@ export default function CalculatorPage() {
   const volPct = Math.min((totalVol / MAX_VOL) * 100, 999);
   const weightPct = Math.min((totalWeight / MAX_WEIGHT) * 100, 999);
   const overloaded = totalVol > MAX_VOL || totalWeight > MAX_WEIGHT;
-// 🆕 SHAG B2: Sync computed values → DealContext (fix 3D bug)
-  // Этот useEffect пишет вычисленный объём и вес в Context,
-  // чтобы страница /calculator/container могла их использовать.
+
+  // 🆕 SHAG B2: Sync computed values → DealContext
   useEffect(() => {
     if (!isLoaded) return;
 
-    // Защита от лишних апдейтов — пишем только если что-то изменилось
     const needsUpdate =
       deal.computedVolume_m3 !== totalVol ||
       deal.computedWeight_kg !== totalWeight ||
@@ -180,6 +189,13 @@ export default function CalculatorPage() {
       });
     }
   }, [totalVol, totalWeight, pieces, isLoaded, deal.computedVolume_m3, deal.computedWeight_kg, deal.computedPieces, updateDeal]);
+
+  // 🆕 КОРЗИНА: статистика
+  const positions = deal.positions || [];
+  const basketTotalVolume = positions.reduce((sum, p) => sum + (p.totalVolume || 0), 0);
+  const basketTotalContainers = positions.reduce((sum, p) => sum + (p.containers || 0), 0);
+  const basketTotalAmount = positions.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+
   if (!isLoaded) {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>;
   }
@@ -194,7 +210,9 @@ export default function CalculatorPage() {
           <div className="flex gap-1 text-xs">
             <Link href="/calculator/pricing" className="bg-orange-500 px-2 py-1 rounded active:scale-95">💰 Pricing</Link>
             <Link href="/calculator/container" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📦 3D</Link>
-            <Link href="/calculator/quotation" className="bg-emerald-600 px-2 py-1 rounded active:scale-95">📄 Quote</Link>
+            <Link href="/calculator/quotation" className="bg-emerald-600 px-2 py-1 rounded active:scale-95">
+              📄 Quote {positions.length > 0 && <span className="bg-orange-500 ml-1 px-1.5 rounded-full">{positions.length}</span>}
+            </Link>
           </div>
         </div>
       </header>
@@ -205,7 +223,92 @@ export default function CalculatorPage() {
           <h1 className="text-2xl font-black text-slate-900">Container Loading Calculator</h1>
           <p className="text-sm text-slate-500 mt-1">🔗 Connected to Pricing · auto-saved</p>
         </div>
-{/* 🆕 Шаг B3.1: ЛесЕГАИС напоминалка (КРИТИЧНО, нельзя скрыть) */}
+
+        {/* 🆕 ИНДИКАТОР КОРЗИНЫ (если есть позиции) */}
+        {positions.length > 0 && (
+          <section className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl shadow-lg overflow-hidden">
+            {/* Header (compact) */}
+            <button
+              onClick={() => setBasketExpanded(!basketExpanded)}
+              className="w-full px-5 py-4 flex items-center justify-between active:scale-[0.99]"
+            >
+              <div className="flex items-center gap-3 text-left">
+                <div className="text-3xl">🛒</div>
+                <div>
+                  <div className="font-bold text-base">
+                    Quotation Basket — {positions.length} position{positions.length > 1 ? "s" : ""}
+                  </div>
+                  <div className="text-xs opacity-80 font-mono">
+                    {basketTotalVolume.toFixed(1)} m³ · {basketTotalContainers} × 40HC · 
+                    <span className="font-bold ml-1">${basketTotalAmount.toFixed(0)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-xl">
+                {basketExpanded ? "▲" : "▼"}
+              </div>
+            </button>
+
+            {/* Expanded content */}
+            {basketExpanded && (
+              <div className="bg-white text-slate-900 p-4">
+                <div className="space-y-2 mb-3">
+                  {positions.map((p, idx) => (
+                    <div
+                      key={p.id}
+                      className="bg-slate-50 rounded-lg p-3 flex items-start gap-3"
+                    >
+                      <div className="bg-purple-100 text-purple-800 font-bold text-sm w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0">
+                        {idx + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-sm">
+                          🌲 {p.speciesLabel} {p.thickness}×{p.width}×{p.length}mm
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          {p.moistureLabel} · {p.packagingLabel} · {p.containers} × 40HC
+                        </div>
+                        <div className="text-xs font-mono mt-1">
+                          {p.totalVolume.toFixed(1)} m³ × ${p.pricePerM3.toFixed(0)} = 
+                          <span className="font-bold text-emerald-600 ml-1">${p.totalAmount.toFixed(0)}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => removePosition(p.id)}
+                        className="text-rose-500 hover:text-rose-700 text-xl active:scale-95 flex-shrink-0"
+                        title="Remove position"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href="/calculator/quotation"
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-center py-2.5 rounded-lg font-bold text-sm active:scale-95"
+                  >
+                    📄 Generate Quotation →
+                  </Link>
+                  <button
+                    onClick={() => {
+                      if (confirm("Очистить корзину? Все позиции будут удалены.")) {
+                        clearPositions();
+                      }
+                    }}
+                    className="bg-rose-100 text-rose-600 hover:bg-rose-200 px-4 py-2.5 rounded-lg font-bold text-sm active:scale-95"
+                  >
+                    🗑 Clear
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* 🆕 Шаг B3.1: ЛесЕГАИС напоминалка */}
         <Reminder
           priority="critical"
           icon="🚨"
@@ -213,7 +316,6 @@ export default function CalculatorPage() {
           description="К КАЖДОЙ партии! Без выписки = риск ст. 191.1 УК РФ (до 7 лет). Топовые экспортёры РФ работают только с подтверждённым происхождением сырья."
         />
 
-        {/* 🆕 Шаг B3.1: Напоминалка про ИП (скрываемая) */}
         <Reminder
           priority="high"
           icon="⚖️"
