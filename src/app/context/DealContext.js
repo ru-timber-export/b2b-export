@@ -26,15 +26,69 @@ export const PACKAGING_SURCHARGE = {
   "premium": 18,
 };
 
+// ═══════════════════════════════════════════════
+// 🚢 РАСШИРЕННЫЙ СПИСОК МАРШРУТОВ (30+ портов)
+// ═══════════════════════════════════════════════
+
 export const FREIGHT_PRESETS = {
-  "nvr-jebelali":  { label: "Новороссийск → Jebel Ali (UAE)",     rate: 2400 },
-  "nvr-dammam":    { label: "Новороссийск → Dammam (KSA)",         rate: 2700 },
-  "nvr-doha":      { label: "Новороссийск → Doha (Qatar)",         rate: 2800 },
-  "nvr-alex":      { label: "Новороссийск → Alexandria (Egypt)",   rate: 1800 },
-  "nvr-istanbul":  { label: "Новороссийск → Istanbul (Turkey)",    rate: 1600 },
-  "spb-jebelali":  { label: "St.Petersburg → Jebel Ali (UAE)",     rate: 2800 },
-  "vlv-mumbai":    { label: "Владивосток → Mumbai (India)",        rate: 2900 },
-  "vlv-chennai":   { label: "Владивосток → Chennai (India)",       rate: 2750 },
+  // ━━━ 🇦🇪 ОАЭ (UAE) ━━━
+  "nvr-jebelali":     { label: "Новороссийск → Jebel Ali",     port: "Jebel Ali", country: "UAE", flag: "🇦🇪", rate: 2400, star: true },
+  "nvr-khalifa":      { label: "Новороссийск → Khalifa",       port: "Khalifa (Abu Dhabi)", country: "UAE", flag: "🇦🇪", rate: 2500 },
+  "nvr-sharjah":      { label: "Новороссийск → Sharjah",       port: "Sharjah / Hamriyah", country: "UAE", flag: "🇦🇪", rate: 2450 },
+  "nvr-khorfakkan":   { label: "Новороссийск → Khor Fakkan",   port: "Khor Fakkan", country: "UAE", flag: "🇦🇪", rate: 2500 },
+  "nvr-fujairah":     { label: "Новороссийск → Fujairah",      port: "Fujairah", country: "UAE", flag: "🇦🇪", rate: 2500 },
+  
+  // ━━━ 🇮🇳 ИНДИЯ (India) ━━━
+  "nvr-mumbai":       { label: "Новороссийск → Mumbai",        port: "Mumbai / Nhava Sheva (JNPT)", country: "India", flag: "🇮🇳", rate: 2700, star: true },
+  "nvr-chennai":      { label: "Новороссийск → Chennai",       port: "Chennai", country: "India", flag: "🇮🇳", rate: 2750 },
+  "nvr-mundra":       { label: "Новороссийск → Mundra",        port: "Mundra (Adani)", country: "India", flag: "🇮🇳", rate: 2650 },
+  "nvr-kandla":       { label: "Новороссийск → Kandla",        port: "Kandla", country: "India", flag: "🇮🇳", rate: 2700 },
+  "nvr-kolkata":      { label: "Новороссийск → Kolkata",       port: "Kolkata", country: "India", flag: "🇮🇳", rate: 2900 },
+  "nvr-cochin":       { label: "Новороссийск → Cochin",        port: "Cochin / Kochi", country: "India", flag: "🇮🇳", rate: 2850 },
+  "nvr-tuticorin":    { label: "Новороссийск → Tuticorin",     port: "Tuticorin", country: "India", flag: "🇮🇳", rate: 2850 },
+  "nvr-hazira":       { label: "Новороссийск → Hazira",        port: "Hazira", country: "India", flag: "🇮🇳", rate: 2700 },
+  
+  // ━━━ 🇸🇦 САУДОВСКАЯ АРАВИЯ (KSA) ━━━
+  "nvr-dammam":       { label: "Новороссийск → Dammam",        port: "Dammam", country: "Saudi Arabia", flag: "🇸🇦", rate: 2700, star: true },
+  "nvr-jeddah":       { label: "Новороссийск → Jeddah",        port: "Jeddah", country: "Saudi Arabia", flag: "🇸🇦", rate: 2500 },
+  "nvr-yanbu":        { label: "Новороссийск → Yanbu",         port: "Yanbu", country: "Saudi Arabia", flag: "🇸🇦", rate: 2550 },
+  "nvr-kingabdullah": { label: "Новороссийск → King Abdullah", port: "King Abdullah Port", country: "Saudi Arabia", flag: "🇸🇦", rate: 2600 },
+  
+  // ━━━ 🇪🇬 ЕГИПЕТ (Egypt) ━━━
+  "nvr-alex":         { label: "Новороссийск → Alexandria",    port: "Alexandria", country: "Egypt", flag: "🇪🇬", rate: 1800, star: true },
+  "nvr-damietta":     { label: "Новороссийск → Damietta",      port: "Damietta", country: "Egypt", flag: "🇪🇬", rate: 1900 },
+  "nvr-portsaid":     { label: "Новороссийск → Port Said",     port: "Port Said", country: "Egypt", flag: "🇪🇬", rate: 1850 },
+  "nvr-sokhna":       { label: "Новороссийск → Sokhna",        port: "Ain Sokhna (Red Sea)", country: "Egypt", flag: "🇪🇬", rate: 2100 },
+  
+  // ━━━ 🇹🇷 ТУРЦИЯ (Türkiye) ━━━
+  "nvr-istanbul":     { label: "Новороссийск → Istanbul",      port: "Istanbul (Ambarli)", country: "Türkiye", flag: "🇹🇷", rate: 1600, star: true },
+  "nvr-mersin":       { label: "Новороссийск → Mersin",        port: "Mersin", country: "Türkiye", flag: "🇹🇷", rate: 1500 },
+  "nvr-izmir":        { label: "Новороссийск → Izmir",         port: "Izmir", country: "Türkiye", flag: "🇹🇷", rate: 1700 },
+  
+  // ━━━ 🇶🇦 КАТАР (Qatar) ━━━
+  "nvr-doha":         { label: "Новороссийск → Doha",          port: "Hamad Port (Doha)", country: "Qatar", flag: "🇶🇦", rate: 2800 },
+  
+  // ━━━ 🇰🇼 КУВЕЙТ (Kuwait) ━━━
+  "nvr-shuwaikh":     { label: "Новороссийск → Shuwaikh",      port: "Shuwaikh", country: "Kuwait", flag: "🇰🇼", rate: 2700 },
+  
+  // ━━━ 🇧🇭 БАХРЕЙН (Bahrain) ━━━
+  "nvr-bahrain":      { label: "Новороссийск → Khalifa Bin Salman", port: "Khalifa Bin Salman", country: "Bahrain", flag: "🇧🇭", rate: 2750 },
+  
+  // ━━━ 🇮🇶 ИРАК (Iraq) ━━━
+  "nvr-ummqasr":      { label: "Новороссийск → Umm Qasr",      port: "Umm Qasr", country: "Iraq", flag: "🇮🇶", rate: 2900 },
+  
+  // ━━━ 🇨🇳 КИТАЙ (China) ━━━
+  "vlv-shanghai":     { label: "Владивосток → Shanghai",       port: "Shanghai", country: "China", flag: "🇨🇳", rate: 1800 },
+  "vlv-ningbo":       { label: "Владивосток → Ningbo",         port: "Ningbo", country: "China", flag: "🇨🇳", rate: 1900 },
+  "vlv-qingdao":      { label: "Владивосток → Qingdao",        port: "Qingdao", country: "China", flag: "🇨🇳", rate: 1700 },
+  
+  // ━━━ 🇵🇰 ПАКИСТАН (Pakistan) ━━━
+  "nvr-karachi":      { label: "Новороссийск → Karachi",       port: "Karachi", country: "Pakistan", flag: "🇵🇰", rate: 2800 },
+  
+  // ━━━ Из других портов РФ ━━━
+  "spb-jebelali":     { label: "St.Petersburg → Jebel Ali",    port: "Jebel Ali", country: "UAE", flag: "🇦🇪", rate: 2800 },
+  "vlv-mumbai":       { label: "Владивосток → Mumbai",         port: "Mumbai", country: "India", flag: "🇮🇳", rate: 2900 },
+  "vlv-chennai":      { label: "Владивосток → Chennai",        port: "Chennai", country: "India", flag: "🇮🇳", rate: 2750 },
 };
 
 export const COUNTRY_MARGINS = {
@@ -87,8 +141,11 @@ const defaultDeal = {
   leadTime: 45,
   transitDays: 21,
   
-  // 🆕 МУЛЬТИ-ПОЗИЦИИ (корзина для Quotation)
+  // 🆕 Корзина для Quotation
   positions: [],
+  
+  // 🆕 Custom freight route (если выбран Custom)
+  customRoute: null, // { loadingPort, destinationPort, country, flag, rate }
 };
 
 const defaultSeller = {
@@ -107,7 +164,6 @@ const defaultSeller = {
   correspondentBank: "",
 };
 
-// 🌊 Mission default
 const defaultMission = {
   currentCapital: 0,
   avgProfitPerContainer_usd: 1000,
@@ -146,6 +202,8 @@ export function DealProvider({ children }) {
   const [checklist, setChecklist] = useState(defaultChecklist);
   const [deals, setDeals] = useState([]);
   const [customers, setCustomers] = useState([]);
+  // 🆕 История кастомных маршрутов
+  const [customRoutes, setCustomRoutes] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -156,6 +214,7 @@ export function DealProvider({ children }) {
       const savedChecklist = localStorage.getItem("ru-timber-checklist");
       const savedDeals = localStorage.getItem("ru-timber-deals");
       const savedCustomers = localStorage.getItem("ru-timber-customers");
+      const savedCustomRoutes = localStorage.getItem("ru-timber-custom-routes");
 
       if (savedDeal) setDeal({ ...defaultDeal, ...JSON.parse(savedDeal) });
       if (savedSeller) setSeller({ ...defaultSeller, ...JSON.parse(savedSeller) });
@@ -163,6 +222,7 @@ export function DealProvider({ children }) {
       if (savedChecklist) setChecklist({ ...defaultChecklist, ...JSON.parse(savedChecklist) });
       if (savedDeals) setDeals(JSON.parse(savedDeals));
       if (savedCustomers) setCustomers(JSON.parse(savedCustomers));
+      if (savedCustomRoutes) setCustomRoutes(JSON.parse(savedCustomRoutes));
     } catch (e) {
       console.error("Failed to load from localStorage:", e);
     }
@@ -193,6 +253,11 @@ export function DealProvider({ children }) {
     if (isLoaded) localStorage.setItem("ru-timber-customers", JSON.stringify(customers));
   }, [customers, isLoaded]);
 
+  // 🆕 Сохранение истории кастомных маршрутов
+  useEffect(() => {
+    if (isLoaded) localStorage.setItem("ru-timber-custom-routes", JSON.stringify(customRoutes));
+  }, [customRoutes, isLoaded]);
+
   const updateDeal = (updates) => setDeal((prev) => ({ ...prev, ...updates }));
   const updateSeller = (updates) => setSeller((prev) => ({ ...prev, ...updates }));
   const updateMission = (updates) => setMission((prev) => ({ ...prev, ...updates }));
@@ -200,11 +265,9 @@ export function DealProvider({ children }) {
   const resetDeal = () => setDeal(defaultDeal);
 
   // ═══════════════════════════════════════════════
-  // 🆕 ФУНКЦИИ КОРЗИНЫ (МУЛЬТИ-ПОЗИЦИИ)
+  // 🛒 ФУНКЦИИ КОРЗИНЫ
   // ═══════════════════════════════════════════════
 
-  // 🛒 Добавить позицию в корзину
-  // Принимает объект с данными позиции, сама генерирует ID и timestamp
   const addPosition = (positionData) => {
     const newPosition = {
       id: `pos-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -218,7 +281,6 @@ export function DealProvider({ children }) {
     return newPosition;
   };
 
-  // 🗑 Удалить позицию по ID
   const removePosition = (id) => {
     setDeal((prev) => ({
       ...prev,
@@ -226,7 +288,6 @@ export function DealProvider({ children }) {
     }));
   };
 
-  // 🧹 Очистить всю корзину
   const clearPositions = () => {
     setDeal((prev) => ({
       ...prev,
@@ -234,7 +295,6 @@ export function DealProvider({ children }) {
     }));
   };
 
-  // ✏️ Обновить позицию (если понадобится редактирование)
   const updatePosition = (id, updates) => {
     setDeal((prev) => ({
       ...prev,
@@ -242,6 +302,52 @@ export function DealProvider({ children }) {
         p.id === id ? { ...p, ...updates } : p
       ),
     }));
+  };
+
+  // ═══════════════════════════════════════════════
+  // 🆕 ФУНКЦИИ ИСТОРИИ КАСТОМНЫХ МАРШРУТОВ
+  // ═══════════════════════════════════════════════
+
+  // Добавить кастомный маршрут в историю (если ещё нет)
+  const addCustomRoute = (routeData) => {
+    const { loadingPort, destinationPort, country, flag, rate } = routeData;
+    if (!loadingPort || !destinationPort || !rate) return;
+
+    // Проверка на дубликат
+    const exists = customRoutes.find(
+      r => r.loadingPort.toLowerCase() === loadingPort.toLowerCase() &&
+           r.destinationPort.toLowerCase() === destinationPort.toLowerCase()
+    );
+    if (exists) {
+      // Обновляем ставку и поднимаем наверх
+      setCustomRoutes((prev) => [
+        { ...exists, rate: parseFloat(rate), lastUsed: new Date().toISOString() },
+        ...prev.filter(r => r.id !== exists.id),
+      ]);
+      return exists.id;
+    }
+
+    // Новый маршрут
+    const newRoute = {
+      id: `custom-${Date.now()}`,
+      loadingPort,
+      destinationPort,
+      country: country || "",
+      flag: flag || "🌍",
+      rate: parseFloat(rate),
+      createdAt: new Date().toISOString(),
+      lastUsed: new Date().toISOString(),
+    };
+    setCustomRoutes((prev) => [newRoute, ...prev].slice(0, 20)); // макс 20 истории
+    return newRoute.id;
+  };
+
+  const removeCustomRoute = (id) => {
+    setCustomRoutes((prev) => prev.filter((r) => r.id !== id));
+  };
+
+  const clearCustomRoutes = () => {
+    setCustomRoutes([]);
   };
 
   // ═══════════════════════════════════════════════
@@ -309,6 +415,7 @@ export function DealProvider({ children }) {
         checklist,
         deals,
         customers,
+        customRoutes,  // 🆕
         isLoaded,
         missionStats,
         setDeal,
@@ -322,11 +429,15 @@ export function DealProvider({ children }) {
         updateMission,
         toggleChecklistItem,
         resetDeal,
-        // 🆕 Функции корзины
+        // Функции корзины
         addPosition,
         removePosition,
         clearPositions,
         updatePosition,
+        // 🆕 Функции истории маршрутов
+        addCustomRoute,
+        removeCustomRoute,
+        clearCustomRoutes,
       }}
     >
       {children}
