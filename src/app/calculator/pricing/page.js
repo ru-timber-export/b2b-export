@@ -9,6 +9,10 @@ import {
   PACKAGING_SURCHARGE,
   FREIGHT_PRESETS,
   COUNTRY_MARGINS,
+  LEAD_TIME_BREAKDOWN,
+  calcLeadTime,
+  DISCOUNT_TIERS,
+  calcAutoDiscount,
 } from "../../context/DealContext";
 
 const DEFAULT_COSTS = {
@@ -53,7 +57,6 @@ const PACKAGING_LABELS = {
   premium: "Premium",
 };
 
-// 🆕 LOADING PORTS (для определения откуда отгрузка)
 const LOADING_PORTS = {
   nvr: { name: "Novorossiysk", country: "Russia", flag: "🇷🇺" },
   spb: { name: "Saint Petersburg", country: "Russia", flag: "🇷🇺" },
@@ -153,16 +156,17 @@ export default function PricingPage() {
   const [manualContainers, setManualContainers] = useState(null);
   const [justAdded, setJustAdded] = useState(false);
 
-  // 🆕 СОСТОЯНИЕ ДЛЯ FREIGHT UI
   const [portSearch, setPortSearch] = useState("");
-  const [expandedCountries, setExpandedCountries] = useState({}); // { "India": true }
+  const [expandedCountries, setExpandedCountries] = useState({});
   const [showCustomForm, setShowCustomForm] = useState(false);
   
-  // 🆕 CUSTOM PORT INPUTS
   const [customLoadingPort, setCustomLoadingPort] = useState("Novorossiysk");
   const [customDestPort, setCustomDestPort] = useState("");
   const [customCountry, setCustomCountry] = useState("");
   const [customRate, setCustomRate] = useState("");
+
+  // 🆕 LEAD TIME UI state
+  const [showLeadTimeBreakdown, setShowLeadTimeBreakdown] = useState(false);
 
   useEffect(() => {
     try {
@@ -259,9 +263,7 @@ export default function PricingPage() {
   const margin = deal.margin === "" ? 0 : parseFloat(deal.margin) || 18;
   const rate = deal.usdRubRate === "" ? 76.25 : parseFloat(deal.usdRubRate) || 76.25;
 
-  // 🆕 ЛОГИКА АКТИВНОГО МАРШРУТА
   const activeRoute = useMemo(() => {
-    // Если активирован custom — берём custom
     if (deal.customRoute) {
       return {
         type: "custom",
@@ -271,9 +273,9 @@ export default function PricingPage() {
         country: deal.customRoute.country,
         flag: deal.customRoute.flag || "🌍",
         rate: deal.customRoute.rate,
+        transit: 21,
       };
     }
-    // Иначе из FREIGHT_PRESETS
     const preset = FREIGHT_PRESETS[deal.freightRoute];
     if (preset) {
       const loading = getLoadingPortInfo(deal.freightRoute);
@@ -285,9 +287,9 @@ export default function PricingPage() {
         country: preset.country,
         flag: preset.flag,
         rate: preset.rate,
+        transit: preset.transit || 21,
       };
     }
-    // Дефолт
     return {
       type: "preset",
       loadingPort: "Novorossiysk",
@@ -296,6 +298,7 @@ export default function PricingPage() {
       country: "UAE",
       flag: "🇦🇪",
       rate: 2400,
+      transit: 21,
     };
   }, [deal.customRoute, deal.freightRoute]);
 
@@ -374,9 +377,32 @@ export default function PricingPage() {
   const sellPricePerM3 = totalCostWithDutyPerM3 * (1 + margin / 100);
   const sellPricePerContainer = containers > 0 ? (sellPricePerM3 * totalVol) / containers : 0;
   const profitPerM3 = sellPricePerM3 - totalCostWithDutyPerM3;
-  const totalAmount = sellPricePerM3 * totalVol;
+  const subtotal = sellPricePerM3 * totalVol;
   const totalProfit = profitPerM3 * totalVol;
   const profitPerContainer = containers > 0 ? totalProfit / containers : 0;
+
+  // 🆕 LEAD TIME расчёт
+  const leadTimeAuto = calcLeadTime(deal.freightRoute, activeRoute.transit);
+  const leadTimeTotal = deal.leadTimeOverride !== null && deal.leadTimeOverride !== undefined
+    ? parseInt(deal.leadTimeOverride)
+    : leadTimeAuto.total;
+
+  // 🆕 СКИДКА расчёт
+  // Считаем по ОБЩЕМУ количеству контейнеров (корзина + текущая если ещё не в корзине)
+  const basketContainers = (deal.positions || []).reduce((sum, p) => sum + (p.containers || 0), 0);
+  const totalContainersForDiscount = basketContainers > 0 ? basketContainers : containers;
+  
+  const autoDiscountPercent = calcAutoDiscount(totalContainersForDiscount);
+  let appliedDiscountPercent = 0;
+  if (deal.discountMode === "auto") {
+    appliedDiscountPercent = autoDiscountPercent;
+  } else if (deal.discountMode === "custom") {
+    appliedDiscountPercent = parseFloat(deal.customDiscountPercent) || 0;
+  }
+  // если "none" — остаётся 0
+  
+  const discountAmount = (subtotal * appliedDiscountPercent) / 100;
+  const grandTotal = subtotal - discountAmount;
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -385,7 +411,7 @@ export default function PricingPage() {
     const needsUpdate =
       deal.finalPricePerM3 !== sellPricePerM3 ||
       deal.finalContainers !== containers ||
-      deal.finalTotalAmount !== totalAmount ||
+      deal.finalTotalAmount !== subtotal ||
       deal.finalCostPerM3 !== totalCostWithDutyPerM3;
 
     if (needsUpdate) {
@@ -393,7 +419,7 @@ export default function PricingPage() {
         finalPricePerM3: sellPricePerM3,
         finalCostPerM3: totalCostWithDutyPerM3,
         finalContainers: containers,
-        finalTotalAmount: totalAmount,
+        finalTotalAmount: subtotal,
         finalProfitPerM3: profitPerM3,
         finalProfitTotal: totalProfit,
         finalIncoterm: incoterm,
@@ -406,7 +432,7 @@ export default function PricingPage() {
     sellPricePerM3,
     totalCostWithDutyPerM3,
     containers,
-    totalAmount,
+    subtotal,
     profitPerM3,
     totalProfit,
     incoterm,
@@ -434,7 +460,7 @@ export default function PricingPage() {
       pricePerM3: sellPricePerM3,
       costPerM3: totalCostWithDutyPerM3,
       profitPerM3,
-      totalAmount,
+      totalAmount: subtotal,
       totalProfit,
       incoterm,
       freightRoute: deal.freightRoute,
@@ -450,7 +476,6 @@ export default function PricingPage() {
   const basketTotalContainers = positions.reduce((sum, p) => sum + (p.containers || 0), 0);
   const basketTotalAmount = positions.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
 
-  // 🆕 ГРУППИРОВКА ПОРТОВ ПО СТРАНАМ
   const routesByCountry = useMemo(() => {
     const groups = {};
     Object.entries(FREIGHT_PRESETS).forEach(([key, route]) => {
@@ -462,14 +487,12 @@ export default function PricingPage() {
     return groups;
   }, []);
 
-  // 🆕 ПОПУЛЯРНЫЕ МАРШРУТЫ (со звёздочкой)
   const popularRoutes = useMemo(() => {
     return Object.entries(FREIGHT_PRESETS)
       .filter(([_, r]) => r.star)
       .map(([key, r]) => ({ key, ...r }));
   }, []);
 
-  // 🆕 ПОИСК ПО ПОРТАМ
   const searchResults = useMemo(() => {
     if (!portSearch.trim()) return [];
     const q = portSearch.toLowerCase();
@@ -483,7 +506,6 @@ export default function PricingPage() {
       .slice(0, 10);
   }, [portSearch]);
 
-  // 🆕 ПРИМЕНИТЬ CUSTOM МАРШРУТ
   const applyCustomRoute = () => {
     if (!customDestPort.trim() || !customRate) {
       alert("Заполни обязательные поля: Destination Port и Rate");
@@ -498,33 +520,21 @@ export default function PricingPage() {
       rate: parseFloat(customRate),
     };
 
-    // Сохраняем в историю
     addCustomRoute(routeData);
-    
-    // Активируем в deal
-    updateDeal({
-      customRoute: routeData,
-      freightRoute: null, // отключаем preset
-    });
+    updateDeal({ customRoute: routeData, freightRoute: null });
 
-    // Очищаем форму
     setCustomDestPort("");
     setCustomCountry("");
     setCustomRate("");
     setShowCustomForm(false);
   };
 
-  // 🆕 ВЫБРАТЬ PRESET МАРШРУТ
   const selectPresetRoute = (routeKey) => {
-    updateDeal({
-      freightRoute: routeKey,
-      customRoute: null, // отключаем custom
-    });
+    updateDeal({ freightRoute: routeKey, customRoute: null });
     setUseCustomFreight(false);
     saveCustomFreight(false, customFreightRate);
   };
 
-  // 🆕 ВЫБРАТЬ СОХРАНЁННЫЙ CUSTOM МАРШРУТ
   const useCustomFromHistory = (route) => {
     updateDeal({
       customRoute: {
@@ -538,12 +548,8 @@ export default function PricingPage() {
     });
   };
 
-  // 🆕 ВЫЙТИ ИЗ CUSTOM (вернуться к presets)
   const clearCustom = () => {
-    updateDeal({
-      customRoute: null,
-      freightRoute: "nvr-jebelali",
-    });
+    updateDeal({ customRoute: null, freightRoute: "nvr-jebelali" });
   };
 
   const toggleCountry = (country) => {
@@ -589,9 +595,7 @@ export default function PricingPage() {
               </h2>
               <button
                 onClick={() => {
-                  if (confirm("Очистить корзину? Все позиции будут удалены.")) {
-                    clearPositions();
-                  }
+                  if (confirm("Очистить корзину?")) clearPositions();
                 }}
                 className="text-xs text-rose-600 hover:text-rose-800 active:scale-95"
               >
@@ -617,10 +621,7 @@ export default function PricingPage() {
                       <span className="font-bold text-emerald-600 ml-1">${p.totalAmount.toFixed(0)}</span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => removePosition(p.id)}
-                    className="text-rose-500 hover:text-rose-700 text-xl active:scale-95 flex-shrink-0"
-                  >
+                  <button onClick={() => removePosition(p.id)} className="text-rose-500 hover:text-rose-700 text-xl active:scale-95 flex-shrink-0">
                     ✕
                   </button>
                 </div>
@@ -642,10 +643,7 @@ export default function PricingPage() {
               </div>
             </div>
 
-            <Link
-              href="/calculator/quotation"
-              className="block w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white text-center py-3 rounded-lg font-bold active:scale-95"
-            >
+            <Link href="/calculator/quotation" className="block w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white text-center py-3 rounded-lg font-bold active:scale-95">
               📄 Generate Quotation ({positions.length} positions) →
             </Link>
           </section>
@@ -672,26 +670,20 @@ export default function PricingPage() {
             </div>
             <div>
               <label className="text-xs text-slate-500">Container Capacity (m³/40HC)</label>
-              <input
-                type="number"
-                value={costs.containerCapacity}
+              <input type="number" value={costs.containerCapacity}
                 onChange={(e) => updateCost("containerCapacity", e.target.value)}
                 onFocus={(e) => e.target.select()}
-                className="w-full mt-1 p-2 border-2 border-slate-300 rounded-lg text-lg font-bold focus:border-orange-500 outline-none"
-              />
+                className="w-full mt-1 p-2 border-2 border-slate-300 rounded-lg text-lg font-bold focus:border-orange-500 outline-none" />
             </div>
             <div>
               <label className="text-xs text-slate-500">Containers (40HC)</label>
-              <input
-                type="number"
-                value={containers}
+              <input type="number" value={containers}
                 onChange={(e) => {
                   const v = parseInt(e.target.value);
                   setManualContainers(isNaN(v) ? null : Math.max(1, v));
                 }}
                 onFocus={(e) => e.target.select()}
-                className="w-full mt-1 p-2 border-2 border-orange-500 rounded-lg text-lg font-bold focus:border-orange-600 outline-none"
-              />
+                className="w-full mt-1 p-2 border-2 border-orange-500 rounded-lg text-lg font-bold focus:border-orange-600 outline-none" />
               <div className="text-xs text-slate-500 mt-1">
                 Заполнение: <span className={`font-bold ${fillRate < 90 ? "text-rose-500" : "text-emerald-600"}`}>
                   {fillRate.toFixed(1)}%
@@ -711,14 +703,13 @@ export default function PricingPage() {
           )}
         </section>
 
-        {/* 🆕 ━━━━━━ FREIGHT ROUTE — НОВЫЙ КРАСИВЫЙ UI ━━━━━━ */}
+        {/* FREIGHT ROUTE */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center mb-3">
             🚢 Freight Route
-            <Tooltip text="Выбери порт из списка, найди через поиск, или введи custom." />
+            <Tooltip text="Выбери порт, найди через поиск, или введи Custom." />
           </h2>
 
-          {/* CURRENT ROUTE — большая карточка */}
           <div className={`rounded-xl p-4 mb-4 border-2 ${
             activeRoute.type === "custom" 
               ? "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-400" 
@@ -738,31 +729,25 @@ export default function PricingPage() {
                 </div>
                 <div className="text-xs text-slate-600 mt-1">
                   {activeRoute.country} · <span className="font-mono font-bold">${activeRoute.rate} / 40HC</span>
+                  {activeRoute.type === "preset" && (
+                    <span className="ml-2 text-blue-600">🚢 {activeRoute.transit} days transit</span>
+                  )}
                 </div>
               </div>
               {activeRoute.type === "custom" && (
-                <button
-                  onClick={clearCustom}
-                  className="bg-white hover:bg-rose-50 text-rose-600 text-xs px-3 py-2 rounded-lg border border-rose-300 active:scale-95 whitespace-nowrap"
-                >
+                <button onClick={clearCustom} className="bg-white hover:bg-rose-50 text-rose-600 text-xs px-3 py-2 rounded-lg border border-rose-300 active:scale-95 whitespace-nowrap">
                   ✕ Reset
                 </button>
               )}
             </div>
           </div>
 
-          {/* SEARCH */}
           <div className="mb-4">
-            <input
-              type="text"
-              value={portSearch}
-              onChange={(e) => setPortSearch(e.target.value)}
+            <input type="text" value={portSearch} onChange={(e) => setPortSearch(e.target.value)}
               placeholder="🔍 Search port, city or country..."
-              className="w-full p-3 border-2 border-slate-300 rounded-lg text-sm focus:border-orange-500 outline-none"
-            />
+              className="w-full p-3 border-2 border-slate-300 rounded-lg text-sm focus:border-orange-500 outline-none" />
           </div>
 
-          {/* SEARCH RESULTS */}
           {portSearch.trim() && (
             <div className="mb-4 bg-slate-50 rounded-lg p-3">
               <div className="text-xs font-bold text-slate-600 mb-2">
@@ -775,19 +760,17 @@ export default function PricingPage() {
               ) : (
                 <div className="space-y-1">
                   {searchResults.map(r => (
-                    <button
-                      key={r.key}
+                    <button key={r.key}
                       onClick={() => { selectPresetRoute(r.key); setPortSearch(""); }}
                       className={`w-full text-left p-2 rounded text-sm transition-all active:scale-95 flex items-center justify-between ${
                         deal.freightRoute === r.key && !deal.customRoute
                           ? "bg-orange-500 text-white" 
                           : "bg-white hover:bg-orange-50 text-slate-700"
-                      }`}
-                    >
+                      }`}>
                       <div className="flex items-center gap-2">
                         <span>{r.flag}</span>
                         <span className="font-bold">{r.port}</span>
-                        <span className="text-xs opacity-75">· {r.country}</span>
+                        <span className="text-xs opacity-75">· {r.country} · {r.transit}d</span>
                       </div>
                       <span className="font-mono font-bold text-xs">${r.rate}</span>
                     </button>
@@ -797,7 +780,6 @@ export default function PricingPage() {
             </div>
           )}
 
-          {/* POPULAR ROUTES (если нет поиска) */}
           {!portSearch.trim() && (
             <div className="mb-4">
               <div className="text-xs font-bold text-slate-600 mb-2">⭐ POPULAR ROUTES</div>
@@ -805,15 +787,12 @@ export default function PricingPage() {
                 {popularRoutes.map(r => {
                   const active = deal.freightRoute === r.key && !deal.customRoute;
                   return (
-                    <button
-                      key={r.key}
-                      onClick={() => selectPresetRoute(r.key)}
+                    <button key={r.key} onClick={() => selectPresetRoute(r.key)}
                       className={`p-3 rounded-lg text-left text-sm transition-all active:scale-95 border-2 ${
                         active
                           ? "bg-orange-500 text-white border-orange-600 shadow-lg"
                           : "bg-slate-50 text-slate-700 border-transparent hover:border-orange-300"
-                      }`}
-                    >
+                      }`}>
                       <div className="flex items-center justify-between">
                         <div className="font-bold flex items-center gap-1">
                           <span>{r.flag}</span>
@@ -821,7 +800,7 @@ export default function PricingPage() {
                         </div>
                         <span className="font-mono text-xs font-bold">${r.rate}</span>
                       </div>
-                      <div className="text-[10px] opacity-75 mt-1">{r.country}</div>
+                      <div className="text-[10px] opacity-75 mt-1">{r.country} · {r.transit}d transit</div>
                     </button>
                   );
                 })}
@@ -829,7 +808,6 @@ export default function PricingPage() {
             </div>
           )}
 
-          {/* ALL ROUTES BY COUNTRY (collapsed) */}
           {!portSearch.trim() && (
             <div className="mb-4">
               <div className="text-xs font-bold text-slate-600 mb-2">📋 ALL ROUTES BY COUNTRY</div>
@@ -838,10 +816,8 @@ export default function PricingPage() {
                   const isExpanded = expandedCountries[country];
                   return (
                     <div key={country} className="bg-slate-50 rounded-lg overflow-hidden">
-                      <button
-                        onClick={() => toggleCountry(country)}
-                        className="w-full p-3 flex items-center justify-between hover:bg-slate-100 active:scale-[0.99] text-sm"
-                      >
+                      <button onClick={() => toggleCountry(country)}
+                        className="w-full p-3 flex items-center justify-between hover:bg-slate-100 active:scale-[0.99] text-sm">
                         <div className="flex items-center gap-2">
                           <span className="text-xl">{data.flag}</span>
                           <span className="font-bold">{country}</span>
@@ -854,18 +830,16 @@ export default function PricingPage() {
                           {data.routes.map(r => {
                             const active = deal.freightRoute === r.key && !deal.customRoute;
                             return (
-                              <button
-                                key={r.key}
-                                onClick={() => selectPresetRoute(r.key)}
+                              <button key={r.key} onClick={() => selectPresetRoute(r.key)}
                                 className={`w-full text-left p-2 rounded text-xs transition-all active:scale-95 flex items-center justify-between ${
                                   active
                                     ? "bg-orange-500 text-white"
                                     : "bg-white hover:bg-orange-50 text-slate-700"
-                                }`}
-                              >
+                                }`}>
                                 <span className="flex items-center gap-2">
                                   <span className="font-bold">{r.port}</span>
                                   {r.star && <span>⭐</span>}
+                                  <span className="text-[10px] opacity-60">{r.transit}d</span>
                                 </span>
                                 <span className="font-mono font-bold">${r.rate}</span>
                               </button>
@@ -880,12 +854,9 @@ export default function PricingPage() {
             </div>
           )}
 
-          {/* CUSTOM PORT */}
           <div className="mt-4 border-t-2 border-slate-200 pt-4">
-            <button
-              onClick={() => setShowCustomForm(!showCustomForm)}
-              className="w-full bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold p-3 rounded-lg text-sm transition-all active:scale-95"
-            >
+            <button onClick={() => setShowCustomForm(!showCustomForm)}
+              className="w-full bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold p-3 rounded-lg text-sm transition-all active:scale-95">
               {showCustomForm ? "▲ Hide Custom Port" : "✏️ Custom Port (manual entry)"}
             </button>
 
@@ -894,76 +865,48 @@ export default function PricingPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-slate-600 font-bold">🇷🇺 Loading Port</label>
-                    <input
-                      type="text"
-                      value={customLoadingPort}
-                      onChange={(e) => setCustomLoadingPort(e.target.value)}
+                    <input type="text" value={customLoadingPort} onChange={(e) => setCustomLoadingPort(e.target.value)}
                       placeholder="Novorossiysk"
-                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none"
-                    />
+                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none" />
                   </div>
                   <div>
                     <label className="text-xs text-slate-600 font-bold">🌍 Destination Port *</label>
-                    <input
-                      type="text"
-                      value={customDestPort}
-                      onChange={(e) => setCustomDestPort(e.target.value)}
+                    <input type="text" value={customDestPort} onChange={(e) => setCustomDestPort(e.target.value)}
                       placeholder="Например: Cochin"
-                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none"
-                    />
+                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none" />
                   </div>
                   <div>
                     <label className="text-xs text-slate-600 font-bold">Country</label>
-                    <input
-                      type="text"
-                      value={customCountry}
-                      onChange={(e) => setCustomCountry(e.target.value)}
+                    <input type="text" value={customCountry} onChange={(e) => setCustomCountry(e.target.value)}
                       placeholder="India"
-                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none"
-                    />
+                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none" />
                   </div>
                   <div>
                     <label className="text-xs text-slate-600 font-bold">Rate ($/40HC) *</label>
-                    <input
-                      type="number"
-                      value={customRate}
-                      onChange={(e) => setCustomRate(e.target.value)}
+                    <input type="number" value={customRate} onChange={(e) => setCustomRate(e.target.value)}
                       placeholder="2850"
-                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none"
-                    />
+                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none" />
                   </div>
                 </div>
-                <button
-                  onClick={applyCustomRoute}
-                  className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg text-sm active:scale-95"
-                >
+                <button onClick={applyCustomRoute}
+                  className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg text-sm active:scale-95">
                   ✓ Use Custom Route
                 </button>
               </div>
             )}
 
-            {/* CUSTOM HISTORY */}
             {customRoutes && customRoutes.length > 0 && (
               <div className="mt-3">
                 <div className="text-xs font-bold text-slate-600 mb-2">📜 RECENT CUSTOM ROUTES</div>
                 <div className="space-y-1">
                   {customRoutes.slice(0, 5).map(r => (
-                    <div
-                      key={r.id}
-                      className="bg-slate-50 rounded p-2 flex items-center justify-between gap-2 text-xs"
-                    >
-                      <button
-                        onClick={() => useCustomFromHistory(r)}
-                        className="flex-1 text-left hover:text-orange-600 active:scale-95"
-                      >
+                    <div key={r.id} className="bg-slate-50 rounded p-2 flex items-center justify-between gap-2 text-xs">
+                      <button onClick={() => useCustomFromHistory(r)} className="flex-1 text-left hover:text-orange-600 active:scale-95">
                         <span className="font-bold">{r.loadingPort} → {r.destinationPort}</span>
                         {r.country && <span className="text-slate-500"> · {r.country}</span>}
                         <span className="ml-2 font-mono text-emerald-600 font-bold">${r.rate}</span>
                       </button>
-                      <button
-                        onClick={() => removeCustomRoute(r.id)}
-                        className="text-rose-500 hover:text-rose-700 active:scale-95"
-                      >
+                      <button onClick={() => removeCustomRoute(r.id)} className="text-rose-500 hover:text-rose-700 active:scale-95">
                         ✕
                       </button>
                     </div>
@@ -974,7 +917,7 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* Custom Freight Rate Override (как было) */}
+        {/* Override freight rate */}
         <section className={`rounded-xl p-5 shadow-sm border-2 transition-all ${
           useCustomFreight ? "bg-emerald-50 border-emerald-400" : "bg-white border-slate-200"
         }`}>
@@ -991,9 +934,7 @@ export default function PricingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
               <label className="text-xs text-slate-500">Ставка фрахта (USD за 40HC)</label>
-              <input
-                type="number"
-                value={customFreightRate}
+              <input type="number" value={customFreightRate}
                 onChange={(e) => {
                   const v = parseFloat(e.target.value) || 0;
                   setCustomFreightRate(v);
@@ -1001,8 +942,7 @@ export default function PricingPage() {
                 }}
                 onFocus={(e) => e.target.select()}
                 placeholder="2400"
-                className="w-full mt-1 p-3 border-2 border-slate-300 rounded-lg text-xl font-bold focus:border-emerald-500 outline-none"
-              />
+                className="w-full mt-1 p-3 border-2 border-slate-300 rounded-lg text-xl font-bold focus:border-emerald-500 outline-none" />
             </div>
             <div className="flex items-end">
               <button
@@ -1015,28 +955,14 @@ export default function PricingPage() {
                   useCustomFreight
                     ? "bg-slate-500 text-white hover:bg-slate-600"
                     : "bg-emerald-600 text-white hover:bg-emerald-700"
-                }`}
-              >
+                }`}>
                 {useCustomFreight ? "⬅ Use Route Rate" : "✓ Override →"}
               </button>
             </div>
           </div>
-
-          <div className="mt-4 pt-4 border-t border-slate-200 flex flex-wrap items-center gap-3 text-xs">
-            <span className="text-slate-500">Источник:</span>
-            <a href="https://app.terminal.freightos.com/" target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold hover:bg-blue-200">
-              📊 Freightos FBX
-            </a>
-            <a href="https://www.drewry.co.uk/supply-chain-advisors/supply-chain-expertise/world-container-index-assessed-by-drewry"
-              target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold hover:bg-purple-200">
-              📈 Drewry WCI
-            </a>
-            {customFreightDate && <span className="text-slate-400 ml-auto">Updated: {customFreightDate}</span>}
-          </div>
         </section>
 
+        {/* Incoterms */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
             📋 Incoterms (Delivery Basis)
@@ -1050,15 +976,12 @@ export default function PricingPage() {
               { id: "fob", label: "FOB", ru: "+судно" },
               { id: "cif", label: "CIF ⭐", ru: "+фрахт+страх." },
             ].map((t) => (
-              <button
-                key={t.id}
-                onClick={() => updateDeal({ incoterm: t.id })}
+              <button key={t.id} onClick={() => updateDeal({ incoterm: t.id })}
                 className={`p-2 rounded-lg text-xs transition-all active:scale-95 border-2 ${
                   deal.incoterm === t.id
                     ? "bg-orange-500 text-white border-orange-600 shadow-lg"
                     : "bg-slate-100 text-slate-700 border-transparent hover:border-slate-300"
-                }`}
-              >
+                }`}>
                 <div className="font-bold">{t.label}</div>
                 <div className="opacity-75 text-[10px] mt-1">{t.ru}</div>
               </button>
@@ -1066,6 +989,91 @@ export default function PricingPage() {
           </div>
         </section>
 
+        {/* 🆕 ━━━━━━ LEAD TIME ━━━━━━ */}
+        <section className="bg-white rounded-xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-slate-800 flex items-center">
+              ⏱ Lead Time
+              <Tooltip text="Полное время от предоплаты до прибытия в порт назначения." />
+            </h2>
+            <button onClick={() => setShowLeadTimeBreakdown(!showLeadTimeBreakdown)}
+              className="text-xs text-orange-500 hover:text-orange-700 active:scale-95">
+              {showLeadTimeBreakdown ? "▲ Hide breakdown" : "▼ Show breakdown"}
+            </button>
+          </div>
+
+          {/* Большая карточка с total */}
+          <div className={`rounded-xl p-4 mb-3 border-2 ${
+            deal.leadTimeOverride !== null && deal.leadTimeOverride !== undefined
+              ? "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-400"
+              : "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-400"
+          }`}>
+            <div className="text-[10px] uppercase tracking-wider font-bold opacity-60 mb-1">
+              📅 TOTAL LEAD TIME {deal.leadTimeOverride !== null && deal.leadTimeOverride !== undefined && "(OVERRIDE)"}
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-black text-slate-900">{leadTimeTotal}</span>
+              <span className="text-lg text-slate-600">days</span>
+              <span className="text-xs text-slate-500">from advance payment</span>
+            </div>
+            <div className="text-xs text-slate-600 mt-1">
+              ETA: ~{Math.ceil(leadTimeTotal / 7)} weeks · {Math.ceil(leadTimeTotal / 30)} month{leadTimeTotal > 30 ? "s" : ""}
+            </div>
+          </div>
+
+          {/* Breakdown */}
+          {showLeadTimeBreakdown && (
+            <div className="bg-slate-50 rounded-lg p-3 mb-3 text-xs space-y-2">
+              <div className="flex justify-between items-center">
+                <span>🪚 Production + Drying</span>
+                <span className="font-mono font-bold">{leadTimeAuto.production} days</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>🚛 Land transport (to RU port)</span>
+                <span className="font-mono font-bold">{leadTimeAuto.landTransport} days</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>⚓ Port handling (RU)</span>
+                <span className="font-mono font-bold">{leadTimeAuto.portHandling} days</span>
+              </div>
+              <div className="flex justify-between items-center text-blue-700">
+                <span>🚢 Ocean freight ({activeRoute.destinationPort})</span>
+                <span className="font-mono font-bold">{leadTimeAuto.ocean} days</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>📦 Discharge at destination</span>
+                <span className="font-mono font-bold">{leadTimeAuto.discharge} days</span>
+              </div>
+              <div className="flex justify-between items-center border-t-2 border-slate-300 pt-2 font-bold">
+                <span>TOTAL (auto)</span>
+                <span className="font-mono">{leadTimeAuto.total} days</span>
+              </div>
+            </div>
+          )}
+
+          {/* Override */}
+          <div className="flex flex-wrap gap-2 items-end">
+            <div className="flex-1 min-w-[150px]">
+              <label className="text-xs text-slate-500 font-bold">Override Lead Time (days)</label>
+              <input type="number" value={deal.leadTimeOverride ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  updateDeal({ leadTimeOverride: v === "" ? null : parseInt(v) });
+                }}
+                onFocus={(e) => e.target.select()}
+                placeholder={`Auto: ${leadTimeAuto.total}`}
+                className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-base font-bold focus:border-emerald-500 outline-none" />
+            </div>
+            {deal.leadTimeOverride !== null && deal.leadTimeOverride !== undefined && (
+              <button onClick={() => updateDeal({ leadTimeOverride: null })}
+                className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded text-xs font-bold active:scale-95">
+                🔄 Use Auto
+              </button>
+            )}
+          </div>
+        </section>
+
+        {/* COST BREAKDOWN */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-slate-800 flex items-center">
@@ -1082,33 +1090,22 @@ export default function PricingPage() {
             actual {totalVol.toFixed(1)} m³ ({fillRate.toFixed(0)}% fill)
           </div>
 
-          <CostRow
-            icon="🪵"
-            label={`Mill price (${species} ${moisture} ${packaging})${costs.millPriceOverride !== null ? " ✏️" : ""}`}
-            perM3={millPricePerM3}
-            perContainer={millPricePerContainer}
-            total={millPriceTotal}
+          <CostRow icon="🪵" label={`Mill price (${species} ${moisture} ${packaging})${costs.millPriceOverride !== null ? " ✏️" : ""}`}
+            perM3={millPricePerM3} perContainer={millPricePerContainer} total={millPriceTotal}
             badge={costs.millPriceOverride !== null ? "MANUAL" : null}
-            editable
-            value={costs.millPriceOverride !== null ? costs.millPriceOverride : calculatedMillPrice}
+            editable value={costs.millPriceOverride !== null ? costs.millPriceOverride : calculatedMillPrice}
             onChange={(e) => {
               const v = e.target.value;
               if (v === "" || v === null) updateCost("millPriceOverride", null);
               else updateCost("millPriceOverride", parseFloat(v) || 0);
             }}
-            unit="$/m³"
-          />
+            unit="$/m³" />
 
           {costs.millPriceOverride !== null && (
             <div className="mt-2 mb-3 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 flex items-center justify-between">
-              <span>
-                ⚠️ Mill price вручную переопределён. 
-                Расчёт по породе: <span className="font-mono font-bold">${calculatedMillPrice.toFixed(2)}/m³</span>
-              </span>
-              <button
-                onClick={() => updateCost("millPriceOverride", null)}
-                className="ml-2 bg-amber-600 text-white text-xs px-2 py-1 rounded hover:bg-amber-700 active:scale-95 whitespace-nowrap"
-              >
+              <span>⚠️ Mill price вручную. Auto: <span className="font-mono font-bold">${calculatedMillPrice.toFixed(2)}/m³</span></span>
+              <button onClick={() => updateCost("millPriceOverride", null)}
+                className="ml-2 bg-amber-600 text-white text-xs px-2 py-1 rounded hover:bg-amber-700 active:scale-95 whitespace-nowrap">
                 🔄 Auto
               </button>
             </div>
@@ -1128,17 +1125,13 @@ export default function PricingPage() {
 
           {["fob", "cif"].includes(incoterm) && (
             <>
-              <CostRow icon="⚓" label="Port THC"
-                perM3={portTHCPerM3} perContainer={costs.portTHC} total={portTHCTotal}
+              <CostRow icon="⚓" label="Port THC" perM3={portTHCPerM3} perContainer={costs.portTHC} total={portTHCTotal}
                 editable value={costs.portTHC} onChange={(e) => updateCost("portTHC", e.target.value)} unit="$/cont" />
-              <CostRow icon="📄" label="Bill of Lading (B/L)"
-                perM3={portBLPerM3} perContainer={costs.portBL} total={portBLTotal}
+              <CostRow icon="📄" label="Bill of Lading (B/L)" perM3={portBLPerM3} perContainer={costs.portBL} total={portBLTotal}
                 editable value={costs.portBL} onChange={(e) => updateCost("portBL", e.target.value)} unit="$/cont" />
-              <CostRow icon="📡" label="Telex Release"
-                perM3={portTelexPerM3} perContainer={costs.portTelex} total={portTelexTotal}
+              <CostRow icon="📡" label="Telex Release" perM3={portTelexPerM3} perContainer={costs.portTelex} total={portTelexTotal}
                 editable value={costs.portTelex} onChange={(e) => updateCost("portTelex", e.target.value)} unit="$/cont" />
-              <CostRow icon="📋" label="Other port fees"
-                perM3={portOtherPerM3} perContainer={costs.portOther} total={portOtherTotal}
+              <CostRow icon="📋" label="Other port fees" perM3={portOtherPerM3} perContainer={costs.portOther} total={portOtherTotal}
                 editable value={costs.portOther} onChange={(e) => updateCost("portOther", e.target.value)} unit="$/cont" />
             </>
           )}
@@ -1150,18 +1143,15 @@ export default function PricingPage() {
           )}
 
           {incoterm === "cif" && (
-            <CostRow icon="🛡" label="Insurance"
-              perM3={insurancePerM3} perContainer={insurancePerContainer} total={insuranceTotal}
+            <CostRow icon="🛡" label="Insurance" perM3={insurancePerM3} perContainer={insurancePerContainer} total={insuranceTotal}
               editable value={costs.insuranceRate} onChange={(e) => updateCost("insuranceRate", e.target.value)} unit="%" />
           )}
 
-          <CostRow
-            icon="🏛"
+          <CostRow icon="🏛"
             label={`Export duty ${dutyFree ? "(0% — KD/4409)" : `(${costs.exportDutyRate}% — AD raw)`}`}
             perM3={dutyPerM3} perContainer={dutyPerContainer} total={dutyTotal}
             success={dutyFree} danger={!dutyFree} editable={!dutyFree}
-            value={costs.exportDutyRate} onChange={(e) => updateCost("exportDutyRate", e.target.value)} unit="%"
-          />
+            value={costs.exportDutyRate} onChange={(e) => updateCost("exportDutyRate", e.target.value)} unit="%" />
 
           <div className="mt-3 pt-3 border-t-2 border-slate-900 bg-slate-50 -mx-5 px-5 py-3">
             <div className="font-bold text-lg text-slate-900">TOTAL COST ({incoterm.toUpperCase()})</div>
@@ -1191,6 +1181,7 @@ export default function PricingPage() {
           </div>
         </section>
 
+        {/* MARGIN */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
             📊 Margin & Exchange Rate
@@ -1201,15 +1192,12 @@ export default function PricingPage() {
             <div className="text-xs text-slate-500 mb-2">Quick margin by country:</div>
             <div className="flex flex-wrap gap-2">
               {Object.entries(COUNTRY_MARGINS).map(([country, m]) => (
-                <button
-                  key={country}
-                  onClick={() => updateDeal({ margin: m })}
+                <button key={country} onClick={() => updateDeal({ margin: m })}
                   className={`px-3 py-2 rounded-lg text-xs transition-all active:scale-95 border-2 ${
                     deal.margin === m
                       ? "bg-orange-500 text-white border-orange-600 shadow-lg"
                       : "bg-slate-100 text-slate-700 border-transparent hover:border-slate-300"
-                  }`}
-                >
+                  }`}>
                   {country === "india" && "🇮🇳 India"}
                   {country === "china" && "🇨🇳 China"}
                   {country === "uae" && "🇦🇪 UAE"}
@@ -1245,14 +1233,115 @@ export default function PricingPage() {
           </div>
         </section>
 
+        {/* 🆕 ━━━━━━ VOLUME DISCOUNT ━━━━━━ */}
+        <section className="bg-white rounded-xl p-5 shadow-sm">
+          <h2 className="font-bold text-slate-800 flex items-center mb-3">
+            💸 Volume Discount
+            <Tooltip text="Скидка для клиента в зависимости от количества контейнеров." />
+          </h2>
+
+          {/* Шкала */}
+          <div className="bg-slate-50 rounded-lg p-3 mb-3">
+            <div className="text-xs font-bold text-slate-600 mb-2">📊 Discount Scale (auto):</div>
+            <div className="grid grid-cols-5 gap-1 text-center text-xs">
+              {DISCOUNT_TIERS.map((tier, idx) => {
+                const isActive = totalContainersForDiscount >= tier.minContainers && totalContainersForDiscount <= tier.maxContainers;
+                return (
+                  <div key={idx}
+                    className={`p-2 rounded transition-all ${
+                      isActive
+                        ? "bg-emerald-500 text-white shadow-lg scale-105 font-bold"
+                        : "bg-white text-slate-700"
+                    }`}>
+                    <div className="font-bold">{tier.label}</div>
+                    <div className="text-lg font-black mt-0.5">{tier.percent}%</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="text-xs text-slate-500 mt-2 text-center">
+              Текущее количество: <span className="font-bold text-slate-900">{totalContainersForDiscount} × 40HC</span> → 
+              <span className="font-bold text-emerald-600 ml-1">{autoDiscountPercent}% скидка</span>
+            </div>
+          </div>
+
+          {/* Mode selector */}
+          <div className="grid grid-cols-3 gap-2 mb-3">
+            <button onClick={() => updateDeal({ discountMode: "none" })}
+              className={`p-3 rounded-lg text-xs transition-all active:scale-95 border-2 ${
+                deal.discountMode === "none"
+                  ? "bg-slate-700 text-white border-slate-800 shadow-lg"
+                  : "bg-slate-100 text-slate-700 border-transparent hover:border-slate-300"
+              }`}>
+              <div className="font-bold">❌ No Discount</div>
+              <div className="opacity-75 mt-0.5">0%</div>
+            </button>
+            <button onClick={() => updateDeal({ discountMode: "auto" })}
+              className={`p-3 rounded-lg text-xs transition-all active:scale-95 border-2 ${
+                deal.discountMode === "auto" || !deal.discountMode
+                  ? "bg-emerald-500 text-white border-emerald-600 shadow-lg"
+                  : "bg-slate-100 text-slate-700 border-transparent hover:border-slate-300"
+              }`}>
+              <div className="font-bold">⚡ Auto</div>
+              <div className="opacity-75 mt-0.5">{autoDiscountPercent}%</div>
+            </button>
+            <button onClick={() => updateDeal({ discountMode: "custom" })}
+              className={`p-3 rounded-lg text-xs transition-all active:scale-95 border-2 ${
+                deal.discountMode === "custom"
+                  ? "bg-orange-500 text-white border-orange-600 shadow-lg"
+                  : "bg-slate-100 text-slate-700 border-transparent hover:border-slate-300"
+              }`}>
+              <div className="font-bold">✏️ Custom</div>
+              <div className="opacity-75 mt-0.5">{deal.customDiscountPercent || 0}%</div>
+            </button>
+          </div>
+
+          {/* Custom input */}
+          {deal.discountMode === "custom" && (
+            <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-3">
+              <label className="text-xs text-slate-600 font-bold">Custom discount %</label>
+              <input type="number" step="0.1" value={deal.customDiscountPercent || ""}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  updateDeal({ customDiscountPercent: isNaN(v) ? 0 : Math.max(0, Math.min(50, v)) });
+                }}
+                onFocus={(e) => e.target.select()}
+                placeholder="0"
+                className="w-full mt-1 p-2 border-2 border-orange-300 rounded text-lg font-bold focus:border-orange-500 outline-none" />
+              <div className="text-xs text-slate-500 mt-1">
+                💡 Используй для индивидуальных скидок (партнёр, повторный клиент)
+              </div>
+            </div>
+          )}
+
+          {/* Итог скидки */}
+          {appliedDiscountPercent > 0 && (
+            <div className="mt-3 p-3 bg-emerald-50 border-2 border-emerald-300 rounded-lg flex items-center justify-between">
+              <div>
+                <div className="text-xs text-emerald-700 font-bold">💸 APPLIED DISCOUNT</div>
+                <div className="text-2xl font-black text-emerald-700">
+                  -{appliedDiscountPercent}% = -${discountAmount.toFixed(0)}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-slate-500">Saved by buyer</div>
+                <div className="text-sm font-bold text-emerald-700">
+                  ≈ ₽{(discountAmount * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* 🆕 FINAL PRICING с discount */}
         <section className="bg-slate-900 text-white rounded-xl p-5 shadow-lg">
           <h2 className="font-bold">🎯 Final Pricing</h2>
           <div className="text-xs opacity-60 mt-1">
-            {incoterm.toUpperCase()} {activeRoute.destinationPort} · Margin {margin}% · {totalVol.toFixed(2)} m³ · {containers} × 40HC · ₽{rate}/$
+            {incoterm.toUpperCase()} {activeRoute.destinationPort} · Margin {margin}% · {totalVol.toFixed(2)} m³ · {containers} × 40HC · {leadTimeTotal}d · ₽{rate}/$
           </div>
 
           <div className="mt-4 p-4 bg-slate-800 rounded-lg">
-            <div className="text-xs opacity-60 mb-2">💵 SELLING PRICE</div>
+            <div className="text-xs opacity-60 mb-2">💵 SELLING PRICE (before discount)</div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
                 <div className="text-xl sm:text-2xl font-black">${sellPricePerM3.toFixed(2)}</div>
@@ -1263,65 +1352,83 @@ export default function PricingPage() {
                 <div className="text-xs opacity-50">per cont</div>
               </div>
               <div>
-                <div className="text-xl sm:text-2xl font-black">${totalAmount.toFixed(0)}</div>
-                <div className="text-xs opacity-50">total deal</div>
+                <div className="text-xl sm:text-2xl font-black">${subtotal.toFixed(0)}</div>
+                <div className="text-xs opacity-50">subtotal</div>
               </div>
             </div>
-            <div className="text-center text-xs opacity-50 mt-2">≈ ₽{(totalAmount * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}</div>
+          </div>
+
+          {/* 🆕 Discount line */}
+          {appliedDiscountPercent > 0 && (
+            <div className="mt-2 p-3 bg-emerald-900/40 border border-emerald-600 rounded-lg flex justify-between items-center">
+              <div>
+                <div className="text-xs opacity-75">💸 Volume Discount ({appliedDiscountPercent}%)</div>
+                <div className="text-xs opacity-50">{deal.discountMode === "auto" ? "Auto-applied" : "Custom"}</div>
+              </div>
+              <div className="text-2xl font-black text-emerald-400">
+                -${discountAmount.toFixed(0)}
+              </div>
+            </div>
+          )}
+
+          {/* 🆕 Grand Total */}
+          <div className="mt-2 p-4 bg-orange-600 rounded-lg">
+            <div className="text-xs opacity-90 mb-1">💎 GRAND TOTAL (to buyer)</div>
+            <div className="text-3xl font-black">${grandTotal.toFixed(0)}</div>
+            <div className="text-xs opacity-75 mt-1">
+              ≈ ₽{(grandTotal * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}
+              {appliedDiscountPercent > 0 && (
+                <span className="ml-2">· save ${discountAmount.toFixed(0)} for client</span>
+              )}
+            </div>
           </div>
 
           <div className="mt-3 p-4 bg-emerald-900/50 border border-emerald-700 rounded-lg">
-            <div className="text-xs opacity-75 mb-2">💚 YOUR PROFIT</div>
+            <div className="text-xs opacity-75 mb-2">💚 YOUR PROFIT (after discount)</div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
-                <div className="text-lg sm:text-xl font-black text-emerald-400">${profitPerM3.toFixed(2)}</div>
+                <div className="text-lg sm:text-xl font-black text-emerald-400">
+                  ${(profitPerM3 - (discountAmount / totalVol || 0)).toFixed(2)}
+                </div>
                 <div className="text-xs opacity-50">per m³</div>
               </div>
               <div className="border-l border-r border-emerald-700/50">
-                <div className="text-lg sm:text-xl font-black text-emerald-400">${profitPerContainer.toFixed(0)}</div>
+                <div className="text-lg sm:text-xl font-black text-emerald-400">
+                  ${((totalProfit - discountAmount) / containers).toFixed(0)}
+                </div>
                 <div className="text-xs opacity-50">per cont</div>
               </div>
               <div>
-                <div className="text-lg sm:text-xl font-black text-emerald-400">${totalProfit.toFixed(0)}</div>
+                <div className="text-lg sm:text-xl font-black text-emerald-400">
+                  ${(totalProfit - discountAmount).toFixed(0)}
+                </div>
                 <div className="text-xs opacity-50">total</div>
               </div>
             </div>
-            <div className="text-center text-xs opacity-50 mt-2">≈ ₽{(totalProfit * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}</div>
+            <div className="text-center text-xs opacity-50 mt-2">
+              ≈ ₽{((totalProfit - discountAmount) * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}
+            </div>
           </div>
 
-          <button
-            onClick={handleAddToBasket}
+          <button onClick={handleAddToBasket}
             className={`block w-full mt-5 text-white text-center py-4 rounded-lg font-black text-lg transition-all active:scale-95 ${
-              justAdded
-                ? "bg-emerald-500 shadow-lg shadow-emerald-500/50"
-                : "bg-purple-600 hover:bg-purple-700"
-            }`}
-          >
-            {justAdded ? (
-              <>✓ ADDED TO BASKET</>
-            ) : (
-              <>➕ ADD TO QUOTATION BASKET</>
-            )}
+              justAdded ? "bg-emerald-500 shadow-lg shadow-emerald-500/50" : "bg-purple-600 hover:bg-purple-700"
+            }`}>
+            {justAdded ? <>✓ ADDED TO BASKET</> : <>➕ ADD TO QUOTATION BASKET</>}
           </button>
 
           <div className="mt-2 text-center text-xs opacity-50">
             {positions.length === 0 ? (
               "💡 Добавляй разные позиции — Quotation объединит все"
             ) : (
-              <>📦 В корзине {positions.length} позиц{positions.length === 1 ? "ия" : "ии"} · ${basketTotalAmount.toFixed(0)} total</>
+              <>📦 В корзине {positions.length} позиц{positions.length === 1 ? "ия" : "ии"} · ${basketTotalAmount.toFixed(0)} subtotal</>
             )}
           </div>
 
-          <Link
-            href="/calculator/container"
-            className="block w-full mt-3 bg-orange-500 text-white text-center py-3 rounded-lg font-bold active:scale-95"
-          >
+          <Link href="/calculator/container" className="block w-full mt-3 bg-orange-500 text-white text-center py-3 rounded-lg font-bold active:scale-95">
             📦 Continue to 3D View →
           </Link>
-          <Link
-            href="/calculator/quotation"
-            className="block w-full mt-2 bg-emerald-600 text-white text-center py-3 rounded-lg font-bold active:scale-95"
-          >
+          <Link href="/calculator/quotation" className="block w-full mt-2 bg-emerald-600 text-white text-center py-3 rounded-lg font-bold active:scale-95">
             📄 {positions.length > 0 ? `Generate Quotation (${positions.length} pos)` : "Generate Commercial Quotation"} →
           </Link>
         </section>
