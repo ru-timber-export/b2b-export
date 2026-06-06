@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import Reminder from "../../components/Reminder";
 import {
@@ -26,7 +26,6 @@ const DEFAULT_COSTS = {
 
 const STORAGE_KEY = "ru-timber-pricing-costs";
 
-// 🏷 Красивые имена пород
 const SPECIES_NAMES = {
   pine: "Pine",
   spruce: "Spruce",
@@ -53,6 +52,20 @@ const PACKAGING_LABELS = {
   strapped: "Strapped",
   premium: "Premium",
 };
+
+// 🆕 LOADING PORTS (для определения откуда отгрузка)
+const LOADING_PORTS = {
+  nvr: { name: "Novorossiysk", country: "Russia", flag: "🇷🇺" },
+  spb: { name: "Saint Petersburg", country: "Russia", flag: "🇷🇺" },
+  vlv: { name: "Vladivostok", country: "Russia", flag: "🇷🇺" },
+  kgd: { name: "Kaliningrad", country: "Russia", flag: "🇷🇺" },
+};
+
+function getLoadingPortInfo(routeKey) {
+  if (!routeKey) return LOADING_PORTS.nvr;
+  const prefix = routeKey.split("-")[0];
+  return LOADING_PORTS[prefix] || LOADING_PORTS.nvr;
+}
 
 const Tooltip = ({ text }) => {
   const [open, setOpen] = useState(false);
@@ -120,10 +133,12 @@ export default function PricingPage() {
     deal, 
     updateDeal, 
     isLoaded,
-    // 🆕 Функции корзины
     addPosition,
     removePosition,
     clearPositions,
+    customRoutes,
+    addCustomRoute,
+    removeCustomRoute,
   } = useDeal();
   
   const [cbrLoading, setCbrLoading] = useState(false);
@@ -136,9 +151,18 @@ export default function PricingPage() {
 
   const [costs, setCosts] = useState(DEFAULT_COSTS);
   const [manualContainers, setManualContainers] = useState(null);
-
-  // 🆕 Состояние для анимации "✓ Added!"
   const [justAdded, setJustAdded] = useState(false);
+
+  // 🆕 СОСТОЯНИЕ ДЛЯ FREIGHT UI
+  const [portSearch, setPortSearch] = useState("");
+  const [expandedCountries, setExpandedCountries] = useState({}); // { "India": true }
+  const [showCustomForm, setShowCustomForm] = useState(false);
+  
+  // 🆕 CUSTOM PORT INPUTS
+  const [customLoadingPort, setCustomLoadingPort] = useState("Novorossiysk");
+  const [customDestPort, setCustomDestPort] = useState("");
+  const [customCountry, setCustomCountry] = useState("");
+  const [customRate, setCustomRate] = useState("");
 
   useEffect(() => {
     try {
@@ -235,9 +259,47 @@ export default function PricingPage() {
   const margin = deal.margin === "" ? 0 : parseFloat(deal.margin) || 18;
   const rate = deal.usdRubRate === "" ? 76.25 : parseFloat(deal.usdRubRate) || 76.25;
 
-  const freightPreset = FREIGHT_PRESETS[deal.freightRoute] || FREIGHT_PRESETS["nvr-jebelali"];
-  const effectiveFreightRate = useCustomFreight ? customFreightRate : freightPreset.rate;
-  const effectiveFreightLabel = useCustomFreight ? `Custom Rate (manual)` : freightPreset.label;
+  // 🆕 ЛОГИКА АКТИВНОГО МАРШРУТА
+  const activeRoute = useMemo(() => {
+    // Если активирован custom — берём custom
+    if (deal.customRoute) {
+      return {
+        type: "custom",
+        loadingPort: deal.customRoute.loadingPort,
+        loadingPortFlag: "🇷🇺",
+        destinationPort: deal.customRoute.destinationPort,
+        country: deal.customRoute.country,
+        flag: deal.customRoute.flag || "🌍",
+        rate: deal.customRoute.rate,
+      };
+    }
+    // Иначе из FREIGHT_PRESETS
+    const preset = FREIGHT_PRESETS[deal.freightRoute];
+    if (preset) {
+      const loading = getLoadingPortInfo(deal.freightRoute);
+      return {
+        type: "preset",
+        loadingPort: loading.name,
+        loadingPortFlag: loading.flag,
+        destinationPort: preset.port,
+        country: preset.country,
+        flag: preset.flag,
+        rate: preset.rate,
+      };
+    }
+    // Дефолт
+    return {
+      type: "preset",
+      loadingPort: "Novorossiysk",
+      loadingPortFlag: "🇷🇺",
+      destinationPort: "Jebel Ali",
+      country: "UAE",
+      flag: "🇦🇪",
+      rate: 2400,
+    };
+  }, [deal.customRoute, deal.freightRoute]);
+
+  const effectiveFreightRate = useCustomFreight ? customFreightRate : activeRoute.rate;
 
   const autoContainers = totalVol > 0 ? Math.ceil(totalVol / costs.containerCapacity) : 0;
   const containers = manualContainers !== null ? manualContainers : autoContainers;
@@ -316,7 +378,6 @@ export default function PricingPage() {
   const totalProfit = profitPerM3 * totalVol;
   const profitPerContainer = containers > 0 ? totalProfit / containers : 0;
 
-  // 🆕 SYNC: Сохраняем результаты Pricing в DealContext для Quotation
   useEffect(() => {
     if (!isLoaded) return;
     if (totalVol <= 0 || sellPricePerM3 <= 0) return;
@@ -351,7 +412,6 @@ export default function PricingPage() {
     incoterm,
   ]);
 
-  // 🆕 ДОБАВЛЕНИЕ ПОЗИЦИИ В КОРЗИНУ
   const handleAddToBasket = () => {
     if (totalVol <= 0 || sellPricePerM3 <= 0) {
       alert("Сначала заполни калькулятор: объём, размеры, цена");
@@ -359,7 +419,6 @@ export default function PricingPage() {
     }
 
     addPosition({
-      // Данные доски
       species,
       speciesLabel: SPECIES_NAMES[species] || species,
       thickness: parseFloat(deal.thickness) || 50,
@@ -369,36 +428,127 @@ export default function PricingPage() {
       moistureLabel: MOISTURE_LABELS[moisture] || moisture,
       packaging,
       packagingLabel: PACKAGING_LABELS[packaging] || packaging,
-      
-      // Объёмы
       totalVolume: totalVol,
       containers,
       volumePerContainer: containers > 0 ? totalVol / containers : 0,
-      
-      // Цены
       pricePerM3: sellPricePerM3,
       costPerM3: totalCostWithDutyPerM3,
       profitPerM3,
       totalAmount,
       totalProfit,
-      
-      // Условия (общие для всех — фиксируются)
       incoterm,
       freightRoute: deal.freightRoute,
       margin,
     });
 
-    // Анимация "Added!"
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 2000);
   };
 
-  // 🆕 РАСЧЁТ ИТОГОВ ПО КОРЗИНЕ
   const positions = deal.positions || [];
   const basketTotalVolume = positions.reduce((sum, p) => sum + (p.totalVolume || 0), 0);
   const basketTotalContainers = positions.reduce((sum, p) => sum + (p.containers || 0), 0);
   const basketTotalAmount = positions.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
-  const basketTotalProfit = positions.reduce((sum, p) => sum + (p.totalProfit || 0), 0);
+
+  // 🆕 ГРУППИРОВКА ПОРТОВ ПО СТРАНАМ
+  const routesByCountry = useMemo(() => {
+    const groups = {};
+    Object.entries(FREIGHT_PRESETS).forEach(([key, route]) => {
+      if (!groups[route.country]) {
+        groups[route.country] = { flag: route.flag, routes: [] };
+      }
+      groups[route.country].routes.push({ key, ...route });
+    });
+    return groups;
+  }, []);
+
+  // 🆕 ПОПУЛЯРНЫЕ МАРШРУТЫ (со звёздочкой)
+  const popularRoutes = useMemo(() => {
+    return Object.entries(FREIGHT_PRESETS)
+      .filter(([_, r]) => r.star)
+      .map(([key, r]) => ({ key, ...r }));
+  }, []);
+
+  // 🆕 ПОИСК ПО ПОРТАМ
+  const searchResults = useMemo(() => {
+    if (!portSearch.trim()) return [];
+    const q = portSearch.toLowerCase();
+    return Object.entries(FREIGHT_PRESETS)
+      .filter(([_, r]) => 
+        r.port.toLowerCase().includes(q) ||
+        r.country.toLowerCase().includes(q) ||
+        r.label.toLowerCase().includes(q)
+      )
+      .map(([key, r]) => ({ key, ...r }))
+      .slice(0, 10);
+  }, [portSearch]);
+
+  // 🆕 ПРИМЕНИТЬ CUSTOM МАРШРУТ
+  const applyCustomRoute = () => {
+    if (!customDestPort.trim() || !customRate) {
+      alert("Заполни обязательные поля: Destination Port и Rate");
+      return;
+    }
+
+    const routeData = {
+      loadingPort: customLoadingPort.trim() || "Novorossiysk",
+      destinationPort: customDestPort.trim(),
+      country: customCountry.trim(),
+      flag: "🌍",
+      rate: parseFloat(customRate),
+    };
+
+    // Сохраняем в историю
+    addCustomRoute(routeData);
+    
+    // Активируем в deal
+    updateDeal({
+      customRoute: routeData,
+      freightRoute: null, // отключаем preset
+    });
+
+    // Очищаем форму
+    setCustomDestPort("");
+    setCustomCountry("");
+    setCustomRate("");
+    setShowCustomForm(false);
+  };
+
+  // 🆕 ВЫБРАТЬ PRESET МАРШРУТ
+  const selectPresetRoute = (routeKey) => {
+    updateDeal({
+      freightRoute: routeKey,
+      customRoute: null, // отключаем custom
+    });
+    setUseCustomFreight(false);
+    saveCustomFreight(false, customFreightRate);
+  };
+
+  // 🆕 ВЫБРАТЬ СОХРАНЁННЫЙ CUSTOM МАРШРУТ
+  const useCustomFromHistory = (route) => {
+    updateDeal({
+      customRoute: {
+        loadingPort: route.loadingPort,
+        destinationPort: route.destinationPort,
+        country: route.country,
+        flag: route.flag,
+        rate: route.rate,
+      },
+      freightRoute: null,
+    });
+  };
+
+  // 🆕 ВЫЙТИ ИЗ CUSTOM (вернуться к presets)
+  const clearCustom = () => {
+    updateDeal({
+      customRoute: null,
+      freightRoute: "nvr-jebelali",
+    });
+  };
+
+  const toggleCountry = (country) => {
+    setExpandedCountries(prev => ({ ...prev, [country]: !prev[country] }));
+  };
 
   if (!isLoaded) {
     return <div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>;
@@ -428,7 +578,6 @@ export default function PricingPage() {
           </p>
         </div>
 
-        {/* 🆕 МИНИ-КОРЗИНА (если есть позиции) */}
         {positions.length > 0 && (
           <section className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-xl p-5 shadow-sm">
             <div className="flex items-center justify-between mb-3">
@@ -452,10 +601,7 @@ export default function PricingPage() {
 
             <div className="space-y-2">
               {positions.map((p, idx) => (
-                <div
-                  key={p.id}
-                  className="bg-white rounded-lg p-3 flex items-start gap-3 shadow-sm"
-                >
+                <div key={p.id} className="bg-white rounded-lg p-3 flex items-start gap-3 shadow-sm">
                   <div className="bg-purple-100 text-purple-800 font-bold text-sm w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0">
                     {idx + 1}
                   </div>
@@ -474,7 +620,6 @@ export default function PricingPage() {
                   <button
                     onClick={() => removePosition(p.id)}
                     className="text-rose-500 hover:text-rose-700 text-xl active:scale-95 flex-shrink-0"
-                    title="Remove position"
                   >
                     ✕
                   </button>
@@ -482,7 +627,6 @@ export default function PricingPage() {
               ))}
             </div>
 
-            {/* Итого по корзине */}
             <div className="mt-3 pt-3 border-t-2 border-purple-300 grid grid-cols-3 gap-3">
               <div>
                 <div className="text-[10px] uppercase tracking-wider text-purple-700">Total Vol</div>
@@ -518,7 +662,7 @@ export default function PricingPage() {
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center mb-3">
             📦 Volume & Containers
-            <Tooltip text="Объём из калькулятора. Количество контейнеров считается автоматически." />
+            <Tooltip text="Объём из калькулятора. Количество контейнеров — авто." />
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
@@ -527,10 +671,7 @@ export default function PricingPage() {
               <Link href="/calculator" className="text-xs text-orange-500 active:scale-95">✏ Edit →</Link>
             </div>
             <div>
-              <label className="text-xs text-slate-500 flex items-center">
-                Container Capacity (m³/40HC)
-                <Tooltip text="Стандарт для KD Pine в crate: 50 m³. Максимум 55 m³." />
-              </label>
+              <label className="text-xs text-slate-500">Container Capacity (m³/40HC)</label>
               <input
                 type="number"
                 value={costs.containerCapacity}
@@ -540,10 +681,7 @@ export default function PricingPage() {
               />
             </div>
             <div>
-              <label className="text-xs text-slate-500 flex items-center">
-                Containers (40HC)
-                <Tooltip text="Автоматически = округление вверх. Можно изменить вручную." />
-              </label>
+              <label className="text-xs text-slate-500">Containers (40HC)</label>
               <input
                 type="number"
                 value={containers}
@@ -559,10 +697,7 @@ export default function PricingPage() {
                   {fillRate.toFixed(1)}%
                 </span>
                 {manualContainers !== null && (
-                  <button
-                    onClick={() => setManualContainers(null)}
-                    className="ml-2 text-orange-500 active:scale-95"
-                  >
+                  <button onClick={() => setManualContainers(null)} className="ml-2 text-orange-500 active:scale-95">
                     🔄 Auto
                   </button>
                 )}
@@ -576,43 +711,277 @@ export default function PricingPage() {
           )}
         </section>
 
+        {/* 🆕 ━━━━━━ FREIGHT ROUTE — НОВЫЙ КРАСИВЫЙ UI ━━━━━━ */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
-          <h2 className="font-bold text-slate-800 flex items-center">
+          <h2 className="font-bold text-slate-800 flex items-center mb-3">
             🚢 Freight Route
-            <Tooltip text="Готовый маршрут ИЛИ ручная ставка ниже." />
+            <Tooltip text="Выбери порт из списка, найди через поиск, или введи custom." />
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
-            {Object.entries(FREIGHT_PRESETS).map(([key, val]) => {
-              const active = deal.freightRoute === key && !useCustomFreight;
-              return (
+
+          {/* CURRENT ROUTE — большая карточка */}
+          <div className={`rounded-xl p-4 mb-4 border-2 ${
+            activeRoute.type === "custom" 
+              ? "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-400" 
+              : "bg-gradient-to-r from-orange-50 to-amber-50 border-orange-400"
+          }`}>
+            <div className="text-[10px] uppercase tracking-wider font-bold opacity-60 mb-2">
+              📍 CURRENT ROUTE {activeRoute.type === "custom" && "(CUSTOM)"}
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 text-2xl font-black">
+                  <span>{activeRoute.loadingPortFlag}</span>
+                  <span className="truncate">{activeRoute.loadingPort}</span>
+                  <span className="text-orange-500">→</span>
+                  <span>{activeRoute.flag}</span>
+                  <span className="truncate">{activeRoute.destinationPort}</span>
+                </div>
+                <div className="text-xs text-slate-600 mt-1">
+                  {activeRoute.country} · <span className="font-mono font-bold">${activeRoute.rate} / 40HC</span>
+                </div>
+              </div>
+              {activeRoute.type === "custom" && (
                 <button
-                  key={key}
-                  onClick={() => {
-                    updateDeal({ freightRoute: key });
-                    setUseCustomFreight(false);
-                    saveCustomFreight(false, customFreightRate);
-                  }}
-                  className={`p-3 rounded-lg text-left text-xs transition-all active:scale-95 border-2 ${
-                    active
-                      ? "bg-orange-500 text-white border-orange-600 shadow-lg"
-                      : "bg-slate-100 text-slate-700 border-transparent hover:border-slate-300"
-                  }`}
+                  onClick={clearCustom}
+                  className="bg-white hover:bg-rose-50 text-rose-600 text-xs px-3 py-2 rounded-lg border border-rose-300 active:scale-95 whitespace-nowrap"
                 >
-                  <div className="font-bold">{val.label}</div>
-                  <div className="opacity-75 mt-1">${val.rate}/40HC</div>
+                  ✕ Reset
                 </button>
-              );
-            })}
+              )}
+            </div>
+          </div>
+
+          {/* SEARCH */}
+          <div className="mb-4">
+            <input
+              type="text"
+              value={portSearch}
+              onChange={(e) => setPortSearch(e.target.value)}
+              placeholder="🔍 Search port, city or country..."
+              className="w-full p-3 border-2 border-slate-300 rounded-lg text-sm focus:border-orange-500 outline-none"
+            />
+          </div>
+
+          {/* SEARCH RESULTS */}
+          {portSearch.trim() && (
+            <div className="mb-4 bg-slate-50 rounded-lg p-3">
+              <div className="text-xs font-bold text-slate-600 mb-2">
+                🔍 Found {searchResults.length} result{searchResults.length !== 1 ? "s" : ""}
+              </div>
+              {searchResults.length === 0 ? (
+                <div className="text-xs text-slate-500 py-3 text-center">
+                  Ничего не найдено. Используй <button onClick={() => setShowCustomForm(true)} className="text-orange-500 underline">Custom Port</button>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  {searchResults.map(r => (
+                    <button
+                      key={r.key}
+                      onClick={() => { selectPresetRoute(r.key); setPortSearch(""); }}
+                      className={`w-full text-left p-2 rounded text-sm transition-all active:scale-95 flex items-center justify-between ${
+                        deal.freightRoute === r.key && !deal.customRoute
+                          ? "bg-orange-500 text-white" 
+                          : "bg-white hover:bg-orange-50 text-slate-700"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{r.flag}</span>
+                        <span className="font-bold">{r.port}</span>
+                        <span className="text-xs opacity-75">· {r.country}</span>
+                      </div>
+                      <span className="font-mono font-bold text-xs">${r.rate}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* POPULAR ROUTES (если нет поиска) */}
+          {!portSearch.trim() && (
+            <div className="mb-4">
+              <div className="text-xs font-bold text-slate-600 mb-2">⭐ POPULAR ROUTES</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {popularRoutes.map(r => {
+                  const active = deal.freightRoute === r.key && !deal.customRoute;
+                  return (
+                    <button
+                      key={r.key}
+                      onClick={() => selectPresetRoute(r.key)}
+                      className={`p-3 rounded-lg text-left text-sm transition-all active:scale-95 border-2 ${
+                        active
+                          ? "bg-orange-500 text-white border-orange-600 shadow-lg"
+                          : "bg-slate-50 text-slate-700 border-transparent hover:border-orange-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="font-bold flex items-center gap-1">
+                          <span>{r.flag}</span>
+                          <span>{r.port}</span>
+                        </div>
+                        <span className="font-mono text-xs font-bold">${r.rate}</span>
+                      </div>
+                      <div className="text-[10px] opacity-75 mt-1">{r.country}</div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ALL ROUTES BY COUNTRY (collapsed) */}
+          {!portSearch.trim() && (
+            <div className="mb-4">
+              <div className="text-xs font-bold text-slate-600 mb-2">📋 ALL ROUTES BY COUNTRY</div>
+              <div className="space-y-2">
+                {Object.entries(routesByCountry).map(([country, data]) => {
+                  const isExpanded = expandedCountries[country];
+                  return (
+                    <div key={country} className="bg-slate-50 rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => toggleCountry(country)}
+                        className="w-full p-3 flex items-center justify-between hover:bg-slate-100 active:scale-[0.99] text-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{data.flag}</span>
+                          <span className="font-bold">{country}</span>
+                          <span className="text-xs text-slate-500">({data.routes.length} ports)</span>
+                        </div>
+                        <span>{isExpanded ? "▲" : "▼"}</span>
+                      </button>
+                      {isExpanded && (
+                        <div className="p-2 space-y-1 border-t border-slate-200">
+                          {data.routes.map(r => {
+                            const active = deal.freightRoute === r.key && !deal.customRoute;
+                            return (
+                              <button
+                                key={r.key}
+                                onClick={() => selectPresetRoute(r.key)}
+                                className={`w-full text-left p-2 rounded text-xs transition-all active:scale-95 flex items-center justify-between ${
+                                  active
+                                    ? "bg-orange-500 text-white"
+                                    : "bg-white hover:bg-orange-50 text-slate-700"
+                                }`}
+                              >
+                                <span className="flex items-center gap-2">
+                                  <span className="font-bold">{r.port}</span>
+                                  {r.star && <span>⭐</span>}
+                                </span>
+                                <span className="font-mono font-bold">${r.rate}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* CUSTOM PORT */}
+          <div className="mt-4 border-t-2 border-slate-200 pt-4">
+            <button
+              onClick={() => setShowCustomForm(!showCustomForm)}
+              className="w-full bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold p-3 rounded-lg text-sm transition-all active:scale-95"
+            >
+              {showCustomForm ? "▲ Hide Custom Port" : "✏️ Custom Port (manual entry)"}
+            </button>
+
+            {showCustomForm && (
+              <div className="mt-3 bg-emerald-50 border-2 border-emerald-300 rounded-lg p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-600 font-bold">🇷🇺 Loading Port</label>
+                    <input
+                      type="text"
+                      value={customLoadingPort}
+                      onChange={(e) => setCustomLoadingPort(e.target.value)}
+                      placeholder="Novorossiysk"
+                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-600 font-bold">🌍 Destination Port *</label>
+                    <input
+                      type="text"
+                      value={customDestPort}
+                      onChange={(e) => setCustomDestPort(e.target.value)}
+                      placeholder="Например: Cochin"
+                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-600 font-bold">Country</label>
+                    <input
+                      type="text"
+                      value={customCountry}
+                      onChange={(e) => setCustomCountry(e.target.value)}
+                      placeholder="India"
+                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-600 font-bold">Rate ($/40HC) *</label>
+                    <input
+                      type="number"
+                      value={customRate}
+                      onChange={(e) => setCustomRate(e.target.value)}
+                      placeholder="2850"
+                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={applyCustomRoute}
+                  className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg text-sm active:scale-95"
+                >
+                  ✓ Use Custom Route
+                </button>
+              </div>
+            )}
+
+            {/* CUSTOM HISTORY */}
+            {customRoutes && customRoutes.length > 0 && (
+              <div className="mt-3">
+                <div className="text-xs font-bold text-slate-600 mb-2">📜 RECENT CUSTOM ROUTES</div>
+                <div className="space-y-1">
+                  {customRoutes.slice(0, 5).map(r => (
+                    <div
+                      key={r.id}
+                      className="bg-slate-50 rounded p-2 flex items-center justify-between gap-2 text-xs"
+                    >
+                      <button
+                        onClick={() => useCustomFromHistory(r)}
+                        className="flex-1 text-left hover:text-orange-600 active:scale-95"
+                      >
+                        <span className="font-bold">{r.loadingPort} → {r.destinationPort}</span>
+                        {r.country && <span className="text-slate-500"> · {r.country}</span>}
+                        <span className="ml-2 font-mono text-emerald-600 font-bold">${r.rate}</span>
+                      </button>
+                      <button
+                        onClick={() => removeCustomRoute(r.id)}
+                        className="text-rose-500 hover:text-rose-700 active:scale-95"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </section>
 
+        {/* Custom Freight Rate Override (как было) */}
         <section className={`rounded-xl p-5 shadow-sm border-2 transition-all ${
           useCustomFreight ? "bg-emerald-50 border-emerald-400" : "bg-white border-slate-200"
         }`}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-slate-800 flex items-center">
-              ✏️ Custom Freight Rate
-              <Tooltip text="Введи ставку от брокера." />
+              ✏️ Override Freight Rate
+              <Tooltip text="Ставка от брокера, перебивает ставку из preset/custom port." />
             </h2>
             {useCustomFreight && (
               <span className="bg-emerald-600 text-white text-xs px-2 py-1 rounded-full font-bold">ACTIVE</span>
@@ -648,39 +1017,30 @@ export default function PricingPage() {
                     : "bg-emerald-600 text-white hover:bg-emerald-700"
                 }`}
               >
-                {useCustomFreight ? "⬅ Use Preset" : "✓ Use Custom →"}
+                {useCustomFreight ? "⬅ Use Route Rate" : "✓ Override →"}
               </button>
             </div>
           </div>
 
           <div className="mt-4 pt-4 border-t border-slate-200 flex flex-wrap items-center gap-3 text-xs">
             <span className="text-slate-500">Источник:</span>
-            <a
-              href="https://app.terminal.freightos.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold hover:bg-blue-200"
-            >
+            <a href="https://app.terminal.freightos.com/" target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold hover:bg-blue-200">
               📊 Freightos FBX
             </a>
-            <a
-              href="https://www.drewry.co.uk/supply-chain-advisors/supply-chain-expertise/world-container-index-assessed-by-drewry"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold hover:bg-purple-200"
-            >
+            <a href="https://www.drewry.co.uk/supply-chain-advisors/supply-chain-expertise/world-container-index-assessed-by-drewry"
+              target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 bg-purple-100 text-purple-700 px-3 py-1 rounded-full font-semibold hover:bg-purple-200">
               📈 Drewry WCI
             </a>
-            {customFreightDate && (
-              <span className="text-slate-400 ml-auto">Updated: {customFreightDate}</span>
-            )}
+            {customFreightDate && <span className="text-slate-400 ml-auto">Updated: {customFreightDate}</span>}
           </div>
         </section>
 
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="font-bold text-slate-800 flex items-center">
             📋 Incoterms (Delivery Basis)
-            <Tooltip text="EXW = склад. FCA = +погрузка. FOB = +судно. CIF = +фрахт+страховка." />
+            <Tooltip text="EXW=склад. FCA=+погрузка. FOB=+судно. CIF=+фрахт+страховка." />
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">
             {[
@@ -710,13 +1070,9 @@ export default function PricingPage() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-bold text-slate-800 flex items-center">
               💰 Cost Breakdown
-              <Tooltip text="Все цифры РЕДАКТИРУЕМЫЕ. Меняешь — сразу пересчитывается." />
+              <Tooltip text="Все цифры РЕДАКТИРУЕМЫЕ." />
             </h2>
-            <button
-              onClick={resetCosts}
-              className="text-xs text-rose-500 hover:text-rose-700 active:scale-95"
-              title="Сбросить к дефолтам"
-            >
+            <button onClick={resetCosts} className="text-xs text-rose-500 hover:text-rose-700 active:scale-95">
               🔄 Reset
             </button>
           </div>
@@ -737,11 +1093,8 @@ export default function PricingPage() {
             value={costs.millPriceOverride !== null ? costs.millPriceOverride : calculatedMillPrice}
             onChange={(e) => {
               const v = e.target.value;
-              if (v === "" || v === null) {
-                updateCost("millPriceOverride", null);
-              } else {
-                updateCost("millPriceOverride", parseFloat(v) || 0);
-              }
+              if (v === "" || v === null) updateCost("millPriceOverride", null);
+              else updateCost("millPriceOverride", parseFloat(v) || 0);
             }}
             unit="$/m³"
           />
@@ -750,7 +1103,7 @@ export default function PricingPage() {
             <div className="mt-2 mb-3 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 flex items-center justify-between">
               <span>
                 ⚠️ Mill price вручную переопределён. 
-                Расчёт по породе был: <span className="font-mono font-bold">${calculatedMillPrice.toFixed(2)}/m³</span>
+                Расчёт по породе: <span className="font-mono font-bold">${calculatedMillPrice.toFixed(2)}/m³</span>
               </span>
               <button
                 onClick={() => updateCost("millPriceOverride", null)}
@@ -762,119 +1115,52 @@ export default function PricingPage() {
           )}
 
           {["fca-factory", "fca-port", "fob", "cif"].includes(incoterm) && (
-            <CostRow
-              icon="🚚"
-              label="Factory loading"
-              perM3={factoryLoadingPerM3}
-              perContainer={factoryLoadingPerContainer}
-              total={factoryLoadingTotal}
-              editable
-              value={costs.factoryLoading}
-              onChange={(e) => updateCost("factoryLoading", e.target.value)}
-              unit="$/m³"
-            />
+            <CostRow icon="🚚" label="Factory loading"
+              perM3={factoryLoadingPerM3} perContainer={factoryLoadingPerContainer} total={factoryLoadingTotal}
+              editable value={costs.factoryLoading} onChange={(e) => updateCost("factoryLoading", e.target.value)} unit="$/m³" />
           )}
 
           {["fca-port", "fob", "cif"].includes(incoterm) && (
-            <CostRow
-              icon="🚛"
-              label="Land transport (до порта РФ)"
-              perM3={landTransportPerM3}
-              perContainer={landTransportPerContainer}
-              total={landTransportTotal}
-              editable
-              value={costs.landTransport}
-              onChange={(e) => updateCost("landTransport", e.target.value)}
-              unit="$/cont"
-            />
+            <CostRow icon="🚛" label="Land transport (до порта РФ)"
+              perM3={landTransportPerM3} perContainer={landTransportPerContainer} total={landTransportTotal}
+              editable value={costs.landTransport} onChange={(e) => updateCost("landTransport", e.target.value)} unit="$/cont" />
           )}
 
           {["fob", "cif"].includes(incoterm) && (
             <>
-              <CostRow
-                icon="⚓"
-                label="Port THC (Terminal Handling)"
-                perM3={portTHCPerM3}
-                perContainer={costs.portTHC}
-                total={portTHCTotal}
-                editable
-                value={costs.portTHC}
-                onChange={(e) => updateCost("portTHC", e.target.value)}
-                unit="$/cont"
-              />
-              <CostRow
-                icon="📄"
-                label="Bill of Lading (B/L)"
-                perM3={portBLPerM3}
-                perContainer={costs.portBL}
-                total={portBLTotal}
-                editable
-                value={costs.portBL}
-                onChange={(e) => updateCost("portBL", e.target.value)}
-                unit="$/cont"
-              />
-              <CostRow
-                icon="📡"
-                label="Telex Release"
-                perM3={portTelexPerM3}
-                perContainer={costs.portTelex}
-                total={portTelexTotal}
-                editable
-                value={costs.portTelex}
-                onChange={(e) => updateCost("portTelex", e.target.value)}
-                unit="$/cont"
-              />
-              <CostRow
-                icon="📋"
-                label="Other port fees"
-                perM3={portOtherPerM3}
-                perContainer={costs.portOther}
-                total={portOtherTotal}
-                editable
-                value={costs.portOther}
-                onChange={(e) => updateCost("portOther", e.target.value)}
-                unit="$/cont"
-              />
+              <CostRow icon="⚓" label="Port THC"
+                perM3={portTHCPerM3} perContainer={costs.portTHC} total={portTHCTotal}
+                editable value={costs.portTHC} onChange={(e) => updateCost("portTHC", e.target.value)} unit="$/cont" />
+              <CostRow icon="📄" label="Bill of Lading (B/L)"
+                perM3={portBLPerM3} perContainer={costs.portBL} total={portBLTotal}
+                editable value={costs.portBL} onChange={(e) => updateCost("portBL", e.target.value)} unit="$/cont" />
+              <CostRow icon="📡" label="Telex Release"
+                perM3={portTelexPerM3} perContainer={costs.portTelex} total={portTelexTotal}
+                editable value={costs.portTelex} onChange={(e) => updateCost("portTelex", e.target.value)} unit="$/cont" />
+              <CostRow icon="📋" label="Other port fees"
+                perM3={portOtherPerM3} perContainer={costs.portOther} total={portOtherTotal}
+                editable value={costs.portOther} onChange={(e) => updateCost("portOther", e.target.value)} unit="$/cont" />
             </>
           )}
 
           {incoterm === "cif" && (
-            <CostRow
-              icon="🚢"
-              label={`Ocean freight (${effectiveFreightLabel})`}
-              perM3={oceanPerM3}
-              perContainer={oceanPerContainer}
-              total={oceanTotal}
-              badge={useCustomFreight ? "CUSTOM" : null}
-            />
+            <CostRow icon="🚢" label={`Ocean freight (${activeRoute.loadingPort} → ${activeRoute.destinationPort})`}
+              perM3={oceanPerM3} perContainer={oceanPerContainer} total={oceanTotal}
+              badge={useCustomFreight ? "OVERRIDE" : activeRoute.type === "custom" ? "CUSTOM" : null} />
           )}
 
           {incoterm === "cif" && (
-            <CostRow
-              icon="🛡"
-              label="Insurance"
-              perM3={insurancePerM3}
-              perContainer={insurancePerContainer}
-              total={insuranceTotal}
-              editable
-              value={costs.insuranceRate}
-              onChange={(e) => updateCost("insuranceRate", e.target.value)}
-              unit="%"
-            />
+            <CostRow icon="🛡" label="Insurance"
+              perM3={insurancePerM3} perContainer={insurancePerContainer} total={insuranceTotal}
+              editable value={costs.insuranceRate} onChange={(e) => updateCost("insuranceRate", e.target.value)} unit="%" />
           )}
 
           <CostRow
             icon="🏛"
             label={`Export duty ${dutyFree ? "(0% — KD/4409)" : `(${costs.exportDutyRate}% — AD raw)`}`}
-            perM3={dutyPerM3}
-            perContainer={dutyPerContainer}
-            total={dutyTotal}
-            success={dutyFree}
-            danger={!dutyFree}
-            editable={!dutyFree}
-            value={costs.exportDutyRate}
-            onChange={(e) => updateCost("exportDutyRate", e.target.value)}
-            unit="%"
+            perM3={dutyPerM3} perContainer={dutyPerContainer} total={dutyTotal}
+            success={dutyFree} danger={!dutyFree} editable={!dutyFree}
+            value={costs.exportDutyRate} onChange={(e) => updateCost("exportDutyRate", e.target.value)} unit="%"
           />
 
           <div className="mt-3 pt-3 border-t-2 border-slate-900 bg-slate-50 -mx-5 px-5 py-3">
@@ -890,16 +1176,12 @@ export default function PricingPage() {
 
           <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
             <label className="flex items-start gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={deal.profileProcessing}
-                onChange={(e) => updateDeal({ profileProcessing: e.target.checked })}
-                className="mt-1"
-              />
+              <input type="checkbox" checked={deal.profileProcessing}
+                onChange={(e) => updateDeal({ profileProcessing: e.target.checked })} className="mt-1" />
               <div className="text-xs text-slate-700">
                 <div className="font-bold flex items-center">
                   ⚙ Profile processing (HS 4409 — фаска/паз)
-                  <Tooltip text="Лёгкая фаска 2×2мм переводит товар в код 4409 → 0% пошлины." />
+                  <Tooltip text="Лёгкая фаска 2×2мм → код 4409 → 0% пошлины." />
                 </div>
                 <div className="opacity-75 mt-1">
                   Для AD-доски: фаска 2×2мм → 0% пошлины РФ. Экономия ~$7/m³.
@@ -942,30 +1224,18 @@ export default function PricingPage() {
           <div className="grid grid-cols-2 gap-3 mt-4">
             <div>
               <label className="text-xs text-slate-500">Margin (%)</label>
-              <input
-                type="number"
-                value={deal.margin}
-                onChange={handleNum("margin")}
+              <input type="number" value={deal.margin} onChange={handleNum("margin")}
                 onFocus={(e) => e.target.select()}
-                className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-lg font-bold"
-              />
+                className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-lg font-bold" />
               <div className="text-xs text-emerald-600 mt-1">Profit: ${profitPerM3.toFixed(2)}/m³</div>
             </div>
             <div>
               <label className="text-xs text-slate-500">USD / RUB</label>
-              <input
-                type="number"
-                value={deal.usdRubRate}
-                onChange={handleNum("usdRubRate")}
+              <input type="number" value={deal.usdRubRate} onChange={handleNum("usdRubRate")}
                 onFocus={(e) => e.target.select()}
-                className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-lg font-bold"
-              />
+                className="w-full mt-1 p-2 border border-slate-300 rounded-lg text-lg font-bold" />
               <div className="flex items-center gap-2 mt-1">
-                <button
-                  onClick={fetchCBR}
-                  disabled={cbrLoading}
-                  className="text-xs text-orange-500 active:scale-95"
-                >
+                <button onClick={fetchCBR} disabled={cbrLoading} className="text-xs text-orange-500 active:scale-95">
                   {cbrLoading ? "⏳" : "🔄 ЦБ"}
                 </button>
                 {cbrDate && !cbrError && <span className="text-[10px] text-slate-400">{cbrDate}</span>}
@@ -978,7 +1248,7 @@ export default function PricingPage() {
         <section className="bg-slate-900 text-white rounded-xl p-5 shadow-lg">
           <h2 className="font-bold">🎯 Final Pricing</h2>
           <div className="text-xs opacity-60 mt-1">
-            {incoterm.toUpperCase()} · Margin {margin}% · {totalVol.toFixed(2)} m³ · {containers} × 40HC · ₽{rate}/$
+            {incoterm.toUpperCase()} {activeRoute.destinationPort} · Margin {margin}% · {totalVol.toFixed(2)} m³ · {containers} × 40HC · ₽{rate}/$
           </div>
 
           <div className="mt-4 p-4 bg-slate-800 rounded-lg">
@@ -1019,7 +1289,6 @@ export default function PricingPage() {
             <div className="text-center text-xs opacity-50 mt-2">≈ ₽{(totalProfit * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}</div>
           </div>
 
-          {/* 🆕 КНОПКА "ADD TO BASKET" */}
           <button
             onClick={handleAddToBasket}
             className={`block w-full mt-5 text-white text-center py-4 rounded-lg font-black text-lg transition-all active:scale-95 ${
@@ -1029,7 +1298,7 @@ export default function PricingPage() {
             }`}
           >
             {justAdded ? (
-              <>✓ ADDED TO BASKET! ({positions.length + 1 - 1}/{positions.length})</>
+              <>✓ ADDED TO BASKET</>
             ) : (
               <>➕ ADD TO QUOTATION BASKET</>
             )}
