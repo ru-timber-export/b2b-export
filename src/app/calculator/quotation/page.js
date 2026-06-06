@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useDeal, FREIGHT_PRESETS } from "../../context/DealContext";
+import { useDeal, FREIGHT_PRESETS, calcLeadTime, calcAutoDiscount } from "../../context/DealContext";
 import { useBusinessSettings } from "../../hooks/useBusinessSettings";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useQuotationCounter } from "../../hooks/useQuotationCounter";
 import Link from "next/link";
 import Reminder from "../../components/Reminder";
 
-// 🏷 Маппинг для отображения
 const SPECIES_NAMES = {
   pine: "Pine (Pinus sylvestris)",
   spruce: "Spruce (Picea abies)",
@@ -36,7 +35,6 @@ const PACKAGING_LABELS = {
   premium: "Premium packaging",
 };
 
-// 🆕 ОПРЕДЕЛЕНИЕ ПОРТА ОТПРАВЛЕНИЯ ПО ID МАРШРУТА
 const LOADING_PORT_MAP = {
   nvr: "Novorossiysk, Russia",
   spb: "Saint Petersburg, Russia",
@@ -80,11 +78,9 @@ export default function QuotationPage() {
     setTimeout(() => window.print(), 100);
   };
 
-  // 🆕 МУЛЬТИ-ПОЗИЦИИ ИЗ КОРЗИНЫ
   const basketPositions = deal.positions || [];
   const hasBasket = basketPositions.length > 0;
 
-  // 🆕 Fallback позиция из текущего калькулятора
   const fallbackPosition = {
     id: "fallback",
     species: deal.species || "pine",
@@ -112,25 +108,44 @@ export default function QuotationPage() {
 
   const totalVolume = positions.reduce((sum, p) => sum + (p.totalVolume || 0), 0);
   const totalContainers = positions.reduce((sum, p) => sum + (p.containers || 0), 0);
-  const grandTotal = positions.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+  const subtotal = positions.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
 
-  // 🆕 ✅ ПРАВИЛЬНО БЕРЁМ ПОРТЫ ИЗ FREIGHT_PRESETS
+  // 🆕 ПОРТЫ
   let destinationPort = "Jebel Ali, UAE";
   let loadingPort = "Novorossiysk, Russia";
+  let routeTransit = 21;
   
-  // Если есть customRoute — приоритет ему
   if (deal.customRoute && deal.customRoute.destinationPort) {
     destinationPort = `${deal.customRoute.destinationPort}${deal.customRoute.country ? `, ${deal.customRoute.country}` : ""}`;
     loadingPort = deal.customRoute.loadingPort || "Novorossiysk, Russia";
+    routeTransit = 21; // дефолт для custom
   } 
-  // Иначе берём из FREIGHT_PRESETS по ID
   else if (deal.freightRoute && FREIGHT_PRESETS[deal.freightRoute]) {
     const preset = FREIGHT_PRESETS[deal.freightRoute];
     destinationPort = `${preset.port}${preset.country ? `, ${preset.country}` : ""}`;
     loadingPort = getLoadingPort(deal.freightRoute);
+    routeTransit = preset.transit || 21;
   }
 
   const incotermLabel = (deal.incoterm || "CIF").toUpperCase();
+
+  // 🆕 LEAD TIME динамический
+  const leadTimeAuto = calcLeadTime(deal.freightRoute, routeTransit);
+  const leadTimeTotal = deal.leadTimeOverride !== null && deal.leadTimeOverride !== undefined
+    ? parseInt(deal.leadTimeOverride)
+    : leadTimeAuto.total;
+
+  // 🆕 СКИДКА
+  const autoDiscountPercent = calcAutoDiscount(totalContainers);
+  let appliedDiscountPercent = 0;
+  if (deal.discountMode === "auto" || !deal.discountMode) {
+    appliedDiscountPercent = autoDiscountPercent;
+  } else if (deal.discountMode === "custom") {
+    appliedDiscountPercent = parseFloat(deal.customDiscountPercent) || 0;
+  }
+  
+  const discountAmount = (subtotal * appliedDiscountPercent) / 100;
+  const grandTotal = subtotal - discountAmount;
 
   const speciesListInSubject = [...new Set(positions.map(p => 
     (p.speciesLabel || SPECIES_NAMES[p.species] || "Pine").split(" (")[0]
@@ -176,27 +191,28 @@ export default function QuotationPage() {
                     🛒 {positions.length} positions
                   </span>
                 )}
+                {appliedDiscountPercent > 0 && (
+                  <span className="ml-2 text-sm bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full font-bold">
+                    💸 -{appliedDiscountPercent}%
+                  </span>
+                )}
               </h1>
               <p className="text-xs text-slate-500">
                 Number: <span className="font-mono font-bold text-orange-500">{quotationNumber}</span>
                 {!numberCommitted && <span className="ml-2 text-slate-400">(preview)</span>}
                 {numberCommitted && <span className="ml-2 text-emerald-500">✓ committed</span>}
               </p>
-              {/* 🆕 Показываем маршрут в header */}
               <p className="text-xs text-slate-600 mt-1">
-                🚢 <strong>{loadingPort}</strong> → <strong>{destinationPort}</strong>
+                🚢 <strong>{loadingPort}</strong> → <strong>{destinationPort}</strong> · ⏱ {leadTimeTotal} days
               </p>
             </div>
             <div className="flex gap-2">
               {hasBasket && (
                 <button
                   onClick={() => {
-                    if (confirm("Очистить корзину после печати?")) {
-                      clearPositions();
-                    }
+                    if (confirm("Очистить корзину после печати?")) clearPositions();
                   }}
                   className="bg-rose-100 hover:bg-rose-200 text-rose-700 px-3 py-2 rounded-lg font-bold text-xs active:scale-95"
-                  title="Clear basket"
                 >
                   🗑 Clear basket
                 </button>
@@ -223,18 +239,8 @@ export default function QuotationPage() {
                     <span className="text-purple-500"> · {selectedCustomer.country}</span>
                   )}
                 </div>
-                <button
-                  onClick={() => setShowCustomerPicker(true)}
-                  className="text-xs text-purple-600 hover:text-purple-800 underline"
-                >
-                  Change
-                </button>
-                <button
-                  onClick={() => setSelectedCustomer(null)}
-                  className="text-xs text-rose-500 hover:text-rose-700 underline"
-                >
-                  Remove
-                </button>
+                <button onClick={() => setShowCustomerPicker(true)} className="text-xs text-purple-600 hover:text-purple-800 underline">Change</button>
+                <button onClick={() => setSelectedCustomer(null)} className="text-xs text-rose-500 hover:text-rose-700 underline">Remove</button>
               </div>
             ) : (
               <>
@@ -266,7 +272,7 @@ export default function QuotationPage() {
             <div className="flex-1">
               <div className="font-bold text-blue-900">Quotation на 1 позицию</div>
               <div className="text-xs text-blue-800 mt-1">
-                Если хочешь добавить ещё позиции — иди в Pricing и нажми "Add to Quotation Basket".
+                Хочешь добавить ещё позиции? Pricing → "Add to Quotation Basket".
               </div>
               <Link href="/calculator/pricing" className="inline-block mt-2 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-blue-700 active:scale-95">
                 💰 Add more positions →
@@ -282,9 +288,7 @@ export default function QuotationPage() {
             <div className="text-2xl">⚠️</div>
             <div className="flex-1">
               <div className="font-bold text-amber-900">Заполни Business Settings</div>
-              <div className="text-xs text-amber-800 mt-1">
-                Нужны: ИНН, USD-счёт, название EN.
-              </div>
+              <div className="text-xs text-amber-800 mt-1">Нужны: ИНН, USD-счёт, название EN.</div>
               <Link href="/captain/settings" className="inline-block mt-2 bg-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-amber-700 active:scale-95">
                 ⚙ Открыть Settings →
               </Link>
@@ -384,7 +388,7 @@ export default function QuotationPage() {
               )}
             </div>
             <div className="text-xs text-slate-300 mt-1">
-              {loadingPort} → {destinationPort} · {incotermLabel} Incoterms 2020
+              {loadingPort} → {destinationPort} · {incotermLabel} Incoterms 2020 · {leadTimeTotal} days lead time
             </div>
           </section>
 
@@ -396,6 +400,7 @@ export default function QuotationPage() {
               )}
             </h3>
 
+            {/* DESKTOP TABLE */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-100 text-slate-700 text-xs uppercase tracking-wider">
@@ -436,12 +441,35 @@ export default function QuotationPage() {
                     );
                   })}
                 </tbody>
-                <tfoot className="bg-slate-50 font-bold">
-                  <tr>
-                    <td colSpan="6" className="p-3 text-right">
-                      TOTAL ({totalContainers} × 40HC, {totalVolume.toFixed(1)} m³):
+                <tfoot>
+                  {/* 🆕 SUBTOTAL */}
+                  <tr className="bg-slate-50">
+                    <td colSpan="6" className="p-3 text-right font-semibold text-slate-700">
+                      Subtotal ({totalContainers} × 40HC, {totalVolume.toFixed(1)} m³):
                     </td>
-                    <td className="p-3 text-right font-mono text-orange-500 text-base">
+                    <td className="p-3 text-right font-mono font-bold text-slate-900">
+                      ${subtotal.toFixed(0)}
+                    </td>
+                  </tr>
+                  
+                  {/* 🆕 DISCOUNT (если есть) */}
+                  {appliedDiscountPercent > 0 && (
+                    <tr className="bg-emerald-50">
+                      <td colSpan="6" className="p-3 text-right font-semibold text-emerald-700">
+                        🎁 Volume Discount ({appliedDiscountPercent}% — {totalContainers >= 11 ? "bulk" : totalContainers >= 7 ? "large" : totalContainers >= 4 ? "medium" : "small"} order):
+                      </td>
+                      <td className="p-3 text-right font-mono font-bold text-emerald-600">
+                        -${discountAmount.toFixed(0)}
+                      </td>
+                    </tr>
+                  )}
+                  
+                  {/* 🆕 GRAND TOTAL */}
+                  <tr className="bg-slate-900 text-white">
+                    <td colSpan="6" className="p-3 text-right font-black text-base">
+                      GRAND TOTAL:
+                    </td>
+                    <td className="p-3 text-right font-mono text-orange-400 text-lg font-black">
                       ${grandTotal.toFixed(0)}
                     </td>
                   </tr>
@@ -449,6 +477,7 @@ export default function QuotationPage() {
               </table>
             </div>
 
+            {/* MOBILE CARDS */}
             <div className="sm:hidden space-y-3">
               {positions.map((p, idx) => {
                 const speciesLabel = p.speciesLabel || SPECIES_NAMES[p.species] || "Pine (Pinus sylvestris)";
@@ -502,27 +531,49 @@ export default function QuotationPage() {
                 );
               })}
 
-              <div className="bg-slate-900 text-white rounded-lg p-4 flex justify-between items-center">
-                <div>
-                  <div className="text-[10px] uppercase tracking-wider text-slate-400">Grand Total</div>
-                  <div className="text-xs text-slate-500">
-                    {positions.length} position{positions.length > 1 ? "s" : ""} · 
-                    {totalContainers} × 40HC · 
-                    {totalVolume.toFixed(1)} m³
+              {/* 🆕 MOBILE: Subtotal + Discount + Grand Total */}
+              <div className="space-y-2">
+                <div className="bg-slate-50 rounded-lg p-3 flex justify-between items-center">
+                  <div>
+                    <div className="text-xs text-slate-600 font-bold">Subtotal</div>
+                    <div className="text-[10px] text-slate-500">
+                      {positions.length} pos · {totalContainers} × 40HC · {totalVolume.toFixed(1)} m³
+                    </div>
                   </div>
+                  <div className="font-mono font-bold text-slate-900">${subtotal.toFixed(0)}</div>
                 </div>
-                <div className="text-right">
-                  <div className="font-mono font-black text-2xl text-orange-400">${grandTotal.toFixed(0)}</div>
-                  <div className="text-xs text-slate-400">USD</div>
+
+                {appliedDiscountPercent > 0 && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex justify-between items-center">
+                    <div>
+                      <div className="text-xs text-emerald-700 font-bold">🎁 Volume Discount ({appliedDiscountPercent}%)</div>
+                      <div className="text-[10px] text-emerald-600">
+                        {totalContainers >= 11 ? "Bulk order" : totalContainers >= 7 ? "Large order" : totalContainers >= 4 ? "Medium order" : "Small order"}
+                      </div>
+                    </div>
+                    <div className="font-mono font-bold text-emerald-600">-${discountAmount.toFixed(0)}</div>
+                  </div>
+                )}
+
+                <div className="bg-slate-900 text-white rounded-lg p-4 flex justify-between items-center">
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider text-slate-400">Grand Total</div>
+                    <div className="text-xs text-slate-500">
+                      {appliedDiscountPercent > 0 ? `Saved $${discountAmount.toFixed(0)}` : "No discount applied"}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-mono font-black text-2xl text-orange-400">${grandTotal.toFixed(0)}</div>
+                    <div className="text-xs text-slate-400">USD</div>
+                  </div>
                 </div>
               </div>
             </div>
           </section>
 
-          {/* 🆕 ОБНОВЛЁННЫЙ TermBlock с правильными портами */}
           <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
             <TermBlock label="Incoterms" value={`${incotermLabel} ${destinationPort}`} />
-            <TermBlock label="Lead Time" value={`${settings.defaultTransitDays || 45} days from advance`} />
+            <TermBlock label="Lead Time" value={`${leadTimeTotal} days from advance payment`} />
             <TermBlock label="Payment" value={settings.paymentTerms || "30% advance + 70% vs B/L copy"} />
             <TermBlock label="Document Release" value="⚡ Telex Release (no DHL)" />
             <TermBlock label="Loading Port" value={loadingPort} />
@@ -563,6 +614,9 @@ export default function QuotationPage() {
             <div><strong>Validity:</strong> This Quotation is valid until {validUntil}.</div>
             <div><strong>Quality:</strong> All goods shall meet GOST 8486-86 standard.</div>
             <div><strong>Inspection:</strong> Pre-shipment inspection by SGS / Bureau Veritas available at Buyer's expense.</div>
+            {appliedDiscountPercent > 0 && (
+              <div><strong>Discount:</strong> Volume discount of {appliedDiscountPercent}% applied for order of {totalContainers} × 40HC containers.</div>
+            )}
             <div><strong>Force Majeure:</strong> Including sanctions, banking restrictions, port closures. Full terms in Contract.</div>
             <div><strong>Arbitration:</strong> ICAC at the Chamber of Commerce and Industry of the Russian Federation, Moscow.</div>
           </section>
@@ -621,14 +675,9 @@ function CustomerPickerModal({ customers, onSelect, onClose }) {
         </div>
 
         <div className="p-3 border-b">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="🔍 Search company, name, country..."
-            autoFocus
-            className="w-full p-2 border-2 border-slate-300 rounded-lg text-sm focus:border-purple-500 outline-none"
-          />
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="🔍 Search company, name, country..." autoFocus
+            className="w-full p-2 border-2 border-slate-300 rounded-lg text-sm focus:border-purple-500 outline-none" />
           <div className="text-xs text-slate-500 mt-1">
             {sorted.length} of {customers.length} customers
           </div>
@@ -639,25 +688,16 @@ function CustomerPickerModal({ customers, onSelect, onClose }) {
             <div className="text-center py-12">
               <div className="text-5xl mb-2">👥</div>
               <div className="font-bold text-slate-700">Нет клиентов в CRM</div>
-              <div className="text-xs text-slate-500 mt-1">Сначала добавь клиентов</div>
-              <Link
-                href="/captain/customers"
-                className="inline-block mt-3 bg-purple-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-purple-700"
-              >
+              <Link href="/captain/customers" className="inline-block mt-3 bg-purple-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-purple-700">
                 ⚓ Open CRM →
               </Link>
             </div>
           ) : sorted.length === 0 ? (
-            <div className="text-center py-12 text-slate-500 text-sm">
-              Никого не найдено
-            </div>
+            <div className="text-center py-12 text-slate-500 text-sm">Никого не найдено</div>
           ) : (
             sorted.map(c => (
-              <button
-                key={c.id}
-                onClick={() => onSelect(c)}
-                className="w-full text-left bg-slate-50 hover:bg-purple-50 hover:border-purple-300 border-2 border-transparent rounded-lg p-3 transition-colors active:scale-[0.98]"
-              >
+              <button key={c.id} onClick={() => onSelect(c)}
+                className="w-full text-left bg-slate-50 hover:bg-purple-50 hover:border-purple-300 border-2 border-transparent rounded-lg p-3 transition-colors active:scale-[0.98]">
                 <div className="flex justify-between items-start gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-slate-900 truncate">{c.companyName || "Без названия"}</div>
@@ -673,9 +713,7 @@ function CustomerPickerModal({ customers, onSelect, onClose }) {
                       </div>
                     )}
                     {c.interest && (
-                      <div className="text-xs text-purple-600 mt-1 italic truncate">
-                        💼 {c.interest}
-                      </div>
+                      <div className="text-xs text-purple-600 mt-1 italic truncate">💼 {c.interest}</div>
                     )}
                   </div>
                   <div className="flex flex-col gap-1 shrink-0">
@@ -690,16 +728,10 @@ function CustomerPickerModal({ customers, onSelect, onClose }) {
         </div>
 
         <div className="p-3 border-t flex gap-2">
-          <Link
-            href="/captain/customers"
-            className="text-xs text-purple-600 hover:text-purple-800 underline"
-          >
+          <Link href="/captain/customers" className="text-xs text-purple-600 hover:text-purple-800 underline">
             + Add new customer in CRM
           </Link>
-          <button
-            onClick={onClose}
-            className="ml-auto text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg"
-          >
+          <button onClick={onClose} className="ml-auto text-xs px-3 py-1.5 bg-slate-100 hover:bg-slate-200 rounded-lg">
             Cancel
           </button>
         </div>
