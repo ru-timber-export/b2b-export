@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useDeal } from "../../context/DealContext";
+import { useDeal, FREIGHT_PRESETS } from "../../context/DealContext";
 import { useBusinessSettings } from "../../hooks/useBusinessSettings";
 import { useCustomers } from "../../hooks/useCustomers";
 import { useQuotationCounter } from "../../hooks/useQuotationCounter";
@@ -36,16 +36,19 @@ const PACKAGING_LABELS = {
   premium: "Premium packaging",
 };
 
-const DESTINATION_MAP = {
-  "nvr-jebelali": "Jebel Ali, UAE",
-  "nvr-dammam": "Dammam, Saudi Arabia",
-  "nvr-doha": "Doha, Qatar",
-  "nvr-alex": "Alexandria, Egypt",
-  "nvr-istanbul": "Istanbul, Türkiye",
-  "spb-jebelali": "Jebel Ali, UAE",
-  "vlv-mumbai": "Mumbai, India",
-  "vlv-chennai": "Chennai, India",
+// 🆕 ОПРЕДЕЛЕНИЕ ПОРТА ОТПРАВЛЕНИЯ ПО ID МАРШРУТА
+const LOADING_PORT_MAP = {
+  nvr: "Novorossiysk, Russia",
+  spb: "Saint Petersburg, Russia",
+  vlv: "Vladivostok, Russia",
+  kgd: "Kaliningrad, Russia",
 };
+
+function getLoadingPort(routeKey) {
+  if (!routeKey) return "Novorossiysk, Russia";
+  const prefix = routeKey.split("-")[0];
+  return LOADING_PORT_MAP[prefix] || "Novorossiysk, Russia";
+}
 
 export default function QuotationPage() {
   const { deal, isLoaded: dealLoaded, clearPositions } = useDeal();
@@ -81,7 +84,7 @@ export default function QuotationPage() {
   const basketPositions = deal.positions || [];
   const hasBasket = basketPositions.length > 0;
 
-  // 🆕 Если корзина пустая — fallback на одну позицию из калькулятора
+  // 🆕 Fallback позиция из текущего калькулятора
   const fallbackPosition = {
     id: "fallback",
     species: deal.species || "pine",
@@ -95,7 +98,7 @@ export default function QuotationPage() {
     packagingLabel: PACKAGING_LABELS[deal.packaging] || "Strapped bundles + crate",
     totalVolume: parseFloat(deal.totalVolume) || 0,
     containers: parseInt(deal.finalContainers) || 1,
-    volumePerContainer: 0, // вычислим ниже
+    volumePerContainer: 0,
     pricePerM3: parseFloat(deal.finalPricePerM3) || 0,
     totalAmount: parseFloat(deal.finalTotalAmount) || 0,
   };
@@ -105,19 +108,30 @@ export default function QuotationPage() {
     fallbackPosition.totalAmount = fallbackPosition.totalVolume * fallbackPosition.pricePerM3;
   }
 
-  // ✅ Финальный массив позиций для отображения
   const positions = hasBasket ? basketPositions : [fallbackPosition];
 
-  // ✅ Общие итоги
   const totalVolume = positions.reduce((sum, p) => sum + (p.totalVolume || 0), 0);
   const totalContainers = positions.reduce((sum, p) => sum + (p.containers || 0), 0);
   const grandTotal = positions.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
 
-  // 🆕 Общие условия сделки (берём из текущего deal)
-  const destinationPort = DESTINATION_MAP[deal.freightRoute] || "Jebel Ali, UAE";
+  // 🆕 ✅ ПРАВИЛЬНО БЕРЁМ ПОРТЫ ИЗ FREIGHT_PRESETS
+  let destinationPort = "Jebel Ali, UAE";
+  let loadingPort = "Novorossiysk, Russia";
+  
+  // Если есть customRoute — приоритет ему
+  if (deal.customRoute && deal.customRoute.destinationPort) {
+    destinationPort = `${deal.customRoute.destinationPort}${deal.customRoute.country ? `, ${deal.customRoute.country}` : ""}`;
+    loadingPort = deal.customRoute.loadingPort || "Novorossiysk, Russia";
+  } 
+  // Иначе берём из FREIGHT_PRESETS по ID
+  else if (deal.freightRoute && FREIGHT_PRESETS[deal.freightRoute]) {
+    const preset = FREIGHT_PRESETS[deal.freightRoute];
+    destinationPort = `${preset.port}${preset.country ? `, ${preset.country}` : ""}`;
+    loadingPort = getLoadingPort(deal.freightRoute);
+  }
+
   const incotermLabel = (deal.incoterm || "CIF").toUpperCase();
 
-  // ✅ Subject строка
   const speciesListInSubject = [...new Set(positions.map(p => 
     (p.speciesLabel || SPECIES_NAMES[p.species] || "Pine").split(" (")[0]
   ))].join(" + ");
@@ -168,12 +182,16 @@ export default function QuotationPage() {
                 {!numberCommitted && <span className="ml-2 text-slate-400">(preview)</span>}
                 {numberCommitted && <span className="ml-2 text-emerald-500">✓ committed</span>}
               </p>
+              {/* 🆕 Показываем маршрут в header */}
+              <p className="text-xs text-slate-600 mt-1">
+                🚢 <strong>{loadingPort}</strong> → <strong>{destinationPort}</strong>
+              </p>
             </div>
             <div className="flex gap-2">
               {hasBasket && (
                 <button
                   onClick={() => {
-                    if (confirm("Очистить корзину после печати?\n\nQuotation останется на экране, но позиции удалятся из корзины.")) {
+                    if (confirm("Очистить корзину после печати?")) {
                       clearPositions();
                     }
                   }}
@@ -241,7 +259,6 @@ export default function QuotationPage() {
         />
       )}
 
-      {/* 🆕 ИНФО О ПУСТОЙ КОРЗИНЕ */}
       {!hasBasket && totalVolume > 0 && (
         <div className="max-w-5xl mx-auto p-4 print:hidden">
           <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 flex items-start gap-3">
@@ -249,8 +266,7 @@ export default function QuotationPage() {
             <div className="flex-1">
               <div className="font-bold text-blue-900">Quotation на 1 позицию</div>
               <div className="text-xs text-blue-800 mt-1">
-                Если хочешь добавить ещё позиции (Сосна + Лиственница + Ель) — 
-                иди в Pricing и нажми "Add to Quotation Basket".
+                Если хочешь добавить ещё позиции — иди в Pricing и нажми "Add to Quotation Basket".
               </div>
               <Link href="/calculator/pricing" className="inline-block mt-2 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded hover:bg-blue-700 active:scale-95">
                 💰 Add more positions →
@@ -279,7 +295,7 @@ export default function QuotationPage() {
 
       <div className="max-w-5xl mx-auto p-4 print:hidden space-y-2">
         <Reminder title="KYC проверка покупателя" tone="warning" icon="🔍">
-          Перед отправкой Quotation убедись что проверил покупателя: реальный сайт, юридический адрес, отзывы, торговая лицензия (Trade License в ОАЭ).
+          Перед отправкой Quotation убедись что проверил покупателя: реальный сайт, юридический адрес, отзывы, торговая лицензия.
         </Reminder>
         <Reminder title="NDA опционально" tone="info" icon="🤐">
           Если переговоры конфиденциальные — пришли покупателю NDA перед детальной квотацией.
@@ -368,7 +384,7 @@ export default function QuotationPage() {
               )}
             </div>
             <div className="text-xs text-slate-300 mt-1">
-              {settings.defaultPort || "Novorossiysk"} → {destinationPort} · {incotermLabel} Incoterms 2020
+              {loadingPort} → {destinationPort} · {incotermLabel} Incoterms 2020
             </div>
           </section>
 
@@ -380,7 +396,6 @@ export default function QuotationPage() {
               )}
             </h3>
 
-            {/* DESKTOP TABLE */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-slate-100 text-slate-700 text-xs uppercase tracking-wider">
@@ -434,7 +449,6 @@ export default function QuotationPage() {
               </table>
             </div>
 
-            {/* MOBILE CARDS */}
             <div className="sm:hidden space-y-3">
               {positions.map((p, idx) => {
                 const speciesLabel = p.speciesLabel || SPECIES_NAMES[p.species] || "Pine (Pinus sylvestris)";
@@ -488,7 +502,6 @@ export default function QuotationPage() {
                 );
               })}
 
-              {/* Grand Total mobile */}
               <div className="bg-slate-900 text-white rounded-lg p-4 flex justify-between items-center">
                 <div>
                   <div className="text-[10px] uppercase tracking-wider text-slate-400">Grand Total</div>
@@ -506,12 +519,13 @@ export default function QuotationPage() {
             </div>
           </section>
 
+          {/* 🆕 ОБНОВЛЁННЫЙ TermBlock с правильными портами */}
           <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
             <TermBlock label="Incoterms" value={`${incotermLabel} ${destinationPort}`} />
             <TermBlock label="Lead Time" value={`${settings.defaultTransitDays || 45} days from advance`} />
             <TermBlock label="Payment" value={settings.paymentTerms || "30% advance + 70% vs B/L copy"} />
             <TermBlock label="Document Release" value="⚡ Telex Release (no DHL)" />
-            <TermBlock label="Loading Port" value={settings.defaultPort || "Novorossiysk, RU"} />
+            <TermBlock label="Loading Port" value={loadingPort} />
             <TermBlock label="Destination" value={destinationPort} />
             <TermBlock label="Container Type" value={`${totalContainers} × 40HC`} />
             <TermBlock label="Schedule" value="Single shipment" />
