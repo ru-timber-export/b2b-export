@@ -27,7 +27,7 @@ export const PACKAGING_SURCHARGE = {
 };
 
 // ═══════════════════════════════════════════════
-// 🚢 МАРШРУТЫ — с TRANSIT TIME (дни морем)
+// 🚢 МАРШРУТЫ
 // ═══════════════════════════════════════════════
 
 export const FREIGHT_PRESETS = {
@@ -91,21 +91,17 @@ export const FREIGHT_PRESETS = {
   "vlv-chennai":      { label: "Владивосток → Chennai",        port: "Chennai", country: "India", flag: "🇮🇳", rate: 2750, transit: 16 },
 };
 
-// ═══════════════════════════════════════════════
-// 🆕 LEAD TIME — компоненты (стандартные)
-// ═══════════════════════════════════════════════
+// LEAD TIME
 export const LEAD_TIME_BREAKDOWN = {
-  production: 14,    // 🪚 производство + сушка
-  landTransport: 3,  // 🚛 фура до порта РФ
-  portHandling: 4,   // ⚓ формальности в порту отгрузки
-  // ocean: берётся из FREIGHT_PRESETS[route].transit
-  discharge: 3,      // 📦 разгрузка в порту назначения
+  production: 14,
+  landTransport: 3,
+  portHandling: 4,
+  discharge: 3,
 };
 
-// Расчёт lead time по маршруту
 export function calcLeadTime(routeKey, customTransit = null) {
   const { production, landTransport, portHandling, discharge } = LEAD_TIME_BREAKDOWN;
-  let ocean = 21; // дефолт
+  let ocean = 21;
   
   if (customTransit !== null && customTransit !== undefined) {
     ocean = customTransit;
@@ -123,9 +119,7 @@ export function calcLeadTime(routeKey, customTransit = null) {
   };
 }
 
-// ═══════════════════════════════════════════════
-// 🆕 СКИДКИ ПО КОЛИЧЕСТВУ КОНТЕЙНЕРОВ
-// ═══════════════════════════════════════════════
+// СКИДКИ по контейнерам
 export const DISCOUNT_TIERS = [
   { minContainers: 1,  maxContainers: 1,    percent: 0,   label: "1 cont" },
   { minContainers: 2,  maxContainers: 3,    percent: 1.5, label: "2-3 cont" },
@@ -134,12 +128,90 @@ export const DISCOUNT_TIERS = [
   { minContainers: 11, maxContainers: 9999, percent: 7,   label: "11+ cont" },
 ];
 
-// Автоматический расчёт скидки по количеству контейнеров
 export function calcAutoDiscount(containers) {
   const c = parseInt(containers) || 0;
   if (c <= 0) return 0;
   const tier = DISCOUNT_TIERS.find(t => c >= t.minContainers && c <= t.maxContainers);
   return tier ? tier.percent : 0;
+}
+
+// ═══════════════════════════════════════════════
+// 🆕 ━━━━━━ СХЕМЫ ОПЛАТЫ ━━━━━━
+// ═══════════════════════════════════════════════
+export const PAYMENT_SCHEMAS = {
+  "prepay100": {
+    id: "prepay100",
+    name: "100% Prepayment",
+    nameRu: "100% Предоплата",
+    advancePercent: 100,
+    balancePercent: 0,
+    description: "Full payment before shipment",
+    descriptionRu: "Полная оплата до отгрузки",
+    icon: "💯",
+    color: "emerald",
+    recommended: "new clients, test orders",
+    recommendedRu: "новые клиенты, тестовые поставки",
+    contractText: "100% advance payment within 5 (five) banking days from the date of signing the Contract.",
+    contractTextRu: "100% авансовый платёж в течение 5 (пяти) банковских дней с даты подписания Контракта.",
+    risk: "zero",
+    capitalNeed: "none",
+  },
+  "prepay50": {
+    id: "prepay50",
+    name: "50% / 50%",
+    nameRu: "50% / 50%",
+    advancePercent: 50,
+    balancePercent: 50,
+    description: "50% advance + 50% against B/L copy",
+    descriptionRu: "50% аванс + 50% против копии коносамента",
+    icon: "⚖️",
+    color: "blue",
+    recommended: "trusted clients, medium orders",
+    recommendedRu: "проверенные клиенты, средние заказы",
+    contractText: "50% advance payment within 5 (five) banking days from the date of signing the Contract. 50% final payment against scan copy of Bill of Lading (B/L) within 5 (five) banking days from the date of receipt of B/L copy.",
+    contractTextRu: "50% авансовый платёж в течение 5 (пяти) банковских дней с даты подписания Контракта. 50% окончательный платёж против скан-копии коносамента (B/L), в течение 5 (пяти) банковских дней с даты получения копии B/L.",
+    risk: "low",
+    capitalNeed: "medium",
+  },
+  "prepay30": {
+    id: "prepay30",
+    name: "30% / 70%",
+    nameRu: "30% / 70%",
+    advancePercent: 30,
+    balancePercent: 70,
+    description: "30% advance + 70% against B/L copy (standard)",
+    descriptionRu: "30% аванс + 70% против копии B/L (стандарт)",
+    icon: "📋",
+    color: "amber",
+    recommended: "regular clients, standard practice",
+    recommendedRu: "постоянные клиенты, стандартная практика",
+    contractText: "30% advance payment within 5 (five) banking days from the date of signing the Contract. 70% final payment against scan copy of Bill of Lading (B/L) within 5 (five) banking days from the date of receipt of B/L copy.",
+    contractTextRu: "30% авансовый платёж в течение 5 (пяти) банковских дней с даты подписания Контракта. 70% окончательный платёж против скан-копии коносамента (B/L), в течение 5 (пяти) банковских дней с даты получения копии B/L.",
+    risk: "medium",
+    capitalNeed: "high",
+  },
+  "lc": {
+    id: "lc",
+    name: "Letter of Credit (L/C)",
+    nameRu: "Аккредитив (L/C)",
+    advancePercent: 0,
+    balancePercent: 100,
+    description: "Confirmed irrevocable L/C, payment against shipping documents",
+    descriptionRu: "Подтверждённый безотзывный аккредитив, оплата против документов",
+    icon: "🏦",
+    color: "purple",
+    recommended: "large deals, secured payment",
+    recommendedRu: "крупные сделки, гарантированная оплата",
+    contractText: "100% payment by irrevocable confirmed Letter of Credit (L/C), opened by Buyer in a first-class bank within 10 (ten) banking days from the date of signing the Contract. Payment against shipping documents (B/L, Commercial Invoice, Packing List, Certificate of Origin).",
+    contractTextRu: "100% оплата безотзывным подтверждённым аккредитивом (L/C), открытым Покупателем в первоклассном банке в течение 10 (десяти) банковских дней с даты подписания Контракта. Оплата против отгрузочных документов (B/L, Commercial Invoice, Packing List, Certificate of Origin).",
+    risk: "zero",
+    capitalNeed: "high",
+  },
+};
+
+// Helper для получения схемы
+export function getPaymentSchema(schemaId) {
+  return PAYMENT_SCHEMAS[schemaId] || PAYMENT_SCHEMAS["prepay100"];
 }
 
 export const COUNTRY_MARGINS = {
@@ -192,18 +264,14 @@ const defaultDeal = {
   leadTime: 45,
   transitDays: 21,
   
-  // Корзина
   positions: [],
-  
-  // Custom freight route
   customRoute: null,
+  leadTimeOverride: null,
+  discountMode: "auto",
+  customDiscountPercent: 0,
   
-  // 🆕 LEAD TIME override (если null — авто-расчёт)
-  leadTimeOverride: null,  // например 50 (вместо авто 42)
-  
-  // 🆕 СКИДКА
-  discountMode: "auto",      // "auto" | "custom" | "none"
-  customDiscountPercent: 0,  // если discountMode === "custom"
+  // 🆕 СХЕМА ОПЛАТЫ
+  paymentSchema: "prepay100",  // дефолт для новых клиентов
 };
 
 const defaultSeller = {
@@ -300,7 +368,6 @@ export function DealProvider({ children }) {
   const toggleChecklistItem = (key) => setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
   const resetDeal = () => setDeal(defaultDeal);
 
-  // Функции корзины
   const addPosition = (positionData) => {
     const newPosition = {
       id: `pos-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -326,7 +393,6 @@ export function DealProvider({ children }) {
     }));
   };
 
-  // Custom routes
   const addCustomRoute = (routeData) => {
     const { loadingPort, destinationPort, country, flag, rate } = routeData;
     if (!loadingPort || !destinationPort || !rate) return;
@@ -365,7 +431,6 @@ export function DealProvider({ children }) {
     setCustomRoutes([]);
   };
 
-  // missionStats
   const missionStats = (() => {
     const currentCapital = mission.currentCapital || 0;
     const profitPerContainer_usd = mission.avgProfitPerContainer_usd || 1000;
@@ -379,19 +444,11 @@ export function DealProvider({ children }) {
     
     const totalGoal = goal_ship + goal_house + goal_wedding + goal_reserve;
     
-    const overallProgress = totalGoal > 0 
-      ? Math.min((currentCapital / totalGoal) * 100, 100)
-      : 0;
-    
+    const overallProgress = totalGoal > 0 ? Math.min((currentCapital / totalGoal) * 100, 100) : 0;
     const remaining = Math.max(totalGoal - currentCapital, 0);
     const profitPerContainer_rub = profitPerContainer_usd * usdRubRate;
-    
-    const containersNeeded = profitPerContainer_rub > 0
-      ? Math.ceil(remaining / profitPerContainer_rub) : 0;
-    
-    const monthsNeeded = containersPerMonth > 0
-      ? Math.ceil(containersNeeded / containersPerMonth) : 0;
-    
+    const containersNeeded = profitPerContainer_rub > 0 ? Math.ceil(remaining / profitPerContainer_rub) : 0;
+    const monthsNeeded = containersPerMonth > 0 ? Math.ceil(containersNeeded / containersPerMonth) : 0;
     const yearsNeeded = monthsNeeded / 12;
     const profitPerMonthRub = containersPerMonth * profitPerContainer_rub;
     const profitPerYearRub = profitPerMonthRub * 12;
@@ -400,58 +457,25 @@ export function DealProvider({ children }) {
     targetDate.setMonth(targetDate.getMonth() + monthsNeeded);
     
     return {
-      totalGoal,
-      totalTarget: totalGoal,
-      totalCurrent: currentCapital,
-      currentCapital,
-      remaining,
-      overallProgress,
-      containersNeeded,
-      monthsNeeded,
-      monthsToGoal: monthsNeeded,
-      yearsNeeded,
-      profitPerContainer_rub,
-      profitPerMonthRub,
-      profitPerYearRub,
-      targetDate,
+      totalGoal, totalTarget: totalGoal, totalCurrent: currentCapital,
+      currentCapital, remaining, overallProgress,
+      containersNeeded, monthsNeeded, monthsToGoal: monthsNeeded, yearsNeeded,
+      profitPerContainer_rub, profitPerMonthRub, profitPerYearRub, targetDate,
     };
   })();
 
   return (
     <DealContext.Provider
       value={{
-        deal,
-        seller,
-        mission,
-        checklist,
-        deals,
-        customers,
-        customRoutes,
-        isLoaded,
-        missionStats,
-        setDeal,
-        setSeller,
-        setMission,
-        setChecklist,
-        setDeals,
-        setCustomers,
-        updateDeal,
-        updateSeller,
-        updateMission,
-        toggleChecklistItem,
-        resetDeal,
-        addPosition,
-        removePosition,
-        clearPositions,
-        updatePosition,
-        addCustomRoute,
-        removeCustomRoute,
-        clearCustomRoutes,
+        deal, seller, mission, checklist, deals, customers, customRoutes,
+        isLoaded, missionStats,
+        setDeal, setSeller, setMission, setChecklist, setDeals, setCustomers,
+        updateDeal, updateSeller, updateMission, toggleChecklistItem, resetDeal,
+        addPosition, removePosition, clearPositions, updatePosition,
+        addCustomRoute, removeCustomRoute, clearCustomRoutes,
       }}
     >
       {children}
     </DealContext.Provider>
   );
 }
-
-// END OF FILE

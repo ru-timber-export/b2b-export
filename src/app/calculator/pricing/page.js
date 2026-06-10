@@ -13,6 +13,8 @@ import {
   calcLeadTime,
   DISCOUNT_TIERS,
   calcAutoDiscount,
+  PAYMENT_SCHEMAS,
+  getPaymentSchema,
 } from "../../context/DealContext";
 
 const DEFAULT_COSTS = {
@@ -29,10 +31,8 @@ const DEFAULT_COSTS = {
 };
 
 const DEFAULT_CASHFLOW = {
-  buyerAdvancePercent: 30,
   millPrepayPercent: 100,
-  daysToReceive70: 22,
-  millPaymentDelayDays: 0,
+  daysToReceiveBalance: 22,
   safetyMarginPercent: 20,
 };
 
@@ -160,7 +160,6 @@ export default function PricingPage() {
 
   const [showLeadTimeBreakdown, setShowLeadTimeBreakdown] = useState(false);
   
-  // 🆕 CASH FLOW STATE
   const [cashflow, setCashflow] = useState(DEFAULT_CASHFLOW);
   const [showCashflowSettings, setShowCashflowSettings] = useState(false);
   const [showCashflowTimeline, setShowCashflowTimeline] = useState(false);
@@ -175,15 +174,9 @@ export default function PricingPage() {
         setCustomFreightDate(parsed.date || "");
       }
       const savedCosts = localStorage.getItem(STORAGE_KEY);
-      if (savedCosts) {
-        const parsed = JSON.parse(savedCosts);
-        setCosts({ ...DEFAULT_COSTS, ...parsed });
-      }
+      if (savedCosts) setCosts({ ...DEFAULT_COSTS, ...JSON.parse(savedCosts) });
       const savedCashflow = localStorage.getItem(CASHFLOW_KEY);
-      if (savedCashflow) {
-        const parsed = JSON.parse(savedCashflow);
-        setCashflow({ ...DEFAULT_CASHFLOW, ...parsed });
-      }
+      if (savedCashflow) setCashflow({ ...DEFAULT_CASHFLOW, ...JSON.parse(savedCashflow) });
     } catch (e) {
       console.error("Failed to load saved data:", e);
     }
@@ -205,23 +198,14 @@ export default function PricingPage() {
     }
     const newCosts = { ...costs, [field]: newValue };
     setCosts(newCosts);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newCosts));
-    } catch (e) {
-      console.error("Save costs failed:", e);
-    }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newCosts)); } catch (e) {}
   };
 
-  // 🆕 Save cashflow settings
   const updateCashflow = (field, value) => {
     const num = parseFloat(value);
     const newCashflow = { ...cashflow, [field]: isNaN(num) ? 0 : num };
     setCashflow(newCashflow);
-    try {
-      localStorage.setItem(CASHFLOW_KEY, JSON.stringify(newCashflow));
-    } catch (e) {
-      console.error("Save cashflow failed:", e);
-    }
+    try { localStorage.setItem(CASHFLOW_KEY, JSON.stringify(newCashflow)); } catch (e) {}
   };
 
   const resetCosts = () => {
@@ -244,7 +228,6 @@ export default function PricingPage() {
         setCbrDate(new Date(date).toLocaleDateString("ru-RU"));
       }
     } catch (e) {
-      console.error("CBR API error:", e);
       setCbrError(true);
     } finally {
       setCbrLoading(false);
@@ -272,6 +255,10 @@ export default function PricingPage() {
   const totalVol = deal.totalVolume === "" ? 0 : parseFloat(deal.totalVolume) || 50;
   const margin = deal.margin === "" ? 0 : parseFloat(deal.margin) || 18;
   const rate = deal.usdRubRate === "" ? 76.25 : parseFloat(deal.usdRubRate) || 76.25;
+  
+  // 🆕 PAYMENT SCHEMA
+  const paymentSchemaId = deal.paymentSchema || "prepay100";
+  const paymentSchema = getPaymentSchema(paymentSchemaId);
 
   const activeRoute = useMemo(() => {
     if (deal.customRoute) {
@@ -301,14 +288,8 @@ export default function PricingPage() {
       };
     }
     return {
-      type: "preset",
-      loadingPort: "Novorossiysk",
-      loadingPortFlag: "🇷🇺",
-      destinationPort: "Jebel Ali",
-      country: "UAE",
-      flag: "🇦🇪",
-      rate: 2400,
-      transit: 21,
+      type: "preset", loadingPort: "Novorossiysk", loadingPortFlag: "🇷🇺",
+      destinationPort: "Jebel Ali", country: "UAE", flag: "🇦🇪", rate: 2400, transit: 21,
     };
   }, [deal.customRoute, deal.freightRoute]);
 
@@ -320,7 +301,6 @@ export default function PricingPage() {
   const speciesBase = SPECIES_BASE_PRICES[species] || 160;
   const dryingAdd = DRYING_SURCHARGE[moisture] || 0;
   const packAdd = PACKAGING_SURCHARGE[packaging] || 0;
-
   const calculatedMillPrice = speciesBase + dryingAdd + packAdd;
   const millPricePerM3 = costs.millPriceOverride !== null && costs.millPriceOverride !== undefined
     ? costs.millPriceOverride : calculatedMillPrice;
@@ -390,81 +370,96 @@ export default function PricingPage() {
   const grandTotal = subtotal - discountAmount;
 
   // ═══════════════════════════════════════════
-  // 🆕 CASH FLOW CALCULATION
+  // 🆕 CASH FLOW с PAYMENT SCHEMA
   // ═══════════════════════════════════════════
   
-  // Расчёт по 1 контейнеру
   const millCostPerCont = millPricePerContainer + factoryLoadingPerContainer;
   const logisticsPerCont = landTransportPerContainer + costs.portTHC + costs.portBL + costs.portTelex + costs.portOther;
   const oceanInsurancePerCont = oceanPerContainer + insurancePerContainer;
   const dutyPerCont = dutyPerContainer;
   
   const totalSpendPerCont = millCostPerCont + logisticsPerCont + oceanInsurancePerCont + dutyPerCont;
-  
-  // По всей сделке
   const totalMillSpend = (millCostPerCont * (cashflow.millPrepayPercent / 100)) * containers;
   const totalLogisticsSpend = logisticsPerCont * containers;
   const totalOceanInsuranceSpend = oceanInsurancePerCont * containers;
   const totalDutySpend = dutyPerCont * containers;
   
   const totalSpend = totalMillSpend + totalLogisticsSpend + totalOceanInsuranceSpend + totalDutySpend;
-  const buyerAdvance = (grandTotal * cashflow.buyerAdvancePercent) / 100;
-  const buyer70Percent = grandTotal - buyerAdvance;
   
-  // Капитал нужен = расходы - аванс клиента
+  // 🆕 По выбранной схеме
+  const buyerAdvance = (grandTotal * paymentSchema.advancePercent) / 100;
+  const buyerBalance = grandTotal - buyerAdvance;
+  
+  // Капитал нужен
   const capitalNeeded = Math.max(0, totalSpend - buyerAdvance);
   const safetyCapital = capitalNeeded * (1 + cashflow.safetyMarginPercent / 100);
   
-  // Срок заморозки = days to receive 70%
-  const daysFrozen = cashflow.daysToReceive70;
+  const daysFrozen = paymentSchema.advancePercent === 100 ? 0 : cashflow.daysToReceiveBalance;
   
-  // ROI годовой
   const profitAfterDiscount = totalProfit - discountAmount;
   const roiPeriod = capitalNeeded > 0 ? (profitAfterDiscount / capitalNeeded) * 100 : 0;
-  const roiAnnual = daysFrozen > 0 ? roiPeriod * (365 / daysFrozen) : 0;
+  const roiAnnual = daysFrozen > 0 ? roiPeriod * (365 / daysFrozen) : (capitalNeeded === 0 ? Infinity : 0);
   
-  // Timeline events
   const timeline = useMemo(() => {
     const events = [];
-    // Day 0
-    events.push({ day: 0, label: "Buyer advance", amount: buyerAdvance, type: "in" });
-    events.push({ day: cashflow.millPaymentDelayDays, label: `Mill payment (${cashflow.millPrepayPercent}%)`, amount: -totalMillSpend, type: "out" });
-    // Day 17
-    events.push({ day: 17, label: "Land transport (truck)", amount: -totalLogisticsSpend, type: "out" });
-    // Day 21
+    
+    // Day 0: получаем аванс от покупателя
+    if (buyerAdvance > 0) {
+      events.push({ 
+        day: 0, 
+        label: `Buyer advance (${paymentSchema.advancePercent}%)`, 
+        amount: buyerAdvance, 
+        type: "in" 
+      });
+    }
+    
+    // Day 0: платим лесопилке
+    events.push({ 
+      day: 0, 
+      label: `Mill payment (${cashflow.millPrepayPercent}%)`, 
+      amount: -totalMillSpend, 
+      type: "out" 
+    });
+    
+    // Day 17: land transport
+    events.push({ day: 17, label: "Land transport", amount: -totalLogisticsSpend, type: "out" });
+    
+    // Day 21: ocean + insurance + duty
     if (incoterm === "cif") {
       events.push({ day: 21, label: "Ocean freight + Insurance", amount: -totalOceanInsuranceSpend, type: "out" });
     }
     if (!dutyFree) {
       events.push({ day: 21, label: "Export duty", amount: -totalDutySpend, type: "out" });
     }
-    // Day 22 (или daysToReceive70)
-    events.push({ day: cashflow.daysToReceive70, label: "Buyer 70% payment", amount: buyer70Percent, type: "in" });
-    // Day leadTime
+    
+    // Day X: получаем остаток (если не 100% prepay)
+    if (paymentSchema.balancePercent > 0) {
+      events.push({ 
+        day: cashflow.daysToReceiveBalance, 
+        label: `Buyer balance (${paymentSchema.balancePercent}%)`, 
+        amount: buyerBalance, 
+        type: "in" 
+      });
+    }
+    
+    // Day leadTime: доставка
     events.push({ day: leadTimeTotal, label: "Cargo delivered ✅", amount: 0, type: "info" });
     
-    // Сортировка и кумулятивная сумма
     events.sort((a, b) => a.day - b.day);
     let cumulative = 0;
-    let maxGap = 0;
     return events.map(e => {
       cumulative += e.amount;
-      if (cumulative < maxGap) maxGap = cumulative;
-      return { ...e, cumulative, isMaxGap: false };
-    }).map(e => ({
-      ...e,
-      isMaxGap: e.cumulative === maxGap
-    }));
-  }, [buyerAdvance, totalMillSpend, totalLogisticsSpend, totalOceanInsuranceSpend, totalDutySpend, buyer70Percent, cashflow, incoterm, dutyFree, leadTimeTotal]);
+      return { ...e, cumulative };
+    });
+  }, [buyerAdvance, buyerBalance, paymentSchema, cashflow, totalMillSpend, totalLogisticsSpend, totalOceanInsuranceSpend, totalDutySpend, incoterm, dutyFree, leadTimeTotal]);
 
   const maxGapAmount = Math.abs(Math.min(...timeline.map(e => e.cumulative), 0));
   
-  // Scaling
   const scalingScenarios = [1, 2, 3, 5, 10].map(n => ({
     containers: n,
-    capital: (capitalNeeded / containers) * n,
-    safetyCapital: (safetyCapital / containers) * n,
-    profit: (profitAfterDiscount / containers) * n,
+    capital: (capitalNeeded / Math.max(containers, 1)) * n,
+    safetyCapital: (safetyCapital / Math.max(containers, 1)) * n,
+    profit: (profitAfterDiscount / Math.max(containers, 1)) * n,
   }));
 
   useEffect(() => {
@@ -595,7 +590,7 @@ export default function PricingPage() {
       <div className="max-w-4xl mx-auto p-4 space-y-6">
         <div className="bg-white rounded-xl p-5 shadow-sm">
           <h1 className="text-2xl font-black text-slate-900">Pricing Calculator</h1>
-          <p className="text-sm text-slate-500 mt-1">💰 Editable cost breakdown · cashflow · scaling</p>
+          <p className="text-sm text-slate-500 mt-1">💰 Cost breakdown · payment schema · cashflow · scaling</p>
         </div>
 
         {positions.length > 0 && (
@@ -604,58 +599,54 @@ export default function PricingPage() {
               <h2 className="font-bold text-purple-900 flex items-center gap-2">
                 🛒 Quotation Basket
                 <span className="bg-purple-600 text-white text-xs px-2 py-0.5 rounded-full">
-                  {positions.length} position{positions.length > 1 ? "s" : ""}
+                  {positions.length} pos
                 </span>
               </h2>
-              <button onClick={() => { if (confirm("Очистить корзину?")) clearPositions(); }}
-                className="text-xs text-rose-600 hover:text-rose-800 active:scale-95">🗑 Clear all</button>
+              <button onClick={() => { if (confirm("Очистить?")) clearPositions(); }}
+                className="text-xs text-rose-600 active:scale-95">🗑 Clear</button>
             </div>
             <div className="space-y-2">
               {positions.map((p, idx) => (
                 <div key={p.id} className="bg-white rounded-lg p-3 flex items-start gap-3 shadow-sm">
                   <div className="bg-purple-100 text-purple-800 font-bold text-sm w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0">{idx + 1}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-sm text-slate-900">🌲 {p.speciesLabel} {p.thickness}×{p.width}×{p.length}mm</div>
-                    <div className="text-xs text-slate-500 mt-0.5">{p.moistureLabel} · {p.packagingLabel} · {p.containers} × 40HC</div>
-                    <div className="text-xs font-mono text-slate-700 mt-1">
-                      {p.totalVolume.toFixed(1)} m³ × ${p.pricePerM3.toFixed(0)}/m³ = 
+                    <div className="font-bold text-sm">🌲 {p.speciesLabel} {p.thickness}×{p.width}×{p.length}mm</div>
+                    <div className="text-xs text-slate-500 mt-0.5">{p.moistureLabel} · {p.containers} × 40HC</div>
+                    <div className="text-xs font-mono mt-1">
+                      {p.totalVolume.toFixed(1)} m³ × ${p.pricePerM3.toFixed(0)} = 
                       <span className="font-bold text-emerald-600 ml-1">${p.totalAmount.toFixed(0)}</span>
                     </div>
                   </div>
-                  <button onClick={() => removePosition(p.id)} className="text-rose-500 hover:text-rose-700 text-xl active:scale-95 flex-shrink-0">✕</button>
+                  <button onClick={() => removePosition(p.id)} className="text-rose-500 text-xl active:scale-95">✕</button>
                 </div>
               ))}
             </div>
             <div className="mt-3 pt-3 border-t-2 border-purple-300 grid grid-cols-3 gap-3">
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-purple-700">Total Vol</div>
-                <div className="font-mono font-black text-purple-900">{basketTotalVolume.toFixed(1)} m³</div>
+                <div className="text-[10px] uppercase text-purple-700">Vol</div>
+                <div className="font-mono font-black text-purple-900">{basketTotalVolume.toFixed(1)}m³</div>
               </div>
               <div>
-                <div className="text-[10px] uppercase tracking-wider text-purple-700">Containers</div>
-                <div className="font-mono font-black text-purple-900">{basketTotalContainers} × 40HC</div>
+                <div className="text-[10px] uppercase text-purple-700">Cont</div>
+                <div className="font-mono font-black text-purple-900">{basketTotalContainers}×40HC</div>
               </div>
               <div className="text-right">
-                <div className="text-[10px] uppercase tracking-wider text-purple-700">Grand Total</div>
+                <div className="text-[10px] uppercase text-purple-700">Total</div>
                 <div className="font-mono font-black text-emerald-600 text-lg">${basketTotalAmount.toFixed(0)}</div>
               </div>
             </div>
-            <Link href="/calculator/quotation" className="block w-full mt-4 bg-emerald-600 hover:bg-emerald-700 text-white text-center py-3 rounded-lg font-bold active:scale-95">
-              📄 Generate Quotation ({positions.length} positions) →
+            <Link href="/calculator/quotation" className="block w-full mt-4 bg-emerald-600 text-white text-center py-3 rounded-lg font-bold active:scale-95">
+              📄 Generate Quotation →
             </Link>
           </section>
         )}
 
         <Reminder priority="high" icon="💱" title="Проверь курс USD/RUB"
-          description="Курс ЦБ обновляется в 13:00 МСК. Закладывай запас 2-3%."
-          dismissKey="usd-rate-tip-2026" />
+          description="Закладывай запас 2-3%." dismissKey="usd-rate-tip-2026" />
 
         {/* Volume & Containers */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
-          <h2 className="font-bold text-slate-800 flex items-center mb-3">
-            📦 Volume & Containers
-            <Tooltip text="Объём и контейнеры" />
-          </h2>
+          <h2 className="font-bold text-slate-800 mb-3">📦 Volume & Containers</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="text-xs text-slate-500">Total Volume (m³)</label>
@@ -663,28 +654,24 @@ export default function PricingPage() {
               <Link href="/calculator" className="text-xs text-orange-500 active:scale-95">✏ Edit →</Link>
             </div>
             <div>
-              <label className="text-xs text-slate-500">Container Capacity (m³)</label>
+              <label className="text-xs text-slate-500">Capacity (m³)</label>
               <input type="number" value={costs.containerCapacity}
                 onChange={(e) => updateCost("containerCapacity", e.target.value)}
                 onFocus={(e) => e.target.select()}
                 className="w-full mt-1 p-2 border-2 border-slate-300 rounded-lg text-lg font-bold focus:border-orange-500 outline-none" />
             </div>
             <div>
-              <label className="text-xs text-slate-500">Containers (40HC)</label>
+              <label className="text-xs text-slate-500">Containers</label>
               <input type="number" value={containers}
                 onChange={(e) => {
                   const v = parseInt(e.target.value);
                   setManualContainers(isNaN(v) ? null : Math.max(1, v));
                 }}
                 onFocus={(e) => e.target.select()}
-                className="w-full mt-1 p-2 border-2 border-orange-500 rounded-lg text-lg font-bold focus:border-orange-600 outline-none" />
+                className="w-full mt-1 p-2 border-2 border-orange-500 rounded-lg text-lg font-bold outline-none" />
               <div className="text-xs text-slate-500 mt-1">
-                Filled: <span className={`font-bold ${fillRate < 90 ? "text-rose-500" : "text-emerald-600"}`}>
-                  {fillRate.toFixed(1)}%
-                </span>
-                {manualContainers !== null && (
-                  <button onClick={() => setManualContainers(null)} className="ml-2 text-orange-500 active:scale-95">🔄 Auto</button>
-                )}
+                Fill: <span className={`font-bold ${fillRate < 90 ? "text-rose-500" : "text-emerald-600"}`}>{fillRate.toFixed(0)}%</span>
+                {manualContainers !== null && <button onClick={() => setManualContainers(null)} className="ml-2 text-orange-500 active:scale-95">🔄</button>}
               </div>
             </div>
           </div>
@@ -692,10 +679,7 @@ export default function PricingPage() {
 
         {/* FREIGHT ROUTE */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
-          <h2 className="font-bold text-slate-800 flex items-center mb-3">
-            🚢 Freight Route
-            <Tooltip text="Выбери порт или Custom" />
-          </h2>
+          <h2 className="font-bold text-slate-800 mb-3">🚢 Freight Route</h2>
 
           <div className={`rounded-xl p-4 mb-4 border-2 ${
             activeRoute.type === "custom" 
@@ -703,7 +687,7 @@ export default function PricingPage() {
               : "bg-gradient-to-r from-orange-50 to-amber-50 border-orange-400"
           }`}>
             <div className="text-[10px] uppercase tracking-wider font-bold opacity-60 mb-2">
-              📍 CURRENT ROUTE {activeRoute.type === "custom" && "(CUSTOM)"}
+              📍 CURRENT {activeRoute.type === "custom" && "(CUSTOM)"}
             </div>
             <div className="flex items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
@@ -715,23 +699,22 @@ export default function PricingPage() {
                   <span className="truncate">{activeRoute.destinationPort}</span>
                 </div>
                 <div className="text-xs text-slate-600 mt-1">
-                  {activeRoute.country} · <span className="font-mono font-bold">${activeRoute.rate}/40HC</span>
+                  {activeRoute.country} · <span className="font-mono font-bold">${activeRoute.rate}</span>
                   {activeRoute.type === "preset" && <span className="ml-2 text-blue-600">🚢 {activeRoute.transit}d</span>}
                 </div>
               </div>
               {activeRoute.type === "custom" && (
-                <button onClick={clearCustom} className="bg-white hover:bg-rose-50 text-rose-600 text-xs px-3 py-2 rounded-lg border border-rose-300 active:scale-95 whitespace-nowrap">✕ Reset</button>
+                <button onClick={clearCustom} className="bg-white text-rose-600 text-xs px-3 py-2 rounded-lg border border-rose-300 active:scale-95">✕</button>
               )}
             </div>
           </div>
 
           <input type="text" value={portSearch} onChange={(e) => setPortSearch(e.target.value)}
-            placeholder="🔍 Search port or country..."
+            placeholder="🔍 Search port..."
             className="w-full p-3 border-2 border-slate-300 rounded-lg text-sm focus:border-orange-500 outline-none mb-4" />
 
           {portSearch.trim() && (
             <div className="mb-4 bg-slate-50 rounded-lg p-3">
-              <div className="text-xs font-bold text-slate-600 mb-2">🔍 Found {searchResults.length}</div>
               {searchResults.length === 0 ? (
                 <div className="text-xs text-slate-500 py-3 text-center">
                   Не найдено. <button onClick={() => setShowCustomForm(true)} className="text-orange-500 underline">Custom Port</button>
@@ -740,13 +723,12 @@ export default function PricingPage() {
                 <div className="space-y-1">
                   {searchResults.map(r => (
                     <button key={r.key} onClick={() => { selectPresetRoute(r.key); setPortSearch(""); }}
-                      className={`w-full text-left p-2 rounded text-sm transition-all active:scale-95 flex items-center justify-between ${
-                        deal.freightRoute === r.key && !deal.customRoute
-                          ? "bg-orange-500 text-white" : "bg-white hover:bg-orange-50 text-slate-700"
+                      className={`w-full text-left p-2 rounded text-sm active:scale-95 flex items-center justify-between ${
+                        deal.freightRoute === r.key && !deal.customRoute ? "bg-orange-500 text-white" : "bg-white hover:bg-orange-50"
                       }`}>
                       <div className="flex items-center gap-2">
                         <span>{r.flag}</span><span className="font-bold">{r.port}</span>
-                        <span className="text-xs opacity-75">· {r.country} · {r.transit}d</span>
+                        <span className="text-xs opacity-75">· {r.transit}d</span>
                       </div>
                       <span className="font-mono font-bold text-xs">${r.rate}</span>
                     </button>
@@ -758,14 +740,14 @@ export default function PricingPage() {
 
           {!portSearch.trim() && (
             <div className="mb-4">
-              <div className="text-xs font-bold text-slate-600 mb-2">⭐ POPULAR ROUTES</div>
+              <div className="text-xs font-bold text-slate-600 mb-2">⭐ POPULAR</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {popularRoutes.map(r => {
                   const active = deal.freightRoute === r.key && !deal.customRoute;
                   return (
                     <button key={r.key} onClick={() => selectPresetRoute(r.key)}
-                      className={`p-3 rounded-lg text-left text-sm transition-all active:scale-95 border-2 ${
-                        active ? "bg-orange-500 text-white border-orange-600 shadow-lg" : "bg-slate-50 text-slate-700 border-transparent hover:border-orange-300"
+                      className={`p-3 rounded-lg text-left text-sm active:scale-95 border-2 ${
+                        active ? "bg-orange-500 text-white border-orange-600 shadow-lg" : "bg-slate-50 border-transparent hover:border-orange-300"
                       }`}>
                       <div className="flex items-center justify-between">
                         <div className="font-bold flex items-center gap-1"><span>{r.flag}</span><span>{r.port}</span></div>
@@ -802,8 +784,8 @@ export default function PricingPage() {
                             const active = deal.freightRoute === r.key && !deal.customRoute;
                             return (
                               <button key={r.key} onClick={() => selectPresetRoute(r.key)}
-                                className={`w-full text-left p-2 rounded text-xs transition-all active:scale-95 flex items-center justify-between ${
-                                  active ? "bg-orange-500 text-white" : "bg-white hover:bg-orange-50 text-slate-700"
+                                className={`w-full text-left p-2 rounded text-xs active:scale-95 flex items-center justify-between ${
+                                  active ? "bg-orange-500 text-white" : "bg-white hover:bg-orange-50"
                                 }`}>
                                 <span className="flex items-center gap-2">
                                   <span className="font-bold">{r.port}</span>
@@ -825,57 +807,50 @@ export default function PricingPage() {
 
           <div className="mt-4 border-t-2 border-slate-200 pt-4">
             <button onClick={() => setShowCustomForm(!showCustomForm)}
-              className="w-full bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold p-3 rounded-lg text-sm active:scale-95">
-              {showCustomForm ? "▲ Hide Custom" : "✏️ Custom Port"}
+              className="w-full bg-emerald-100 text-emerald-800 font-bold p-3 rounded-lg text-sm active:scale-95">
+              {showCustomForm ? "▲ Hide" : "✏️ Custom Port"}
             </button>
-
             {showCustomForm && (
               <div className="mt-3 bg-emerald-50 border-2 border-emerald-300 rounded-lg p-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xs text-slate-600 font-bold">🇷🇺 Loading</label>
+                    <label className="text-xs font-bold">Loading</label>
                     <input type="text" value={customLoadingPort} onChange={(e) => setCustomLoadingPort(e.target.value)}
-                      placeholder="Novorossiysk"
-                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none" />
+                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm outline-none" />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-600 font-bold">🌍 Destination *</label>
+                    <label className="text-xs font-bold">Destination *</label>
                     <input type="text" value={customDestPort} onChange={(e) => setCustomDestPort(e.target.value)}
-                      placeholder="Cochin"
-                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none" />
+                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm outline-none" />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-600 font-bold">Country</label>
+                    <label className="text-xs font-bold">Country</label>
                     <input type="text" value={customCountry} onChange={(e) => setCustomCountry(e.target.value)}
-                      placeholder="India"
-                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none" />
+                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm outline-none" />
                   </div>
                   <div>
-                    <label className="text-xs text-slate-600 font-bold">Rate $ *</label>
+                    <label className="text-xs font-bold">Rate $ *</label>
                     <input type="number" value={customRate} onChange={(e) => setCustomRate(e.target.value)}
-                      placeholder="2850"
-                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm focus:border-emerald-500 outline-none" />
+                      className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm outline-none" />
                   </div>
                 </div>
                 <button onClick={applyCustomRoute}
-                  className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg text-sm active:scale-95">
-                  ✓ Use Custom Route
+                  className="w-full mt-3 bg-emerald-600 text-white font-bold py-3 rounded-lg text-sm active:scale-95">
+                  ✓ Use Custom
                 </button>
               </div>
             )}
-
             {customRoutes && customRoutes.length > 0 && (
               <div className="mt-3">
-                <div className="text-xs font-bold text-slate-600 mb-2">📜 RECENT CUSTOM</div>
+                <div className="text-xs font-bold text-slate-600 mb-2">📜 RECENT</div>
                 <div className="space-y-1">
                   {customRoutes.slice(0, 5).map(r => (
                     <div key={r.id} className="bg-slate-50 rounded p-2 flex items-center justify-between gap-2 text-xs">
                       <button onClick={() => useCustomFromHistory(r)} className="flex-1 text-left hover:text-orange-600 active:scale-95">
                         <span className="font-bold">{r.loadingPort} → {r.destinationPort}</span>
-                        {r.country && <span className="text-slate-500"> · {r.country}</span>}
                         <span className="ml-2 font-mono text-emerald-600 font-bold">${r.rate}</span>
                       </button>
-                      <button onClick={() => removeCustomRoute(r.id)} className="text-rose-500 hover:text-rose-700 active:scale-95">✕</button>
+                      <button onClick={() => removeCustomRoute(r.id)} className="text-rose-500 active:scale-95">✕</button>
                     </div>
                   ))}
                 </div>
@@ -885,14 +860,14 @@ export default function PricingPage() {
         </section>
 
         {/* Override freight */}
-        <section className={`rounded-xl p-5 shadow-sm border-2 transition-all ${useCustomFreight ? "bg-emerald-50 border-emerald-400" : "bg-white border-slate-200"}`}>
+        <section className={`rounded-xl p-5 shadow-sm border-2 ${useCustomFreight ? "bg-emerald-50 border-emerald-400" : "bg-white border-slate-200"}`}>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-slate-800 flex items-center">✏️ Override Freight Rate</h2>
+            <h2 className="font-bold text-slate-800">✏️ Override Freight</h2>
             {useCustomFreight && <span className="bg-emerald-600 text-white text-xs px-2 py-1 rounded-full font-bold">ACTIVE</span>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
-              <label className="text-xs text-slate-500">Ставка фрахта ($/40HC)</label>
+              <label className="text-xs text-slate-500">Rate ($/40HC)</label>
               <input type="number" value={customFreightRate}
                 onChange={(e) => {
                   const v = parseFloat(e.target.value) || 0;
@@ -900,12 +875,12 @@ export default function PricingPage() {
                   if (useCustomFreight) saveCustomFreight(true, v);
                 }}
                 onFocus={(e) => e.target.select()}
-                className="w-full mt-1 p-3 border-2 border-slate-300 rounded-lg text-xl font-bold focus:border-emerald-500 outline-none" />
+                className="w-full mt-1 p-3 border-2 border-slate-300 rounded-lg text-xl font-bold outline-none" />
             </div>
             <div className="flex items-end">
               <button onClick={() => { const newState = !useCustomFreight; setUseCustomFreight(newState); saveCustomFreight(newState, customFreightRate); }}
                 className={`w-full p-3 rounded-lg font-bold text-sm active:scale-95 ${useCustomFreight ? "bg-slate-500 text-white" : "bg-emerald-600 text-white"}`}>
-                {useCustomFreight ? "⬅ Use Route" : "✓ Override →"}
+                {useCustomFreight ? "⬅ Use Route" : "✓ Override"}
               </button>
             </div>
           </div>
@@ -913,7 +888,7 @@ export default function PricingPage() {
 
         {/* Incoterms */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
-          <h2 className="font-bold text-slate-800 flex items-center">📋 Incoterms</h2>
+          <h2 className="font-bold text-slate-800">📋 Incoterms</h2>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3">
             {[
               { id: "exw", label: "EXW", ru: "Самовывоз" },
@@ -924,7 +899,7 @@ export default function PricingPage() {
             ].map((t) => (
               <button key={t.id} onClick={() => updateDeal({ incoterm: t.id })}
                 className={`p-2 rounded-lg text-xs active:scale-95 border-2 ${
-                  deal.incoterm === t.id ? "bg-orange-500 text-white border-orange-600 shadow-lg" : "bg-slate-100 text-slate-700 border-transparent hover:border-slate-300"
+                  deal.incoterm === t.id ? "bg-orange-500 text-white border-orange-600 shadow-lg" : "bg-slate-100 border-transparent"
                 }`}>
                 <div className="font-bold">{t.label}</div>
                 <div className="opacity-75 text-[10px] mt-1">{t.ru}</div>
@@ -936,20 +911,19 @@ export default function PricingPage() {
         {/* LEAD TIME */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-slate-800 flex items-center">⏱ Lead Time</h2>
+            <h2 className="font-bold text-slate-800">⏱ Lead Time</h2>
             <button onClick={() => setShowLeadTimeBreakdown(!showLeadTimeBreakdown)}
               className="text-xs text-orange-500 active:scale-95">
               {showLeadTimeBreakdown ? "▲ Hide" : "▼ Breakdown"}
             </button>
           </div>
-
           <div className={`rounded-xl p-4 mb-3 border-2 ${
             deal.leadTimeOverride !== null && deal.leadTimeOverride !== undefined
               ? "bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-400"
               : "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-400"
           }`}>
-            <div className="text-[10px] uppercase tracking-wider font-bold opacity-60 mb-1">
-              📅 TOTAL LEAD TIME {deal.leadTimeOverride !== null && deal.leadTimeOverride !== undefined && "(OVERRIDE)"}
+            <div className="text-[10px] uppercase font-bold opacity-60 mb-1">
+              📅 TOTAL {deal.leadTimeOverride !== null && deal.leadTimeOverride !== undefined && "(OVERRIDE)"}
             </div>
             <div className="flex items-baseline gap-2">
               <span className="text-4xl font-black text-slate-900">{leadTimeTotal}</span>
@@ -957,21 +931,19 @@ export default function PricingPage() {
               <span className="text-xs text-slate-500">from advance</span>
             </div>
           </div>
-
           {showLeadTimeBreakdown && (
             <div className="bg-slate-50 rounded-lg p-3 mb-3 text-xs space-y-2">
               <div className="flex justify-between"><span>🪚 Production</span><span className="font-mono font-bold">{leadTimeAuto.production}d</span></div>
-              <div className="flex justify-between"><span>🚛 Land transport</span><span className="font-mono font-bold">{leadTimeAuto.landTransport}d</span></div>
-              <div className="flex justify-between"><span>⚓ Port handling</span><span className="font-mono font-bold">{leadTimeAuto.portHandling}d</span></div>
-              <div className="flex justify-between text-blue-700"><span>🚢 Ocean ({activeRoute.destinationPort})</span><span className="font-mono font-bold">{leadTimeAuto.ocean}d</span></div>
+              <div className="flex justify-between"><span>🚛 Land</span><span className="font-mono font-bold">{leadTimeAuto.landTransport}d</span></div>
+              <div className="flex justify-between"><span>⚓ Port</span><span className="font-mono font-bold">{leadTimeAuto.portHandling}d</span></div>
+              <div className="flex justify-between text-blue-700"><span>🚢 Ocean</span><span className="font-mono font-bold">{leadTimeAuto.ocean}d</span></div>
               <div className="flex justify-between"><span>📦 Discharge</span><span className="font-mono font-bold">{leadTimeAuto.discharge}d</span></div>
               <div className="flex justify-between border-t-2 border-slate-300 pt-2 font-bold"><span>TOTAL</span><span className="font-mono">{leadTimeAuto.total}d</span></div>
             </div>
           )}
-
           <div className="flex flex-wrap gap-2 items-end">
             <div className="flex-1 min-w-[150px]">
-              <label className="text-xs text-slate-500 font-bold">Override (days)</label>
+              <label className="text-xs text-slate-500 font-bold">Override</label>
               <input type="number" value={deal.leadTimeOverride ?? ""}
                 onChange={(e) => {
                   const v = e.target.value;
@@ -979,11 +951,11 @@ export default function PricingPage() {
                 }}
                 onFocus={(e) => e.target.select()}
                 placeholder={`Auto: ${leadTimeAuto.total}`}
-                className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-base font-bold focus:border-emerald-500 outline-none" />
+                className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-base font-bold outline-none" />
             </div>
             {deal.leadTimeOverride !== null && deal.leadTimeOverride !== undefined && (
               <button onClick={() => updateDeal({ leadTimeOverride: null })}
-                className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-2 rounded text-xs font-bold active:scale-95">🔄 Auto</button>
+                className="bg-orange-100 text-orange-700 px-3 py-2 rounded text-xs font-bold active:scale-95">🔄 Auto</button>
             )}
           </div>
         </section>
@@ -991,11 +963,11 @@ export default function PricingPage() {
         {/* COST BREAKDOWN */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-slate-800 flex items-center">💰 Cost Breakdown</h2>
+            <h2 className="font-bold text-slate-800">💰 Cost Breakdown</h2>
             <button onClick={resetCosts} className="text-xs text-rose-500 active:scale-95">🔄 Reset</button>
           </div>
 
-          <CostRow icon="🪵" label={`Mill price (${species} ${moisture} ${packaging})${costs.millPriceOverride !== null ? " ✏️" : ""}`}
+          <CostRow icon="🪵" label={`Mill price (${species} ${moisture})${costs.millPriceOverride !== null ? " ✏️" : ""}`}
             perM3={millPricePerM3} perContainer={millPricePerContainer} total={millPriceTotal}
             badge={costs.millPriceOverride !== null ? "MANUAL" : null}
             editable value={costs.millPriceOverride !== null ? costs.millPriceOverride : calculatedMillPrice}
@@ -1010,12 +982,10 @@ export default function PricingPage() {
             <CostRow icon="🚚" label="Factory loading" perM3={factoryLoadingPerM3} perContainer={factoryLoadingPerContainer} total={factoryLoadingTotal}
               editable value={costs.factoryLoading} onChange={(e) => updateCost("factoryLoading", e.target.value)} unit="$/m³" />
           )}
-
           {["fca-port", "fob", "cif"].includes(incoterm) && (
             <CostRow icon="🚛" label="Land transport" perM3={landTransportPerM3} perContainer={landTransportPerContainer} total={landTransportTotal}
               editable value={costs.landTransport} onChange={(e) => updateCost("landTransport", e.target.value)} unit="$/cont" />
           )}
-
           {["fob", "cif"].includes(incoterm) && (
             <>
               <CostRow icon="⚓" label="Port THC" perM3={portTHCPerM3} perContainer={costs.portTHC} total={portTHCTotal}
@@ -1028,25 +998,22 @@ export default function PricingPage() {
                 editable value={costs.portOther} onChange={(e) => updateCost("portOther", e.target.value)} unit="$/cont" />
             </>
           )}
-
           {incoterm === "cif" && (
-            <CostRow icon="🚢" label={`Ocean freight (${activeRoute.loadingPort} → ${activeRoute.destinationPort})`}
+            <CostRow icon="🚢" label={`Ocean (${activeRoute.loadingPort} → ${activeRoute.destinationPort})`}
               perM3={oceanPerM3} perContainer={oceanPerContainer} total={oceanTotal}
               badge={useCustomFreight ? "OVERRIDE" : activeRoute.type === "custom" ? "CUSTOM" : null} />
           )}
-
           {incoterm === "cif" && (
             <CostRow icon="🛡" label="Insurance" perM3={insurancePerM3} perContainer={insurancePerContainer} total={insuranceTotal}
               editable value={costs.insuranceRate} onChange={(e) => updateCost("insuranceRate", e.target.value)} unit="%" />
           )}
-
           <CostRow icon="🏛" label={`Export duty ${dutyFree ? "(0%)" : `(${costs.exportDutyRate}%)`}`}
             perM3={dutyPerM3} perContainer={dutyPerContainer} total={dutyTotal}
             success={dutyFree} danger={!dutyFree} editable={!dutyFree}
             value={costs.exportDutyRate} onChange={(e) => updateCost("exportDutyRate", e.target.value)} unit="%" />
 
           <div className="mt-3 pt-3 border-t-2 border-slate-900 bg-slate-50 -mx-5 px-5 py-3">
-            <div className="font-bold text-lg text-slate-900">TOTAL COST ({incoterm.toUpperCase()})</div>
+            <div className="font-bold text-lg text-slate-900">TOTAL COST</div>
             <div className="text-sm font-mono mt-1">
               <span className="text-2xl font-black">${totalCostWithDutyPerM3.toFixed(2)}</span>/m³
               <span className="text-slate-400 mx-2">·</span>
@@ -1057,14 +1024,13 @@ export default function PricingPage() {
 
         {/* MARGIN */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
-          <h2 className="font-bold text-slate-800 flex items-center">📊 Margin & Exchange</h2>
+          <h2 className="font-bold text-slate-800">📊 Margin & Exchange</h2>
           <div className="mt-3">
-            <div className="text-xs text-slate-500 mb-2">Quick margin:</div>
             <div className="flex flex-wrap gap-2">
               {Object.entries(COUNTRY_MARGINS).map(([country, m]) => (
                 <button key={country} onClick={() => updateDeal({ margin: m })}
                   className={`px-3 py-2 rounded-lg text-xs active:scale-95 border-2 ${
-                    deal.margin === m ? "bg-orange-500 text-white border-orange-600 shadow-lg" : "bg-slate-100 text-slate-700 border-transparent"
+                    deal.margin === m ? "bg-orange-500 text-white border-orange-600 shadow-lg" : "bg-slate-100 border-transparent"
                   }`}>
                   {country === "india" && "🇮🇳"}{country === "china" && "🇨🇳"}{country === "uae" && "🇦🇪"}{country === "egypt" && "🇪🇬"}{country === "turkey" && "🇹🇷"} {m}%
                 </button>
@@ -1095,14 +1061,13 @@ export default function PricingPage() {
 
         {/* VOLUME DISCOUNT */}
         <section className="bg-white rounded-xl p-5 shadow-sm">
-          <h2 className="font-bold text-slate-800 flex items-center mb-3">💸 Volume Discount</h2>
+          <h2 className="font-bold text-slate-800 mb-3">💸 Volume Discount</h2>
           <div className="bg-slate-50 rounded-lg p-3 mb-3">
-            <div className="text-xs font-bold text-slate-600 mb-2">📊 Discount Scale:</div>
             <div className="grid grid-cols-5 gap-1 text-center text-xs">
               {DISCOUNT_TIERS.map((tier, idx) => {
                 const isActive = totalContainersForDiscount >= tier.minContainers && totalContainersForDiscount <= tier.maxContainers;
                 return (
-                  <div key={idx} className={`p-2 rounded ${isActive ? "bg-emerald-500 text-white shadow-lg scale-105 font-bold" : "bg-white text-slate-700"}`}>
+                  <div key={idx} className={`p-2 rounded ${isActive ? "bg-emerald-500 text-white shadow-lg scale-105 font-bold" : "bg-white"}`}>
                     <div className="font-bold">{tier.label}</div>
                     <div className="text-lg font-black mt-0.5">{tier.percent}%</div>
                   </div>
@@ -1113,35 +1078,32 @@ export default function PricingPage() {
               {totalContainersForDiscount} × 40HC → <span className="font-bold text-emerald-600">{autoDiscountPercent}%</span>
             </div>
           </div>
-
           <div className="grid grid-cols-3 gap-2 mb-3">
             <button onClick={() => updateDeal({ discountMode: "none" })}
-              className={`p-3 rounded-lg text-xs active:scale-95 border-2 ${deal.discountMode === "none" ? "bg-slate-700 text-white border-slate-800 shadow-lg" : "bg-slate-100 text-slate-700 border-transparent"}`}>
+              className={`p-3 rounded-lg text-xs active:scale-95 border-2 ${deal.discountMode === "none" ? "bg-slate-700 text-white border-slate-800 shadow-lg" : "bg-slate-100 border-transparent"}`}>
               <div className="font-bold">❌ No</div><div className="opacity-75 mt-0.5">0%</div>
             </button>
             <button onClick={() => updateDeal({ discountMode: "auto" })}
-              className={`p-3 rounded-lg text-xs active:scale-95 border-2 ${deal.discountMode === "auto" || !deal.discountMode ? "bg-emerald-500 text-white border-emerald-600 shadow-lg" : "bg-slate-100 text-slate-700 border-transparent"}`}>
+              className={`p-3 rounded-lg text-xs active:scale-95 border-2 ${deal.discountMode === "auto" || !deal.discountMode ? "bg-emerald-500 text-white border-emerald-600 shadow-lg" : "bg-slate-100 border-transparent"}`}>
               <div className="font-bold">⚡ Auto</div><div className="opacity-75 mt-0.5">{autoDiscountPercent}%</div>
             </button>
             <button onClick={() => updateDeal({ discountMode: "custom" })}
-              className={`p-3 rounded-lg text-xs active:scale-95 border-2 ${deal.discountMode === "custom" ? "bg-orange-500 text-white border-orange-600 shadow-lg" : "bg-slate-100 text-slate-700 border-transparent"}`}>
+              className={`p-3 rounded-lg text-xs active:scale-95 border-2 ${deal.discountMode === "custom" ? "bg-orange-500 text-white border-orange-600 shadow-lg" : "bg-slate-100 border-transparent"}`}>
               <div className="font-bold">✏️ Custom</div><div className="opacity-75 mt-0.5">{deal.customDiscountPercent || 0}%</div>
             </button>
           </div>
-
           {deal.discountMode === "custom" && (
             <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-3">
-              <label className="text-xs text-slate-600 font-bold">Custom %</label>
+              <label className="text-xs font-bold">Custom %</label>
               <input type="number" step="0.1" value={deal.customDiscountPercent || ""}
                 onChange={(e) => {
                   const v = parseFloat(e.target.value);
                   updateDeal({ customDiscountPercent: isNaN(v) ? 0 : Math.max(0, Math.min(50, v)) });
                 }}
-                onFocus={(e) => e.target.select()} placeholder="0"
-                className="w-full mt-1 p-2 border-2 border-orange-300 rounded text-lg font-bold focus:border-orange-500 outline-none" />
+                onFocus={(e) => e.target.select()}
+                className="w-full mt-1 p-2 border-2 border-orange-300 rounded text-lg font-bold outline-none" />
             </div>
           )}
-
           {appliedDiscountPercent > 0 && (
             <div className="mt-3 p-3 bg-emerald-50 border-2 border-emerald-300 rounded-lg flex items-center justify-between">
               <div>
@@ -1152,120 +1114,214 @@ export default function PricingPage() {
           )}
         </section>
 
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-        {/* 🆕 ━━━━━━ CASH FLOW & WORKING CAPITAL ━━━━━━━ */}
-        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        {/* 🆕 ━━━━━━ PAYMENT SCHEMA SELECTOR ━━━━━ */}
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        <section className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-400 rounded-xl p-5 shadow-lg">
+          <h2 className="font-black text-slate-900 flex items-center mb-1 text-lg">
+            💳 Payment Schema
+          </h2>
+          <p className="text-xs text-slate-600 mb-4">
+            🎯 Выбери схему оплаты для этой сделки. Влияет на безопасность и капитал.
+          </p>
+
+          <div className="grid grid-cols-1 gap-2 mb-4">
+            {Object.values(PAYMENT_SCHEMAS).map(schema => {
+              const isActive = paymentSchemaId === schema.id;
+              const colorMap = {
+                emerald: { bg: "bg-emerald-500", border: "border-emerald-600", text: "text-emerald-700", bgLight: "bg-emerald-50" },
+                blue: { bg: "bg-blue-500", border: "border-blue-600", text: "text-blue-700", bgLight: "bg-blue-50" },
+                amber: { bg: "bg-amber-500", border: "border-amber-600", text: "text-amber-700", bgLight: "bg-amber-50" },
+                purple: { bg: "bg-purple-500", border: "border-purple-600", text: "text-purple-700", bgLight: "bg-purple-50" },
+              };
+              const colors = colorMap[schema.color] || colorMap.amber;
+              
+              return (
+                <button key={schema.id}
+                  onClick={() => updateDeal({ paymentSchema: schema.id })}
+                  className={`text-left p-4 rounded-lg transition-all active:scale-[0.98] border-2 ${
+                    isActive 
+                      ? `${colors.bg} text-white ${colors.border} shadow-lg` 
+                      : `bg-white text-slate-700 border-transparent hover:${colors.border}`
+                  }`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{schema.icon}</span>
+                      <span className="font-black text-base">{schema.nameRu}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className={`text-xs ${isActive ? "opacity-90" : "opacity-60"}`}>
+                        Risk: {schema.risk === "zero" ? "🟢 нет" : schema.risk === "low" ? "🟡 низкий" : schema.risk === "medium" ? "🟠 средний" : "🔴 высокий"}
+                      </div>
+                      <div className={`text-xs ${isActive ? "opacity-90" : "opacity-60"}`}>
+                        Capital: {schema.capitalNeed === "none" ? "🟢 0$" : schema.capitalNeed === "medium" ? "🟡 средне" : "🔴 много"}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={`text-xs mt-1 ${isActive ? "opacity-90" : "opacity-75"}`}>
+                    {schema.descriptionRu}
+                  </div>
+                  <div className={`text-[10px] mt-2 italic ${isActive ? "opacity-80" : "opacity-60"}`}>
+                    💡 Для: {schema.recommendedRu}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Текущая схема — карточка с расчётом */}
+          <div className="bg-white rounded-xl p-4 border-2 border-purple-300 shadow-inner">
+            <div className="text-xs uppercase tracking-wider font-bold text-purple-700 mb-2">
+              💼 SELECTED SCHEMA
+            </div>
+            <div className="text-2xl font-black text-slate-900 mb-2">
+              {paymentSchema.icon} {paymentSchema.nameRu}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="bg-emerald-50 rounded-lg p-3">
+                <div className="text-xs text-emerald-700 font-bold">Buyer pays UPFRONT</div>
+                <div className="text-2xl font-black text-emerald-700">${buyerAdvance.toFixed(0)}</div>
+                <div className="text-xs text-emerald-600">{paymentSchema.advancePercent}% от Grand Total</div>
+              </div>
+              <div className={`rounded-lg p-3 ${paymentSchema.balancePercent === 0 ? "bg-slate-100" : "bg-amber-50"}`}>
+                <div className={`text-xs font-bold ${paymentSchema.balancePercent === 0 ? "text-slate-500" : "text-amber-700"}`}>
+                  Buyer pays AFTER
+                </div>
+                <div className={`text-2xl font-black ${paymentSchema.balancePercent === 0 ? "text-slate-500" : "text-amber-700"}`}>
+                  ${buyerBalance.toFixed(0)}
+                </div>
+                <div className={`text-xs ${paymentSchema.balancePercent === 0 ? "text-slate-500" : "text-amber-600"}`}>
+                  {paymentSchema.balancePercent}% {paymentSchema.balancePercent > 0 && `через ${cashflow.daysToReceiveBalance} дней`}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 p-3 bg-slate-900 text-white rounded-lg text-xs">
+              <div className="font-bold mb-1">📄 Для контракта (текст пункта 6.2):</div>
+              <div className="opacity-90 italic">{paymentSchema.contractTextRu}</div>
+            </div>
+          </div>
+        </section>
+
+        {/* CASH FLOW */}
         <section className="bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-400 rounded-xl p-5 shadow-lg">
           <h2 className="font-black text-slate-900 flex items-center mb-1 text-lg">
             💰 Cash Flow & Working Capital
           </h2>
           <p className="text-xs text-slate-600 mb-4">
-            🎯 Сколько ДЕНЕГ ты должен ВЫЛОЖИТЬ ИЗ КАРМАНА, чтобы провести эту сделку
+            🎯 Капитал нужный для сделки. Зависит от выбранной Payment Schema.
           </p>
 
-          {/* Settings */}
           <button onClick={() => setShowCashflowSettings(!showCashflowSettings)}
-            className="w-full bg-white hover:bg-slate-50 text-slate-700 font-bold p-2 rounded-lg text-xs active:scale-95 mb-3 border border-slate-300">
-            {showCashflowSettings ? "▲ Hide settings" : "⚙️ Payment Schema Settings"}
+            className="w-full bg-white text-slate-700 font-bold p-2 rounded-lg text-xs active:scale-95 mb-3 border border-slate-300">
+            {showCashflowSettings ? "▲ Hide settings" : "⚙️ Cash Flow Settings"}
           </button>
 
           {showCashflowSettings && (
             <div className="bg-white rounded-lg p-3 mb-3 grid grid-cols-2 gap-3">
               <div>
-                <label className="text-xs text-slate-600 font-bold">Buyer advance %</label>
-                <input type="number" value={cashflow.buyerAdvancePercent}
-                  onChange={(e) => updateCashflow("buyerAdvancePercent", e.target.value)}
-                  onFocus={(e) => e.target.select()}
-                  className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm font-bold focus:border-amber-500 outline-none" />
-              </div>
-              <div>
                 <label className="text-xs text-slate-600 font-bold">Mill prepay %</label>
                 <input type="number" value={cashflow.millPrepayPercent}
                   onChange={(e) => updateCashflow("millPrepayPercent", e.target.value)}
                   onFocus={(e) => e.target.select()}
-                  className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm font-bold focus:border-amber-500 outline-none" />
+                  className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm font-bold outline-none" />
               </div>
               <div>
-                <label className="text-xs text-slate-600 font-bold">Days to receive 70%</label>
-                <input type="number" value={cashflow.daysToReceive70}
-                  onChange={(e) => updateCashflow("daysToReceive70", e.target.value)}
+                <label className="text-xs text-slate-600 font-bold">Days to receive balance</label>
+                <input type="number" value={cashflow.daysToReceiveBalance}
+                  onChange={(e) => updateCashflow("daysToReceiveBalance", e.target.value)}
                   onFocus={(e) => e.target.select()}
-                  className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm font-bold focus:border-amber-500 outline-none" />
+                  className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm font-bold outline-none" />
               </div>
-              <div>
+              <div className="col-span-2">
                 <label className="text-xs text-slate-600 font-bold">Safety margin %</label>
                 <input type="number" value={cashflow.safetyMarginPercent}
                   onChange={(e) => updateCashflow("safetyMarginPercent", e.target.value)}
                   onFocus={(e) => e.target.select()}
-                  className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm font-bold focus:border-amber-500 outline-none" />
+                  className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm font-bold outline-none" />
               </div>
             </div>
           )}
 
           {/* MAIN CARD */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-xl p-5 shadow-xl mb-4">
+          <div className={`rounded-xl p-5 shadow-xl mb-4 ${
+            capitalNeeded === 0 
+              ? "bg-gradient-to-br from-emerald-700 to-emerald-900 text-white" 
+              : "bg-gradient-to-br from-slate-900 to-slate-800 text-white"
+          }`}>
             <div className="text-xs uppercase tracking-wider opacity-60 mb-2 font-bold">
-              💎 YOUR CAPITAL NEEDED ({containers} × 40HC)
+              💎 YOUR CAPITAL NEEDED ({containers} × 40HC) · {paymentSchema.nameRu}
             </div>
             
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <div className="text-3xl sm:text-4xl font-black text-orange-400">
-                  ${capitalNeeded.toFixed(0)}
-                </div>
-                <div className="text-xs opacity-60 mt-1">
-                  ≈ ₽{(capitalNeeded * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}
-                </div>
+            {capitalNeeded === 0 ? (
+              <div className="text-center py-4">
+                <div className="text-5xl mb-2">🎉</div>
+                <div className="text-3xl font-black text-emerald-300">$0</div>
+                <div className="text-sm opacity-90 mt-1">Капитал НЕ НУЖЕН!</div>
+                <div className="text-xs opacity-75 mt-2">Покупатель оплатил всё авансом</div>
               </div>
-              <div className="text-right">
-                <div className="text-xs opacity-60">Recommended (+{cashflow.safetyMarginPercent}%)</div>
-                <div className="text-xl font-bold text-amber-400">
-                  ${safetyCapital.toFixed(0)}
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <div className="text-3xl sm:text-4xl font-black text-orange-400">
+                      ${capitalNeeded.toFixed(0)}
+                    </div>
+                    <div className="text-xs opacity-60 mt-1">
+                      ≈ ₽{(capitalNeeded * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs opacity-60">+ Safety {cashflow.safetyMarginPercent}%</div>
+                    <div className="text-xl font-bold text-amber-400">${safetyCapital.toFixed(0)}</div>
+                  </div>
                 </div>
-                <div className="text-xs opacity-50">safety margin</div>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-700">
-              <div>
-                <div className="text-xs opacity-50">⏱ Frozen</div>
-                <div className="font-bold text-sm">{daysFrozen} days</div>
-              </div>
-              <div>
-                <div className="text-xs opacity-50">📈 ROI</div>
-                <div className="font-bold text-sm text-emerald-400">{roiAnnual.toFixed(0)}%/year</div>
-              </div>
-              <div>
-                <div className="text-xs opacity-50">💎 Profit</div>
-                <div className="font-bold text-sm text-emerald-400">${profitAfterDiscount.toFixed(0)}</div>
-              </div>
-            </div>
+                <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-700">
+                  <div>
+                    <div className="text-xs opacity-50">⏱ Frozen</div>
+                    <div className="font-bold text-sm">{daysFrozen}d</div>
+                  </div>
+                  <div>
+                    <div className="text-xs opacity-50">📈 ROI</div>
+                    <div className="font-bold text-sm text-emerald-400">
+                      {roiAnnual === Infinity ? "∞" : `${roiAnnual.toFixed(0)}%`}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs opacity-50">💎 Profit</div>
+                    <div className="font-bold text-sm text-emerald-400">${profitAfterDiscount.toFixed(0)}</div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           {/* TIMELINE */}
           <button onClick={() => setShowCashflowTimeline(!showCashflowTimeline)}
-            className="w-full bg-white hover:bg-slate-50 text-slate-700 font-bold p-3 rounded-lg text-sm active:scale-95 mb-3 border-2 border-slate-300">
+            className="w-full bg-white text-slate-700 font-bold p-3 rounded-lg text-sm active:scale-95 mb-3 border-2 border-slate-300">
             📅 {showCashflowTimeline ? "▲ Hide timeline" : "▼ Show payment timeline"}
           </button>
 
           {showCashflowTimeline && (
             <div className="bg-white rounded-lg p-4 mb-3">
-              <div className="text-xs font-bold text-slate-700 mb-3">📅 Day-by-day payments:</div>
               <div className="space-y-2">
                 {timeline.map((e, idx) => {
-                  const isMax = e.cumulative === Math.min(...timeline.map(t => t.cumulative));
+                  const minCum = Math.min(...timeline.map(t => t.cumulative));
+                  const isMax = e.cumulative === minCum && e.cumulative < 0;
                   return (
                     <div key={idx} className={`p-2 rounded text-xs ${
-                      isMax && e.cumulative < 0 ? "bg-rose-50 border-2 border-rose-300" :
+                      isMax ? "bg-rose-50 border-2 border-rose-300" :
                       e.type === "in" ? "bg-emerald-50" : 
                       e.type === "out" ? "bg-slate-50" : 
                       "bg-blue-50"
                     }`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono font-bold w-12 text-slate-500">Day {e.day}</span>
+                          <span className="font-mono font-bold w-12 text-slate-500">D{e.day}</span>
                           <span>{e.label}</span>
-                          {isMax && e.cumulative < 0 && <span className="bg-rose-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold">MAX GAP</span>}
+                          {isMax && <span className="bg-rose-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold">MAX</span>}
                         </div>
                         <div className="flex items-center gap-3">
                           {e.amount !== 0 && (
@@ -1283,81 +1339,90 @@ export default function PricingPage() {
                 })}
               </div>
               <div className="mt-3 p-2 bg-amber-50 border border-amber-300 rounded text-xs text-amber-800">
-                ⚠️ <strong>Максимальная просадка:</strong> -${maxGapAmount.toFixed(0)} 
-                (это сколько нужно иметь в моменте)
+                ⚠️ <strong>Max gap:</strong> -${maxGapAmount.toFixed(0)}
               </div>
             </div>
           )}
 
           {/* SCALING */}
-          <div className="bg-white rounded-lg p-4 mb-3">
-            <div className="text-xs font-bold text-slate-700 mb-3">📊 Scaling: how much capital you need</div>
-            <div className="space-y-2">
-              {scalingScenarios.map(s => {
-                const barWidth = Math.min(100, (s.capital / 200000) * 100);
-                const isCurrent = s.containers === containers;
-                return (
-                  <div key={s.containers} className={`p-2 rounded ${isCurrent ? "bg-orange-100 border border-orange-300" : "bg-slate-50"}`}>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-bold">
-                        {s.containers} cont {isCurrent && "← current"}
-                      </span>
-                      <span className="font-mono font-bold">
-                        ${s.capital.toFixed(0)} 
-                        <span className="text-emerald-600 ml-2">profit ${s.profit.toFixed(0)}</span>
-                      </span>
+          {capitalNeeded > 0 && (
+            <div className="bg-white rounded-lg p-4 mb-3">
+              <div className="text-xs font-bold text-slate-700 mb-3">📊 Scaling capital</div>
+              <div className="space-y-2">
+                {scalingScenarios.map(s => {
+                  const barWidth = Math.min(100, (s.capital / 200000) * 100);
+                  const isCurrent = s.containers === containers;
+                  return (
+                    <div key={s.containers} className={`p-2 rounded ${isCurrent ? "bg-orange-100 border border-orange-300" : "bg-slate-50"}`}>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="font-bold">{s.containers} cont {isCurrent && "← current"}</span>
+                        <span className="font-mono font-bold">
+                          ${s.capital.toFixed(0)} <span className="text-emerald-600 ml-2">+${s.profit.toFixed(0)}</span>
+                        </span>
+                      </div>
+                      <div className="w-full bg-white rounded-full h-2 overflow-hidden">
+                        <div className={`h-full ${isCurrent ? "bg-orange-500" : "bg-slate-400"}`}
+                          style={{ width: `${barWidth}%` }}></div>
+                      </div>
                     </div>
-                    <div className="w-full bg-white rounded-full h-2 overflow-hidden">
-                      <div className={`h-full ${isCurrent ? "bg-orange-500" : "bg-slate-400"}`}
-                        style={{ width: `${barWidth}%` }}></div>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-            <div className="text-[10px] text-slate-500 mt-2 italic">
-              💡 Чем больше контейнеров одновременно — тем больше капитала нужно. Учитывай при планировании.
-            </div>
-          </div>
+          )}
 
           {/* RISK WARNINGS */}
-          <div className="bg-rose-50 border-2 border-rose-300 rounded-lg p-4 mb-3">
-            <div className="font-bold text-rose-900 text-sm mb-2 flex items-center gap-2">
-              ⚠️ RISK WARNINGS
+          <div className={`border-2 rounded-lg p-4 mb-3 ${
+            paymentSchema.risk === "zero" 
+              ? "bg-emerald-50 border-emerald-300" 
+              : "bg-rose-50 border-rose-300"
+          }`}>
+            <div className={`font-bold text-sm mb-2 flex items-center gap-2 ${
+              paymentSchema.risk === "zero" ? "text-emerald-900" : "text-rose-900"
+            }`}>
+              {paymentSchema.risk === "zero" ? "✅ ZERO RISK" : "⚠️ RISK WARNINGS"}
             </div>
-            <ul className="text-xs text-rose-800 space-y-1">
-              <li>• <strong>Если клиент не платит 70%</strong> → потери ${capitalNeeded.toFixed(0)} (товар твой, но клиент пропадёт)</li>
-              <li>• <strong>Курсовая разница:</strong> при USD рост ₽ — расходы в ₽ растут, доходы в $ те же</li>
-              <li>• <strong>Задержка отгрузки</strong> → деньги заморожены дольше → ROI падает</li>
-              <li>• <strong>Демередж в порту</strong> → лишние $50-150/день за каждый контейнер</li>
+            <ul className={`text-xs space-y-1 ${paymentSchema.risk === "zero" ? "text-emerald-800" : "text-rose-800"}`}>
+              {paymentSchema.risk === "zero" ? (
+                <>
+                  <li>• ✅ Покупатель оплатил всё авансом</li>
+                  <li>• ✅ Нет риска неоплаты</li>
+                  <li>• ✅ Капитал не нужен</li>
+                  <li>• ✅ Идеально для первой сделки</li>
+                </>
+              ) : (
+                <>
+                  <li>• <strong>Если покупатель не платит {paymentSchema.balancePercent}%</strong> → потеря ${capitalNeeded.toFixed(0)}</li>
+                  <li>• <strong>Курсовая разница:</strong> доходы в $, расходы в ₽</li>
+                  <li>• <strong>Задержка отгрузки</strong> → ROI падает</li>
+                </>
+              )}
             </ul>
           </div>
 
-          {/* PROTECTION OPTIONS */}
-          <div className="bg-emerald-50 border-2 border-emerald-300 rounded-lg p-4">
-            <div className="font-bold text-emerald-900 text-sm mb-2 flex items-center gap-2">
-              🛡 PROTECTION OPTIONS
+          {/* PROTECTION OPTIONS (только если есть риск) */}
+          {paymentSchema.risk !== "zero" && (
+            <div className="bg-emerald-50 border-2 border-emerald-300 rounded-lg p-4">
+              <div className="font-bold text-emerald-900 text-sm mb-2">🛡 PROTECTION</div>
+              <ul className="text-xs text-emerald-800 space-y-1">
+                <li>• <strong>EXIAR insurance</strong> — страхование риска</li>
+                <li>• <strong>L/C</strong> — переключи схему на L/C для гарантии</li>
+                <li>• <strong>100% prepay</strong> для новых клиентов</li>
+                <li>• <strong>Telex Release control</strong> — отправляй после получения остатка</li>
+              </ul>
             </div>
-            <ul className="text-xs text-emerald-800 space-y-1">
-              <li>• <strong>EXIAR insurance</strong> — страхование экспортного риска (от ЭКСАР, 0.5-2% от контракта)</li>
-              <li>• <strong>L/C (Letter of Credit)</strong> — банковская гарантия покупателя (комиссия 0.5-2%)</li>
-              <li>• <strong>50/50 schema</strong> — попроси 50% advance вместо 30% (для новых клиентов)</li>
-              <li>• <strong>Telex Release control</strong> — отправляй только после получения 70%</li>
-              <li>• <strong>Кредитная линия в банке</strong> — деньги под низкий % (а не из своих)</li>
-              <li>• <strong>Subsidies REC</strong> — субсидия на логистику от РЭЦ до 80%</li>
-            </ul>
-          </div>
+          )}
         </section>
 
         {/* FINAL PRICING */}
         <section className="bg-slate-900 text-white rounded-xl p-5 shadow-lg">
           <h2 className="font-bold">🎯 Final Pricing</h2>
           <div className="text-xs opacity-60 mt-1">
-            {incoterm.toUpperCase()} {activeRoute.destinationPort} · {margin}% · {totalVol.toFixed(2)}m³ · {containers}×40HC · {leadTimeTotal}d
+            {incoterm.toUpperCase()} {activeRoute.destinationPort} · {margin}% · {totalVol.toFixed(2)}m³ · {containers}×40HC · {leadTimeTotal}d · {paymentSchema.icon} {paymentSchema.nameRu}
           </div>
 
           <div className="mt-4 p-4 bg-slate-800 rounded-lg">
-            <div className="text-xs opacity-60 mb-2">💵 SELLING PRICE (before discount)</div>
+            <div className="text-xs opacity-60 mb-2">💵 SELLING PRICE</div>
             <div className="grid grid-cols-3 gap-2 text-center">
               <div><div className="text-xl sm:text-2xl font-black">${sellPricePerM3.toFixed(2)}</div><div className="text-xs opacity-50">per m³</div></div>
               <div className="border-l border-r border-slate-700"><div className="text-xl sm:text-2xl font-black">${sellPricePerContainer.toFixed(0)}</div><div className="text-xs opacity-50">per cont</div></div>
@@ -1368,33 +1433,50 @@ export default function PricingPage() {
           {appliedDiscountPercent > 0 && (
             <div className="mt-2 p-3 bg-emerald-900/40 border border-emerald-600 rounded-lg flex justify-between items-center">
               <div>
-                <div className="text-xs opacity-75">💸 Volume Discount ({appliedDiscountPercent}%)</div>
+                <div className="text-xs opacity-75">💸 Discount ({appliedDiscountPercent}%)</div>
               </div>
               <div className="text-2xl font-black text-emerald-400">-${discountAmount.toFixed(0)}</div>
             </div>
           )}
 
           <div className="mt-2 p-4 bg-orange-600 rounded-lg">
-            <div className="text-xs opacity-90 mb-1">💎 GRAND TOTAL (to buyer)</div>
+            <div className="text-xs opacity-90 mb-1">💎 GRAND TOTAL</div>
             <div className="text-3xl font-black">${grandTotal.toFixed(0)}</div>
             <div className="text-xs opacity-75 mt-1">≈ ₽{(grandTotal * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })}</div>
           </div>
 
-          {/* 🆕 CAPITAL SUMMARY в финале */}
-          <div className="mt-2 p-4 bg-amber-600 rounded-lg">
-            <div className="text-xs opacity-90 mb-1">💰 YOUR CAPITAL NEEDED (out of pocket)</div>
+          {/* Buyer payment schedule */}
+          <div className="mt-2 p-4 bg-purple-700 rounded-lg">
+            <div className="text-xs opacity-90 mb-2">💳 BUYER PAYMENT SCHEDULE</div>
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span>{paymentSchema.icon} Advance ({paymentSchema.advancePercent}%):</span>
+                <span className="font-bold">${buyerAdvance.toFixed(0)}</span>
+              </div>
+              {paymentSchema.balancePercent > 0 && (
+                <div className="flex justify-between">
+                  <span>📦 Balance ({paymentSchema.balancePercent}% after B/L):</span>
+                  <span className="font-bold">${buyerBalance.toFixed(0)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Capital */}
+          <div className={`mt-2 p-4 rounded-lg ${capitalNeeded === 0 ? "bg-emerald-700" : "bg-amber-600"}`}>
+            <div className="text-xs opacity-90 mb-1">💰 YOUR CAPITAL NEEDED</div>
             <div className="text-3xl font-black">${capitalNeeded.toFixed(0)}</div>
             <div className="text-xs opacity-75 mt-1">
-              ≈ ₽{(capitalNeeded * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })} · frozen {daysFrozen} days · ROI {roiAnnual.toFixed(0)}%/year
+              {capitalNeeded === 0 ? "🎉 Не нужен! 100% prepay" : `≈ ₽${(capitalNeeded * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })} · ${daysFrozen}d`}
             </div>
           </div>
 
           <div className="mt-3 p-4 bg-emerald-900/50 border border-emerald-700 rounded-lg">
             <div className="text-xs opacity-75 mb-2">💚 YOUR PROFIT</div>
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div><div className="text-lg sm:text-xl font-black text-emerald-400">${(profitAfterDiscount / totalVol).toFixed(2)}</div><div className="text-xs opacity-50">per m³</div></div>
-              <div className="border-l border-r border-emerald-700/50"><div className="text-lg sm:text-xl font-black text-emerald-400">${(profitAfterDiscount / containers).toFixed(0)}</div><div className="text-xs opacity-50">per cont</div></div>
-              <div><div className="text-lg sm:text-xl font-black text-emerald-400">${profitAfterDiscount.toFixed(0)}</div><div className="text-xs opacity-50">total</div></div>
+              <div><div className="text-lg font-black text-emerald-400">${(profitAfterDiscount / totalVol).toFixed(2)}</div><div className="text-xs opacity-50">per m³</div></div>
+              <div className="border-l border-r border-emerald-700/50"><div className="text-lg font-black text-emerald-400">${(profitAfterDiscount / containers).toFixed(0)}</div><div className="text-xs opacity-50">per cont</div></div>
+              <div><div className="text-lg font-black text-emerald-400">${profitAfterDiscount.toFixed(0)}</div><div className="text-xs opacity-50">total</div></div>
             </div>
           </div>
 
@@ -1402,7 +1484,7 @@ export default function PricingPage() {
             className={`block w-full mt-5 text-white text-center py-4 rounded-lg font-black text-lg active:scale-95 ${
               justAdded ? "bg-emerald-500 shadow-lg shadow-emerald-500/50" : "bg-purple-600 hover:bg-purple-700"
             }`}>
-            {justAdded ? <>✓ ADDED</> : <>➕ ADD TO QUOTATION BASKET</>}
+            {justAdded ? <>✓ ADDED</> : <>➕ ADD TO BASKET</>}
           </button>
 
           <Link href="/calculator/container" className="block w-full mt-3 bg-orange-500 text-white text-center py-3 rounded-lg font-bold active:scale-95">
