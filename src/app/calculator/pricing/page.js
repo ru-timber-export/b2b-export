@@ -15,10 +15,11 @@ import {
   calcLeadTime,
   DISCOUNT_TIERS,
   calcAutoDiscount,
+  CONTAINER_40HC,
 } from "../../context/DealContext";
 
 const DEFAULT_COSTS = {
-  containerCapacity: 50,
+  containerCapacity: CONTAINER_40HC.capacityM3,
   millPriceOverride: null,
   factoryLoading: 6,
   landTransport: 1500,
@@ -38,7 +39,7 @@ const DEFAULT_CASHFLOW = {
   safetyMarginPercent: 20,
 };
 
-const STORAGE_KEY = "ru-timber-pricing-costs";
+const STORAGE_KEY = "ru-timber-pricing-costs-v2";
 const CASHFLOW_KEY = "ru-timber-cashflow-settings";
 
 const SPECIES_NAMES = {
@@ -845,9 +846,12 @@ export default function PricingPage() {
                 onFocus={(e) => e.target.select()}
                 className="w-full mt-1 p-2 border-2 border-orange-500 rounded-lg text-lg font-bold focus:border-orange-600 outline-none" />
               <div className="text-xs text-slate-500 mt-1">
-                Filled: <span className={`font-bold ${fillRate < 90 ? "text-rose-500" : "text-emerald-600"}`}>
+                Filled: <span className={`font-bold ${fillRate > 100 ? "text-rose-600" : fillRate < 85 ? "text-amber-500" : "text-emerald-600"}`}>
                   {fillRate.toFixed(1)}%
                 </span>
+                {fillRate > 100 && (
+                  <span className="block text-rose-600 font-bold mt-1">⚠️ НЕ влезает! Нужно минимум {autoContainers} конт.</span>
+                )}
                 {manualContainers !== null && (
                   <button onClick={() => setManualContainers(null)} className="ml-2 text-orange-500 active:scale-95">🔄 Auto</button>
                 )}
