@@ -138,6 +138,66 @@ export function calcAutoDiscount(containers) {
 }
 
 // ═══════════════════════════════════════════
+// 📜 PAYMENT SCHEMAS (для контрактов)
+// ═══════════════════════════════════════════
+export const PAYMENT_SCHEMAS = {
+  "30-70-bl": {
+    id: "30-70-bl",
+    label: "30% advance + 70% vs B/L copy",
+    advance: 30,
+    balance: 70,
+    trigger: "B/L copy",
+    risk: "low",
+    description: "Классическая схема. 30% при заказе, 70% после получения копии B/L (Telex Release).",
+    forNewClient: false,
+  },
+  "50-50-bl": {
+    id: "50-50-bl",
+    label: "50% advance + 50% vs B/L copy",
+    advance: 50,
+    balance: 50,
+    trigger: "B/L copy",
+    risk: "very-low",
+    description: "Для новых клиентов без истории. Снижает риск кассового разрыва.",
+    forNewClient: true,
+  },
+  "100-advance": {
+    id: "100-advance",
+    label: "100% advance payment",
+    advance: 100,
+    balance: 0,
+    trigger: "none",
+    risk: "zero",
+    description: "Полная предоплата. Для самых рисковых клиентов или первой сделки.",
+    forNewClient: true,
+  },
+  "lc-sight": {
+    id: "lc-sight",
+    label: "Letter of Credit at sight",
+    advance: 0,
+    balance: 100,
+    trigger: "L/C documents",
+    risk: "low",
+    description: "Аккредитив с оплатой по предъявлении документов. Банковская гарантия.",
+    forNewClient: false,
+  },
+  "20-80-bl": {
+    id: "20-80-bl",
+    label: "20% advance + 80% vs B/L copy",
+    advance: 20,
+    balance: 80,
+    trigger: "B/L copy",
+    risk: "medium",
+    description: "Мягкие условия для постоянного клиента с хорошей историей.",
+    forNewClient: false,
+  },
+};
+
+export function getPaymentSchema(schemaId) {
+  return PAYMENT_SCHEMAS[schemaId] || PAYMENT_SCHEMAS["30-70-bl"];
+}
+
+// ═══════════════════════════════════════════
 // FREIGHT PRESETS
 // ═══════════════════════════════════════════
 export const FREIGHT_PRESETS = {
