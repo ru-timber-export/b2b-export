@@ -141,7 +141,7 @@ export default function QuotationPage() {
   const grandTotal = subtotal - discountAmount;
 
   // 🆕 PAYMENT SCHEMA
-  const paymentSchema = getPaymentSchema(deal.paymentSchema || "prepay100");
+  const paymentSchema = getPaymentSchema(deal.paymentSchema);
   const buyerAdvance = (grandTotal * paymentSchema.advancePercent) / 100;
   const buyerBalance = grandTotal - buyerAdvance;
 

@@ -138,57 +138,82 @@ export function calcAutoDiscount(containers) {
 }
 
 // ═══════════════════════════════════════════
-// 📜 PAYMENT SCHEMAS (для контрактов)
-// ═══════════════════════════════════════════
+// 📜 PAYMENT SCHEMAS (для контрактов и квотаций)
+// ═══════════════════��═══════════════════════
 export const PAYMENT_SCHEMAS = {
   "30-70-bl": {
     id: "30-70-bl",
+    icon: "🤝",
+    name: "30/70 vs B/L",
     label: "30% advance + 70% vs B/L copy",
     advance: 30,
     balance: 70,
+    advancePercent: 30,
+    balancePercent: 70,
     trigger: "B/L copy",
     risk: "low",
     description: "Классическая схема. 30% при заказе, 70% после получения копии B/L (Telex Release).",
+    contractText: "30% advance payment within 5 (five) banking days of Contract signing. 70% balance payment against scan copy of Bill of Lading (Telex Release at destination port).",
     forNewClient: false,
   },
   "50-50-bl": {
     id: "50-50-bl",
+    icon: "🛡",
+    name: "50/50 vs B/L",
     label: "50% advance + 50% vs B/L copy",
     advance: 50,
     balance: 50,
+    advancePercent: 50,
+    balancePercent: 50,
     trigger: "B/L copy",
     risk: "very-low",
     description: "Для новых клиентов без истории. Снижает риск кассового разрыва.",
+    contractText: "50% advance payment within 5 (five) banking days of Contract signing. 50% balance payment against scan copy of Bill of Lading (Telex Release at destination port).",
     forNewClient: true,
   },
   "100-advance": {
     id: "100-advance",
+    icon: "💯",
+    name: "100% Advance",
     label: "100% advance payment",
     advance: 100,
     balance: 0,
+    advancePercent: 100,
+    balancePercent: 0,
     trigger: "none",
     risk: "zero",
     description: "Полная предоплата. Для самых рисковых клиентов или первой сделки.",
+    contractText: "100% advance payment within 5 (five) banking days of Contract signing. Production starts upon receipt of funds.",
     forNewClient: true,
   },
   "lc-sight": {
     id: "lc-sight",
+    icon: "🏦",
+    name: "L/C at Sight",
     label: "Letter of Credit at sight",
     advance: 0,
     balance: 100,
+    advancePercent: 0,
+    balancePercent: 100,
     trigger: "L/C documents",
     risk: "low",
     description: "Аккредитив с оплатой по предъявлении документов. Банковская гарантия.",
+    contractText: "Payment by irrevocable Letter of Credit at sight, issued by a first-class international bank, payable against presentation of shipping documents.",
     forNewClient: false,
   },
   "20-80-bl": {
     id: "20-80-bl",
+    icon: "⭐",
+    name: "20/80 vs B/L",
     label: "20% advance + 80% vs B/L copy",
     advance: 20,
     balance: 80,
+    advancePercent: 20,
+    balancePercent: 80,
     trigger: "B/L copy",
     risk: "medium",
     description: "Мягкие условия для постоянного клиента с хорошей историей.",
+    contractText: "20% advance payment within 5 (five) banking days of Contract signing. 80% balance payment against scan copy of Bill of Lading (Telex Release at destination port).",
     forNewClient: false,
   },
 };
@@ -289,6 +314,8 @@ const DEFAULT_DEAL = {
   customDiscountPercent: 0,
   
   profileProcessing: false,
+  
+  paymentSchema: "30-70-bl",
 };
 
 // ═══════════════════════════════════════════
