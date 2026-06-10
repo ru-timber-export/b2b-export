@@ -296,51 +296,170 @@ Title to the Goods passes from the Seller to the Buyer at the moment of transfer
     critical: true,
   },
   {
+    {
     id: 6,
     title_en: "6. PAYMENT TERMS",
     title_ru: "6. УСЛОВИЯ ОПЛАТЫ",
-    // ⭐ ПРАВКА #5: Оплата = зачисление на счёт ПРОДАВЦА В РФ (п. 6.6 ПЕРЕДЕЛАН)
-    body_en: () => `
-6.1. Payment is made in US Dollars (USD) by Telegraphic Transfer (T/T) or through an authorized payment agent (see clause 6.5).
+    // 🆕 ДИНАМИЧЕСКИЕ УСЛОВИЯ ОПЛАТЫ
+    // Поддерживает разные схемы: prepay100, prepay50, prepay30, lc
+    body_en: (data) => {
+      const schema = data.paymentSchemaId || "prepay100";
+      
+      // Базовый блок — общий для всех схем
+      const commonClauses = `
 
-6.2. Payment schedule:
-• 30% advance payment within 5 (five) banking days after signing this Contract
-• 70% balance payment against scan copy of Bill of Lading (B/L), within 5 (five) banking days after receipt of B/L copy
+6.${schema === "lc" ? "3" : "4"}. Bank charges: charges of the Seller's bank — for the Seller's account, charges of the Buyer's bank — for the Buyer's account, intermediary bank charges — for the Buyer's account (OUR/OUR).
 
-6.3. Bank charges: charges of the Seller's bank — for the Seller's account, charges of the Buyer's bank — for the Buyer's account, intermediary bank charges — for the Buyer's account (OUR/OUR).
+6.${schema === "lc" ? "4" : "5"}. The payment date is considered the date of crediting funds to the Seller's bank account in the Russian Federation.
 
-6.4. The Buyer is considered to have fulfilled his payment obligations from the moment the funds are credited to the Seller's account in the Russian Federation.
-
-6.5. PAYMENT VIA AUTHORIZED AGENT (Kyrgyzstan / Uzbekistan):
+6.${schema === "lc" ? "5" : "6"}. PAYMENT VIA AUTHORIZED AGENT (Kyrgyzstan / Uzbekistan):
 Due to current international banking restrictions, the Buyer may pay through an authorized payment agent designated by the Seller (a licensed company in Kyrgyzstan or Uzbekistan). The Seller shall provide:
 • Tripartite Agency Agreement (Seller — Agent — Buyer)
 • Compliance letter from the Seller's bank
 • Agent invoice for the same amount as per this Contract
 This scheme is fully compliant with CIS, UAE, EU and US regulations as of 2026.
 
-6.6. ⚖️ FULFILLMENT OF PAYMENT OBLIGATION (CRITICAL — CB RF CURRENCY CONTROL):
-Notwithstanding any payment routing through agents or intermediaries, the Buyer's payment obligation under this Contract is deemed fulfilled only from the moment the funds are credited in full to the Seller's bank account in the Russian Federation.`,
-    body_ru: () => `
-6.1. Оплата производится в долларах США (USD) телеграфным переводом (T/T) или через уполномоченного платёжного агента (см. п.6.5).
+6.${schema === "lc" ? "6" : "7"}. ⚖️ FULFILLMENT OF PAYMENT OBLIGATION (CRITICAL — CB RF CURRENCY CONTROL):
+Notwithstanding any payment routing through agents or intermediaries, the Buyer's payment obligation under this Contract is deemed fulfilled only from the moment the funds are credited in full to the Seller's bank account in the Russian Federation.
 
-6.2. График оплаты:
-• 30% авансовый платёж в течение 5 (пяти) банковских дней с даты подписания Контракта
-• 70% окончательный платёж против скан-копии коносамента (B/L), в течение 5 (пяти) банковских дней с даты получения копии B/L
+6.${schema === "lc" ? "7" : "8"}. PAYMENT DELAYS:
+In case of payment delay for more than 10 (ten) banking days, the Seller reserves the right to:
+(a) suspend the performance of the Contract;
+(b) terminate the Contract unilaterally without compensation to the Buyer;
+(c) revise the price and delivery terms;
+(d) claim interest at the rate of 0.1% per day of delay.`;
 
-6.3. Банковские расходы: расходы банка Продавца — за счёт Продавца, расходы банка Покупателя — за счёт Покупателя, расходы банков-корреспондентов — за счёт Покупателя (OUR/OUR).
+      // ━━━━━━ 100% PREPAYMENT ━━━━━━
+      if (schema === "prepay100") {
+        return `
+6.1. Payment is made in US Dollars (USD) by Telegraphic Transfer (T/T) or through an authorized payment agent (see clause 6.6).
 
-6.4. Покупатель считается исполнившим обязательства по оплате с момента зачисления средств на счёт Продавца в Российской Федерации.
+6.2. Payment schedule:
+• 100% (one hundred percent) advance payment of the total Contract amount within 5 (five) banking days from the date of signing this Contract.
 
-6.5. ОПЛАТА ЧЕРЕЗ УПОЛНОМОЧЕННОГО АГЕНТА (Киргизия / Узбекистан):
+6.3. Shipment of the Goods shall commence within 14 (fourteen) working days from the date of receipt of 100% advance payment to the Seller's bank account.${commonClauses}`;
+      }
+      
+      // ━━━━━━ 50/50 ━━━━━━
+      if (schema === "prepay50") {
+        return `
+6.1. Payment is made in US Dollars (USD) by Telegraphic Transfer (T/T) or through an authorized payment agent (see clause 6.6).
+
+6.2. Payment schedule:
+• 50% (fifty percent) advance payment within 5 (five) banking days from the date of signing this Contract.
+• 50% (fifty percent) balance payment against scan copy of Bill of Lading (B/L), within 5 (five) banking days from the date of receipt of B/L copy.
+
+6.3. Shipment of the Goods shall commence within 14 (fourteen) working days from the date of receipt of 50% advance payment to the Seller's bank account.${commonClauses}`;
+      }
+      
+      // ━━━━━━ L/C (Letter of Credit) ━━━━━━
+      if (schema === "lc") {
+        return `
+6.1. Payment is made in US Dollars (USD) by irrevocable confirmed Letter of Credit (L/C), opened by the Buyer in favor of the Seller.
+
+6.2. Payment terms:
+• 100% payment by irrevocable confirmed L/C, opened by the Buyer in a first-class international bank within 10 (ten) banking days from the date of signing this Contract.
+• L/C shall be valid for at least 90 (ninety) days from the date of opening.
+• L/C shall be advised through the Seller's bank: as per clause 14.
+
+6.3. Payment against shipping documents:
+• Commercial Invoice
+• Bill of Lading (B/L)
+• Packing List
+• Certificate of Origin
+• Phytosanitary Certificate
+• Fumigation Certificate (ISPM-15)${commonClauses}`;
+      }
+      
+      // ━━━━━━ 30/70 (DEFAULT) ━━━━━━
+      return `
+6.1. Payment is made in US Dollars (USD) by Telegraphic Transfer (T/T) or through an authorized payment agent (see clause 6.6).
+
+6.2. Payment schedule:
+• 30% (thirty percent) advance payment within 5 (five) banking days from the date of signing this Contract.
+• 70% (seventy percent) balance payment against scan copy of Bill of Lading (B/L), within 5 (five) banking days from the date of receipt of B/L copy.
+
+6.3. Shipment of the Goods shall commence within 14 (fourteen) working days from the date of receipt of 30% advance payment to the Seller's bank account.${commonClauses}`;
+    },
+    body_ru: (data) => {
+      const schema = data.paymentSchemaId || "prepay100";
+      
+      const commonClausesRu = `
+
+6.${schema === "lc" ? "3" : "4"}. Банковские расходы: расходы банка Продавца — за счёт Продавца, расходы банка Покупателя — за счёт Покупателя, расходы банков-корреспондентов — за счёт Покупателя (OUR/OUR).
+
+6.${schema === "lc" ? "4" : "5"}. Датой оплаты считается дата зачисления денежных средств на расчётный счёт Продавца в Российской Федерации.
+
+6.${schema === "lc" ? "5" : "6"}. ОПЛАТА ЧЕРЕЗ УПОЛНОМОЧЕННОГО АГЕНТА (Киргизия / Узбекистан):
 В связи с текущими международными банковскими ограничениями, Покупатель может произвести оплату через уполномоченного платёжного агента, назначенного Продавцом (лицензированная компания в Киргизии или Узбекистане). Продавец предоставляет:
 • Трёхсторонний агентский договор (Продавец — Агент — Покупатель)
 • Письмо о комплаенсе от банка Продавца
 • Инвойс агента на сумму согласно настоящему Контракту
 Данная схема полностью соответствует требованиям регуляторов СНГ, ОАЭ, ЕС и США по состоянию на 2026 год.
 
-6.6. ⚖️ МОМЕНТ ИСПОЛНЕНИЯ ОБЯЗАТЕЛЬСТВА ПО ОПЛАТЕ (КРИТИЧНО — ВАЛЮТНЫЙ КОНТРОЛЬ ЦБ РФ):
-Независимо от маршрутизации платежа через агентов или посредников, обязательства Покупателя по оплате считаются выполненными только с момента полного зачисления денежных средств на банковский счёт Продавца в Российской Федерации.`,
-    tooltipKey: "Currency Repatriation",
+6.${schema === "lc" ? "6" : "7"}. ⚖️ МОМЕНТ ИСПОЛНЕНИЯ ОБЯЗАТЕЛЬСТВА ПО ОПЛАТЕ (КРИТИЧНО — ВАЛЮТНЫЙ КОНТРОЛЬ ЦБ РФ):
+Независимо от маршрутизации платежа через агентов или посредников, обязательства Покупателя по оплате считаются выполненными только с момента полного зачисления денежных средств на банковский счёт Продавца в Российской Федерации.
+
+6.${schema === "lc" ? "7" : "8"}. ПРОСРОЧКА ОПЛАТЫ:
+В случае задержки оплаты более чем на 10 (десять) банковских дней Продавец оставляет за собой право:
+(а) приостановить выполнение Контракта;
+(б) расторгнуть Контракт в одностороннем порядке без компенсации Покупателю;
+(в) пересмотреть цену и сроки поставки;
+(г) потребовать оплату процентов в размере 0.1% за каждый день просрочки.`;
+
+      // ━━━━━━ 100% PREPAYMENT ━━━━━━
+      if (schema === "prepay100") {
+        return `
+6.1. Оплата производится в долларах США (USD) телеграфным переводом (T/T) или через уполномоченного платёжного агента (см. п. 6.6).
+
+6.2. График оплаты:
+• 100% (сто процентов) предоплаты от общей суммы Контракта в течение 5 (пяти) банковских дней с даты подписания настоящего Контракта.
+
+6.3. Отгрузка Товара начинается в течение 14 (четырнадцати) рабочих дней с даты получения 100% предоплаты на расчётный счёт Продавца.${commonClausesRu}`;
+      }
+      
+      // ━━━━━━ 50/50 ━━━━━━
+      if (schema === "prepay50") {
+        return `
+6.1. Оплата производится в долларах США (USD) телеграфным переводом (T/T) или через уполномоченного платёжного агента (см. п. 6.6).
+
+6.2. График оплаты:
+• 50% (пятьдесят процентов) авансовый платёж в течение 5 (пяти) банковских дней с даты подписания настоящего Контракта.
+• 50% (пятьдесят процентов) окончательный платёж против скан-копии коносамента (B/L), в течение 5 (пяти) банковских дней с даты получения копии B/L.
+
+6.3. Отгрузка Товара начинается в течение 14 (четырнадцати) рабочих дней с даты получения 50% авансового платежа на расчётный счёт Продавца.${commonClausesRu}`;
+      }
+      
+      // ━━━━━━ L/C ━━━━━━
+      if (schema === "lc") {
+        return `
+6.1. Оплата производится в долларах США (USD) безотзывным подтверждённым аккредитивом (L/C), открытым Покупателем в пользу Продавца.
+
+6.2. Условия оплаты:
+• 100% оплата безотзывным подтверждённым аккредитивом, открытым Покупателем в первоклассном международном банке в течение 10 (десяти) банковских дней с даты подписания настоящего Контракта.
+• Срок действия L/C — не менее 90 (девяноста) дней с даты открытия.
+• L/C должен быть авизован через банк Продавца: согласно п. 14.
+
+6.3. Оплата против отгрузочных документов:
+• Коммерческий инвойс
+• Коносамент (B/L)
+• Упаковочный лист
+• Сертификат происхождения
+• Фитосанитарный сертификат
+• Сертификат фумигации (ISPM-15)${commonClausesRu}`;
+      }
+      
+      // ━━━━━━ 30/70 (DEFAULT) ━━━━━━
+      return `
+6.1. Оплата производится в долларах США (USD) телеграфным переводом (T/T) или через уполномоченного платёжного агента (см. п. 6.6).
+
+6.2. График оплаты:
+• 30% (тридцать процентов) авансовый платёж в течение 5 (пяти) банковских дней с даты подписания настоящего Контракта.
+• 70% (семьдесят процентов) окончательный платёж против скан-копии коносамента (B/L), в течение 5 (пяти) банковских дней с даты получения копии B/L.
+
+6.3. Отгрузка Товара начинается в течение 14 (четырнадцати) рабочих дней с даты получения 30% авансового платежа на расчётный счёт Продавца.${commonClausesRu}`;
+    },
+    tooltipKey: "Advance Payment",
     critical: true,
   },
   {

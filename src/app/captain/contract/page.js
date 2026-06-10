@@ -2,7 +2,7 @@
 import { SignatureWithStamp } from "../../components/CompanyStamp";
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { useDeal } from "../../context/DealContext";
+import { useDeal, PAYMENT_SCHEMAS, getPaymentSchema } from "../../context/DealContext";
 import { CONTRACT_CLAUSES, GLOSSARY } from "./contractData";
 import Tooltip, { GlossaryFooter } from "../../components/Tooltip";
 
@@ -28,18 +28,16 @@ function defaultExpiryDate() {
 
 export default function ContractPage() {
   const { deal, seller, isLoaded } = useDeal();
-  const [language, setLanguage] = useState("both"); // 'en' | 'ru' | 'both'
+  const [language, setLanguage] = useState("both");
   const [showGlossary, setShowGlossary] = useState(true);
   const [signed, setSigned] = useState(false);
 
   // 📝 Все редактируемые поля контракта
   const [contractData, setContractData] = useState({
-    // Контракт
     contractNumber: `RU-TIMBER-${new Date().getFullYear()}-001`,
     contractDate: new Date().toISOString().split("T")[0],
     contractExpiryDate: defaultExpiryDate(),
 
-    // Продавец (из seller context)
     sellerName: "",
     sellerAddress: "",
     sellerINN: "",
@@ -50,13 +48,11 @@ export default function ContractPage() {
     sellerAccount: "",
     sellerCorrespondent: "",
 
-    // Покупатель
     buyerName: "[BUYER COMPANY NAME LLC]",
     buyerAddress: "[Buyer's registered address]",
     buyerTaxId: "",
     buyerDirector: "",
 
-    // Товар (из deal)
     productDescription: "Sawn timber, pine (Pinus sylvestris)",
     moisture: "KD 10-12%",
     dimensions: "50x150x6000",
@@ -64,7 +60,6 @@ export default function ContractPage() {
     packaging: "Strapped bundles, anti-stain treated, polypropylene wrapped",
     hsCode: "4407.11",
 
-    // Цена
     unitPrice: "543",
     totalAmount: "33666",
     totalAmountWords: "Thirty-three thousand six hundred sixty-six US Dollars",
@@ -73,6 +68,9 @@ export default function ContractPage() {
     destinationPort: "Jebel Ali, UAE",
     leadTime: "45",
     transitDays: "30",
+    
+    // 🆕 СХЕМА ОПЛАТЫ (дефолт: 100% предоплата)
+    paymentSchemaId: "prepay100",
   });
 
   // 🔄 Автозаполнение из текущей сделки
@@ -83,7 +81,6 @@ export default function ContractPage() {
     
     setContractData((prev) => ({
       ...prev,
-      // Из seller
       sellerName: seller.companyName || prev.sellerName,
       sellerAddress: seller.legalAddress || prev.sellerAddress,
       sellerINN: seller.inn || prev.sellerINN,
@@ -94,30 +91,28 @@ export default function ContractPage() {
       sellerAccount: seller.bankAccountUSD || prev.sellerAccount,
       sellerCorrespondent: seller.correspondentBank || prev.sellerCorrespondent,
 
-      // Из deal
       productDescription: deal.species ? `Sawn timber, ${deal.species}` : prev.productDescription,
       moisture: deal.drying || prev.moisture,
       dimensions: deal.dimensions || prev.dimensions,
       quantity: deal.volumeTotal?.toFixed(2) || prev.quantity,
       packaging: deal.packaging || prev.packaging,
 
-      // Из pricing
       unitPrice: deal.pricingPerM3?.toFixed(0) || prev.unitPrice,
       totalAmount: totalAmount.toFixed(0) || prev.totalAmount,
       totalAmountWords: amountToWords(totalAmount),
       incoterm: deal.freightPreset?.includes("CIF") ? "CIF" : (deal.freightPreset?.includes("FOB") ? "FOB" : prev.incoterm),
 
-      // Из shipping
       loadingPort: deal.loadingPort || prev.loadingPort,
       destinationPort: deal.destinationPort || prev.destinationPort,
+      
+      // 🆕 Подтягиваем схему оплаты из deal
+      paymentSchemaId: deal.paymentSchema || prev.paymentSchemaId,
     }));
   };
 
-  // 📝 Обновление поля
   const updateField = (key, value) => {
     setContractData((prev) => {
       const updated = { ...prev, [key]: value };
-      // Автообновление суммы прописью при изменении totalAmount
       if (key === "totalAmount") {
         updated.totalAmountWords = amountToWords(parseFloat(value) || 0);
       }
@@ -125,10 +120,12 @@ export default function ContractPage() {
     });
   };
 
-  // 🖨 Печать
   const handlePrint = () => {
     window.print();
   };
+
+  // 🆕 Текущая схема оплаты
+  const currentSchema = getPaymentSchema(contractData.paymentSchemaId);
 
   // 📊 Прогресс заполненности
   const filledFieldsCount = useMemo(() => {
@@ -153,32 +150,16 @@ export default function ContractPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-slate-800">
-      {/* 🎨 Print styles */}
       <style jsx global>{`
         @media print {
-          @page {
-            size: A4;
-            margin: 15mm;
-          }
-          body {
-            background: white !important;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-          .contract-page {
-            box-shadow: none !important;
-            border-radius: 0 !important;
-            padding: 0 !important;
-          }
-          .clause-row {
-            break-inside: avoid;
-            page-break-inside: avoid;
-          }
+          @page { size: A4; margin: 15mm; }
+          body { background: white !important; }
+          .print\\:hidden { display: none !important; }
+          .contract-page { box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; }
+          .clause-row { break-inside: avoid; page-break-inside: avoid; }
         }
       `}</style>
 
-      {/* NAV */}
       <nav className="bg-slate-900 text-white p-4 sticky top-0 z-50 shadow-lg print:hidden">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <Link href="/captain" className="flex items-center gap-2">
@@ -195,7 +176,7 @@ export default function ContractPage() {
         </div>
       </nav>
 
-      {/* CONTROLS PANEL (hidden in print) */}
+      {/* CONTROLS PANEL */}
       <div className="max-w-6xl mx-auto p-4 print:hidden">
         <div className="bg-white rounded-xl p-5 shadow-sm space-y-4">
           <div className="flex items-start justify-between flex-wrap gap-3">
@@ -204,18 +185,18 @@ export default function ContractPage() {
               <p className="text-sm text-slate-600 mt-1">
                 Bilingual EN/RU · 15 clauses · ICAC Moscow arbitration
               </p>
+              {/* 🆕 Текущая схема оплаты — бейдж */}
+              <p className="text-xs text-slate-500 mt-2">
+                💳 Current payment: <strong className="text-purple-600">{currentSchema.icon} {currentSchema.nameRu}</strong>
+              </p>
             </div>
             <div className="flex gap-2">
-              <button
-                onClick={autofill}
-                className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 active:scale-95"
-              >
+              <button onClick={autofill}
+                className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 active:scale-95">
                 🔄 Autofill from Deal
               </button>
-              <button
-                onClick={handlePrint}
-                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 active:scale-95"
-              >
+              <button onClick={handlePrint}
+                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-bold text-sm flex items-center gap-1 active:scale-95">
                 🖨 Print / PDF
               </button>
             </div>
@@ -228,10 +209,8 @@ export default function ContractPage() {
               <span className="font-bold">{filledFieldsCount}%</span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-orange-400 to-orange-600 transition-all duration-500"
-                style={{ width: `${filledFieldsCount}%` }}
-              />
+              <div className="h-full bg-gradient-to-r from-orange-400 to-orange-600 transition-all duration-500"
+                style={{ width: `${filledFieldsCount}%` }} />
             </div>
           </div>
 
@@ -243,34 +222,21 @@ export default function ContractPage() {
               { id: "ru", label: "🇷🇺 Russian only" },
               { id: "both", label: "🌐 Both (recommended)" },
             ].map((opt) => (
-              <button
-                key={opt.id}
-                onClick={() => setLanguage(opt.id)}
+              <button key={opt.id} onClick={() => setLanguage(opt.id)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 ${
-                  language === opt.id
-                    ? "bg-slate-900 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-              >
+                  language === opt.id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}>
                 {opt.label}
               </button>
             ))}
             <label className="ml-3 flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showGlossary}
-                onChange={(e) => setShowGlossary(e.target.checked)}
-                className="w-4 h-4"
-              />
+              <input type="checkbox" checked={showGlossary}
+                onChange={(e) => setShowGlossary(e.target.checked)} className="w-4 h-4" />
               <span className="text-slate-700">📚 Show glossary</span>
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={signed}
-                onChange={(e) => setSigned(e.target.checked)}
-                className="w-4 h-4"
-              />
+              <input type="checkbox" checked={signed}
+                onChange={(e) => setSigned(e.target.checked)} className="w-4 h-4" />
               <span className="text-slate-700">✍️ Signed (remove DRAFT)</span>
             </label>
           </div>
@@ -280,35 +246,100 @@ export default function ContractPage() {
             <div className="p-3 bg-rose-50 border-l-4 border-rose-400 rounded">
               <strong className="text-rose-800">🚨 КРИТИЧНО:</strong>{" "}
               <span className="text-rose-700">
-                Этот шаблон — <strong>черновик</strong>. Обязательно покажи юристу-международнику перед подписанием!
-                Стоимость проверки 5-10 тыс ₽ — окупится с первой сделки.
+                Этот шаблон — <strong>черновик</strong>. Покажи юристу-международнику перед подписанием!
               </span>
             </div>
             <div className="p-3 bg-amber-50 border-l-4 border-amber-400 rounded">
               <strong className="text-amber-800">💡 ПОДСКАЗКА:</strong>{" "}
               <span className="text-amber-700">
-                Заполни <strong>профиль компании</strong> в `/captain/settings` (когда сделаем) — тогда autofill подтянет твои реквизиты автоматически. Сейчас введи их вручную.
+                Заполни <strong>профиль компании</strong> в `/captain/settings` — autofill подтянет реквизиты.
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* EDITOR PANEL (hidden in print) */}
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      {/* 🆕 ━━━━━━ PAYMENT SCHEMA SELECTOR ━━━━ */}
+      {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+      <div className="max-w-6xl mx-auto p-4 print:hidden">
+        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-xl p-5 shadow-sm">
+          <h2 className="font-black text-slate-900 flex items-center mb-1 text-lg">
+            💳 Payment Schema (Clause 6)
+          </h2>
+          <p className="text-xs text-slate-600 mb-4">
+            🎯 Выбери схему оплаты — текст пункта 6 автоматически обновится в контракте.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+            {Object.values(PAYMENT_SCHEMAS).map(schema => {
+              const isActive = contractData.paymentSchemaId === schema.id;
+              const colorMap = {
+                emerald: { bg: "bg-emerald-500", border: "border-emerald-600" },
+                blue: { bg: "bg-blue-500", border: "border-blue-600" },
+                amber: { bg: "bg-amber-500", border: "border-amber-600" },
+                purple: { bg: "bg-purple-500", border: "border-purple-600" },
+              };
+              const colors = colorMap[schema.color] || colorMap.amber;
+              
+              return (
+                <button key={schema.id}
+                  onClick={() => updateField("paymentSchemaId", schema.id)}
+                  className={`text-left p-4 rounded-lg transition-all active:scale-[0.98] border-2 ${
+                    isActive 
+                      ? `${colors.bg} text-white ${colors.border} shadow-lg` 
+                      : "bg-white text-slate-700 border-transparent hover:border-purple-300"
+                  }`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{schema.icon}</span>
+                      <span className="font-black">{schema.nameRu}</span>
+                    </div>
+                    <div className="text-right text-xs">
+                      <div className={isActive ? "opacity-90" : "opacity-60"}>
+                        Risk: {schema.risk === "zero" ? "🟢" : schema.risk === "low" ? "🟡" : "🔴"}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={`text-xs mt-1 ${isActive ? "opacity-90" : "opacity-75"}`}>
+                    {schema.descriptionRu}
+                  </div>
+                  <div className={`text-[10px] mt-2 italic ${isActive ? "opacity-80" : "opacity-60"}`}>
+                    💡 Для: {schema.recommendedRu}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Текущая выбранная — preview */}
+          <div className="bg-white rounded-lg p-3 border border-purple-300">
+            <div className="text-xs uppercase tracking-wider font-bold text-purple-700 mb-1">
+              📄 SELECTED FOR CONTRACT
+            </div>
+            <div className="font-black text-slate-900 mb-2">
+              {currentSchema.icon} {currentSchema.nameRu}
+            </div>
+            <div className="text-xs text-slate-600 italic">
+              {currentSchema.contractTextRu}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* EDITOR PANEL */}
       <div className="max-w-6xl mx-auto p-4 print:hidden">
         <details className="bg-white rounded-xl shadow-sm" open>
           <summary className="p-4 cursor-pointer font-bold text-slate-900 hover:bg-slate-50 rounded-t-xl">
             ✏️ Edit Contract Fields ({filledFieldsCount}% filled)
           </summary>
           <div className="p-4 border-t border-slate-200 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Contract */}
             <EditorSection title="📜 Contract">
               <Field label="Contract №" value={contractData.contractNumber} onChange={(v) => updateField("contractNumber", v)} />
               <Field label="Contract Date" type="date" value={contractData.contractDate} onChange={(v) => updateField("contractDate", v)} />
               <Field label="Expiry Date" type="date" value={contractData.contractExpiryDate} onChange={(v) => updateField("contractExpiryDate", v)} />
             </EditorSection>
 
-            {/* Seller */}
             <EditorSection title="🏢 Seller">
               <Field label="Company Name" value={contractData.sellerName} onChange={(v) => updateField("sellerName", v)} />
               <Field label="Legal Address" value={contractData.sellerAddress} onChange={(v) => updateField("sellerAddress", v)} />
@@ -317,7 +348,6 @@ export default function ContractPage() {
               <Field label="Director" value={contractData.sellerDirector} onChange={(v) => updateField("sellerDirector", v)} />
             </EditorSection>
 
-            {/* Buyer */}
             <EditorSection title="🌍 Buyer">
               <Field label="Company Name" value={contractData.buyerName} onChange={(v) => updateField("buyerName", v)} />
               <Field label="Legal Address" value={contractData.buyerAddress} onChange={(v) => updateField("buyerAddress", v)} />
@@ -325,7 +355,6 @@ export default function ContractPage() {
               <Field label="Representative" value={contractData.buyerDirector} onChange={(v) => updateField("buyerDirector", v)} />
             </EditorSection>
 
-            {/* Product */}
             <EditorSection title="🌲 Product">
               <Field label="Description" value={contractData.productDescription} onChange={(v) => updateField("productDescription", v)} />
               <Field label="Moisture" value={contractData.moisture} onChange={(v) => updateField("moisture", v)} />
@@ -335,7 +364,6 @@ export default function ContractPage() {
               <Field label="HS Code" value={contractData.hsCode} onChange={(v) => updateField("hsCode", v)} />
             </EditorSection>
 
-            {/* Pricing */}
             <EditorSection title="💰 Pricing & Delivery">
               <Field label="Unit Price (USD/m³)" value={contractData.unitPrice} onChange={(v) => updateField("unitPrice", v)} />
               <Field label="Total Amount (USD)" value={contractData.totalAmount} onChange={(v) => updateField("totalAmount", v)} />
@@ -347,7 +375,6 @@ export default function ContractPage() {
               <Field label="Transit Days" value={contractData.transitDays} onChange={(v) => updateField("transitDays", v)} />
             </EditorSection>
 
-            {/* Bank */}
             <EditorSection title="🏦 Seller Bank">
               <Field label="Bank Name" value={contractData.sellerBank} onChange={(v) => updateField("sellerBank", v)} />
               <Field label="SWIFT Code" value={contractData.sellerSwift} onChange={(v) => updateField("sellerSwift", v)} />
@@ -358,10 +385,9 @@ export default function ContractPage() {
         </details>
       </div>
 
-      {/* ========== THE CONTRACT (PRINTABLE) ========== */}
+      {/* ========== THE CONTRACT ========== */}
       <div className="max-w-6xl mx-auto p-4 pb-12">
         <div className="contract-page bg-white shadow-2xl rounded-xl p-8 sm:p-12 relative overflow-hidden">
-          {/* DRAFT watermark */}
           {!signed && (
             <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-0 opacity-10">
               <div className="text-[120px] sm:text-[200px] font-black text-rose-600 transform -rotate-45 select-none">
@@ -371,7 +397,6 @@ export default function ContractPage() {
           )}
 
           <div className="relative z-10">
-            {/* Header */}
             <div className="text-center mb-8 border-b-4 border-orange-500 pb-6">
               <div className="text-xs tracking-widest text-slate-500 font-bold mb-2">
                 INTERNATIONAL COMMERCIAL CONTRACT · МЕЖДУНАРОДНЫЙ КОММЕРЧЕСКИЙ КОНТРАКТ
@@ -388,6 +413,10 @@ export default function ContractPage() {
               <div className="mt-2 text-sm text-slate-600">
                 Date / Дата: <strong>{contractData.contractDate}</strong>
               </div>
+              {/* 🆕 Payment schema badge */}
+              <div className="mt-3 inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-xs font-bold">
+                💳 {currentSchema.icon} {currentSchema.name}
+              </div>
             </div>
 
             {/* 15 Clauses */}
@@ -397,11 +426,8 @@ export default function ContractPage() {
                 const bodyRu = typeof clause.body_ru === "function" ? clause.body_ru(contractData) : clause.body_ru;
 
                 return (
-                  <div
-                    key={clause.id}
-                    className={`clause-row ${clause.critical ? "border-l-4 border-rose-400 bg-rose-50/30 pl-4 py-2 rounded-r" : ""}`}
-                  >
-                    {/* Heading row */}
+                  <div key={clause.id}
+                    className={`clause-row ${clause.critical ? "border-l-4 border-rose-400 bg-rose-50/30 pl-4 py-2 rounded-r" : ""}`}>
                     <div className={`grid ${language === "both" ? "grid-cols-1 md:grid-cols-2 gap-4" : "grid-cols-1"} mb-2`}>
                       {(language === "en" || language === "both") && (
                         <h3 className="text-base font-black text-slate-900 uppercase tracking-wide flex items-center gap-2">
@@ -427,7 +453,6 @@ export default function ContractPage() {
                       )}
                     </div>
 
-                    {/* Body row */}
                     <div className={`grid ${language === "both" ? "grid-cols-1 md:grid-cols-2 gap-4" : "grid-cols-1"}`}>
                       {(language === "en" || language === "both") && (
                         <div className="text-xs sm:text-sm text-slate-800 whitespace-pre-line leading-relaxed">
@@ -444,67 +469,59 @@ export default function ContractPage() {
                 );
               })}
             </div>
-{/* После CONTRACT_CLAUSES.map(...) и перед {showGlossary && <GlossaryFooter />} */}
 
-{/* СЕКЦИЯ ПОДПИСЕЙ И ПЕЧАТЕЙ */}
-<div className="mt-12 pt-8 border-t-2 border-slate-300 grid grid-cols-1 md:grid-cols-2 gap-8">
-  <div>
-    <div className="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2">
-      Seller / Продавец
-    </div>
-    <SignatureWithStamp
-      name={contractData.sellerDirector}
-      role={contractData.sellerName}
-      companyName="RU-TIMBER EXPORT"
-      inn={contractData.sellerINN || "1234567890"}
-      ogrn={contractData.sellerOGRN || "1234567890123"}
-      city="MOSCOW"
-    />
-  </div>
-  <div>
-    <div className="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2">
-      Buyer / Покупатель
-    </div>
-    <div className="border-b-2 border-slate-700 w-64 mb-2 h-12"></div>
-    <div className="text-xs font-bold">{contractData.buyerDirector}</div>
-    <div className="text-xs text-slate-600">{contractData.buyerName}</div>
-    <div className="text-xs text-slate-400 italic mt-2">
-      Buyer's seal & signature
-    </div>
-  </div>
-</div>
-            {/* Glossary footer */}
+            {/* СЕКЦИЯ ПОДПИСЕЙ И ПЕЧАТЕЙ */}
+            <div className="mt-12 pt-8 border-t-2 border-slate-300 grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div>
+                <div className="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2">
+                  Seller / Продавец
+                </div>
+                <SignatureWithStamp
+                  name={contractData.sellerDirector}
+                  role={contractData.sellerName}
+                  companyName="RU-TIMBER EXPORT"
+                  inn={contractData.sellerINN || "1234567890"}
+                  ogrn={contractData.sellerOGRN || "1234567890123"}
+                  city="MOSCOW"
+                />
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wider text-slate-500 font-bold mb-2">
+                  Buyer / Покупатель
+                </div>
+                <div className="border-b-2 border-slate-700 w-64 mb-2 h-12"></div>
+                <div className="text-xs font-bold">{contractData.buyerDirector}</div>
+                <div className="text-xs text-slate-600">{contractData.buyerName}</div>
+                <div className="text-xs text-slate-400 italic mt-2">
+                  Buyer's seal & signature
+                </div>
+              </div>
+            </div>
+
             {showGlossary && <GlossaryFooter />}
 
-            {/* Final footer */}
             <div className="mt-12 pt-6 border-t-2 border-slate-200 text-center text-xs text-slate-500">
-              <div>
-                Generated by RU-TIMBER Captain Mode · Contract Engine v1.0
-              </div>
+              <div>Generated by RU-TIMBER Captain Mode · Contract Engine v1.0</div>
               <div className="mt-1 italic">
                 ⚠️ This is a template. Please consult with a qualified international lawyer before signing.
-                Данный документ является шаблоном. Перед подписанием проконсультируйтесь с квалифицированным юристом-международником.
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* CTA footer (hidden in print) */}
       <div className="max-w-6xl mx-auto p-4 pb-12 print:hidden">
         <div className="bg-slate-900 text-white rounded-xl p-6 text-center">
           <h3 className="text-lg font-black mb-2">📋 Что дальше?</h3>
           <ol className="text-sm text-slate-300 text-left max-w-xl mx-auto space-y-2 mb-4">
-            <li><strong className="text-orange-400">1.</strong> Заполни все поля (или жми «Autofill from Deal»)</li>
-            <li><strong className="text-orange-400">2.</strong> Покажи юристу — пусть проверит Force Majeure, ICAC Moscow, Payment terms</li>
-            <li><strong className="text-orange-400">3.</strong> Распечатай в PDF (кнопка «🖨 Print») и отправь покупателю на согласование</li>
-            <li><strong className="text-orange-400">4.</strong> После согласования — отметь «Signed» и распечатай финальную версию</li>
-            <li><strong className="text-orange-400">5.</strong> Подписать в 2 оригиналах, обменяться по DHL</li>
+            <li><strong className="text-orange-400">1.</strong> Выбери схему оплаты (по умолчанию 100% prepay) ✅</li>
+            <li><strong className="text-orange-400">2.</strong> Заполни все поля или жми «Autofill from Deal»</li>
+            <li><strong className="text-orange-400">3.</strong> Покажи юристу — пусть проверит</li>
+            <li><strong className="text-orange-400">4.</strong> Распечатай в PDF и отправь покупателю</li>
+            <li><strong className="text-orange-400">5.</strong> После согласования — Signed + финальная печать</li>
           </ol>
-          <Link
-            href="/checklist"
-            className="inline-block bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-bold active:scale-95"
-          >
+          <Link href="/checklist"
+            className="inline-block bg-orange-500 hover:bg-orange-600 text-white px-5 py-2 rounded-lg font-bold active:scale-95">
             ✅ Проверить Checklist
           </Link>
         </div>
@@ -512,8 +529,6 @@ export default function ContractPage() {
     </div>
   );
 }
-
-// ============ COMPONENTS ============
 
 function EditorSection({ title, children }) {
   return (
@@ -539,5 +554,3 @@ function Field({ label, value, onChange, type = "text" }) {
     </div>
   );
 }
-
-// END OF FILE
