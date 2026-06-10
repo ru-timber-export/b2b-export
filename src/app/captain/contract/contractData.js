@@ -1,8 +1,7 @@
 // 📜 INTERNATIONAL SALES CONTRACT — TEMPLATE DATA
 // 2-language structure: { en: "...", ru: "..." }
 // Used by /captain/contract page
-// ⚖️ v2.0 — Reviewed by International Trade Lawyer (2026)
-// Critical updates: Title transfer, Currency control, Quality at port, Volume tolerance
+// ⚖️ v2.1 — Dynamic Payment Schemas (2026)
 
 // === 🌐 ГЛОССАРИЙ ЮРИДИЧЕСКИХ ТЕРМИНОВ ===
 export const GLOSSARY = {
@@ -68,7 +67,7 @@ export const GLOSSARY = {
   },
   "Advance Payment": {
     short: "Предоплата",
-    long: "Advance Payment — авансовый платёж до начала производства/отгрузки. Стандарт для первой сделки: 30% advance + 70% против скана B/L.",
+    long: "Advance Payment — авансовый платёж до начала производства/отгрузки. Для первой сделки рекомендуется 100% prepayment — нулевой риск для продавца.",
   },
   "Demurrage": {
     short: "Простой контейнера в порту",
@@ -84,34 +83,31 @@ export const GLOSSARY = {
   },
   "Claims Period": {
     short: "Срок предъявления претензий",
-    long: "Claims Period — период, в течение которого покупатель может предъявить претензии по качеству. Стандарт: 14 дней с момента выгрузки в порту назначения. Обязательно с фото + сюрвейерский отчёт SGS/Bureau Veritas.",
+    long: "Claims Period — период, в течение которого покупатель может предъявить претензии по качеству. Стандарт: 14 дней с момента выгрузки в порту назначения.",
   },
   "Confidentiality": {
     short: "Конфиденциальность",
-    long: "Confidentiality clause — обязательство сторон не разглашать условия контракта (цены, объёмы) третьим лицам. Защищает твои закупочные цены от утечки конкурентам.",
+    long: "Confidentiality clause — обязательство сторон не разглашать условия контракта (цены, объёмы) третьим лицам.",
   },
-  // ⭐ НОВЫЕ ТЕРМИНЫ от юриста
   "Title Transfer": {
     short: "Переход права собственности",
-    long: "Title Transfer — момент перехода права собственности на товар от Продавца к Покупателю. КРИТИЧНО: должен быть привязан к 100% оплате, иначе Продавец теряет контроль над грузом в море до получения денег. Стандарт защиты: Title переходит вместе с оригиналами документов после полной оплаты.",
+    long: "Title Transfer — момент перехода права собственности на товар от Продавца к Покупателю. КРИТИЧНО: должен быть привязан к 100% оплате.",
   },
   "Volume Tolerance": {
     short: "Технологический люфт по объёму",
-    long: "Volume Tolerance — допустимое отклонение фактически погруженного объёма от заявленного (стандарт ±5%). Необходимо потому, что заранее точно рассчитать загрузку 40HC контейнера невозможно — разные пачки, разные размеры. Финальный инвойс выставляется на основании B/L.",
+    long: "Volume Tolerance — допустимое отклонение фактически погруженного объёма от заявленного (стандарт ±5%).",
   },
   "Currency Repatriation": {
     short: "Репатриация валютной выручки",
-    long: "Currency Repatriation — обязательство российских экспортёров вернуть валютную выручку на счёт в РФ в установленный срок (обычно 180 дней). Нарушение — штраф 75-100% от суммы. ЗАЩИТА: оплата считается выполненной только после зачисления на счёт ПРОДАВЦА В РФ, а не у агента в Киргизии/Узбекистане.",
+    long: "Currency Repatriation — обязательство российских экспортёров вернуть валютную выручку на счёт в РФ в установленный срок (обычно 180 дней).",
   },
   "Pre-shipment Inspection": {
     short: "Предотгрузочная инспекция",
-    long: "Pre-shipment Inspection — фиксация качества, размеров и влажности товара ПЕРЕД отправкой в порту погрузки. После этого момента Продавец НЕ отвечает за естественные изменения (нагон влажности древесины в океане).",
+    long: "Pre-shipment Inspection — фиксация качества, размеров и влажности товара ПЕРЕД отправкой в порту погрузки.",
   },
 };
 
 // === 📜 15 ПУНКТОВ КОНТРАКТА ===
-// Структура: { id, title_en, title_ru, body_en, body_ru, tooltipKey?, critical? }
-
 export const CONTRACT_CLAUSES = [
   {
     id: 1,
@@ -158,7 +154,6 @@ ${data.buyerName}
     id: 2,
     title_en: "2. SUBJECT OF THE CONTRACT",
     title_ru: "2. ПРЕДМЕТ КОНТРАКТА",
-    // ⭐ ПРАВКА #1: Допуск ±5% по объёму
     body_en: (data) => `
 2.1. The Seller undertakes to sell and deliver, and the Buyer undertakes to accept and pay for the following goods (hereinafter — "Goods"):
 
@@ -190,7 +185,6 @@ ${data.buyerName}
     id: 3,
     title_en: "3. QUALITY",
     title_ru: "3. КАЧЕСТВО",
-    // ⭐ ПРАВКА #2: Фиксация качества в порту погрузки + риск нагона влажности на Покупателе
     body_en: () => `
 3.1. The quality of the Goods shall correspond to GOST 8486-86 standard.
 
@@ -205,7 +199,7 @@ ${data.buyerName}
 3.4. The Seller guarantees that the Goods are free from defects affecting their commercial value (rot, fungal stains, insect damage exceeding GOST tolerances).
 
 3.5. ⚖️ DEFINITIVE QUALITY DETERMINATION AT PORT OF LOADING:
-The compliance of the Goods with quality, dimensions, and moisture standards (clause 2.1) shall be definitively determined at the port of loading (${"Novorossiysk"}) prior to dispatch, as documented in the pre-shipment photos or a survey report. The Buyer assumes the risk of natural moisture variance during ocean transit.`,
+The compliance of the Goods with quality, dimensions, and moisture standards (clause 2.1) shall be definitively determined at the port of loading (Novorossiysk) prior to dispatch, as documented in the pre-shipment photos or a survey report. The Buyer assumes the risk of natural moisture variance during ocean transit.`,
     body_ru: () => `
 3.1. Качество Товара должно соответствовать ГОСТ 8486-86.
 
@@ -250,8 +244,6 @@ The compliance of the Goods with quality, dimensions, and moisture standards (cl
     id: 5,
     title_en: "5. DELIVERY TERMS (INCOTERMS 2020)",
     title_ru: "5. УСЛОВИЯ ПОСТАВКИ (ИНКОТЕРМС 2020)",
-    // ⭐ ПРАВКА #3: Экспортная очистка ПРОДАВЦА (новый п. 5.1)
-    // ⭐ ПРАВКА #4: Title — после 100% оплаты + оригиналов (п. 5.7 ПЕРЕДЕЛАН)
     body_en: (data) => `
 5.1. ⚖️ EXPORT CUSTOMS CLEARANCE:
 The Seller shall, at its own expense, clear the Goods for export and perform all necessary export customs formalities in the Russian Federation.
@@ -296,38 +288,11 @@ Title to the Goods passes from the Seller to the Buyer at the moment of transfer
     critical: true,
   },
   {
-    {
     id: 6,
     title_en: "6. PAYMENT TERMS",
     title_ru: "6. УСЛОВИЯ ОПЛАТЫ",
-    // 🆕 ДИНАМИЧЕСКИЕ УСЛОВИЯ ОПЛАТЫ
-    // Поддерживает разные схемы: prepay100, prepay50, prepay30, lc
     body_en: (data) => {
       const schema = data.paymentSchemaId || "prepay100";
-      
-      // Базовый блок — общий для всех схем
-      const commonClauses = `
-
-6.${schema === "lc" ? "3" : "4"}. Bank charges: charges of the Seller's bank — for the Seller's account, charges of the Buyer's bank — for the Buyer's account, intermediary bank charges — for the Buyer's account (OUR/OUR).
-
-6.${schema === "lc" ? "4" : "5"}. The payment date is considered the date of crediting funds to the Seller's bank account in the Russian Federation.
-
-6.${schema === "lc" ? "5" : "6"}. PAYMENT VIA AUTHORIZED AGENT (Kyrgyzstan / Uzbekistan):
-Due to current international banking restrictions, the Buyer may pay through an authorized payment agent designated by the Seller (a licensed company in Kyrgyzstan or Uzbekistan). The Seller shall provide:
-• Tripartite Agency Agreement (Seller — Agent — Buyer)
-• Compliance letter from the Seller's bank
-• Agent invoice for the same amount as per this Contract
-This scheme is fully compliant with CIS, UAE, EU and US regulations as of 2026.
-
-6.${schema === "lc" ? "6" : "7"}. ⚖️ FULFILLMENT OF PAYMENT OBLIGATION (CRITICAL — CB RF CURRENCY CONTROL):
-Notwithstanding any payment routing through agents or intermediaries, the Buyer's payment obligation under this Contract is deemed fulfilled only from the moment the funds are credited in full to the Seller's bank account in the Russian Federation.
-
-6.${schema === "lc" ? "7" : "8"}. PAYMENT DELAYS:
-In case of payment delay for more than 10 (ten) banking days, the Seller reserves the right to:
-(a) suspend the performance of the Contract;
-(b) terminate the Contract unilaterally without compensation to the Buyer;
-(c) revise the price and delivery terms;
-(d) claim interest at the rate of 0.1% per day of delay.`;
 
       // ━━━━━━ 100% PREPAYMENT ━━━━━━
       if (schema === "prepay100") {
@@ -337,9 +302,30 @@ In case of payment delay for more than 10 (ten) banking days, the Seller reserve
 6.2. Payment schedule:
 • 100% (one hundred percent) advance payment of the total Contract amount within 5 (five) banking days from the date of signing this Contract.
 
-6.3. Shipment of the Goods shall commence within 14 (fourteen) working days from the date of receipt of 100% advance payment to the Seller's bank account.${commonClauses}`;
+6.3. Shipment of the Goods shall commence within 14 (fourteen) working days from the date of receipt of 100% advance payment to the Seller's bank account.
+
+6.4. Bank charges: charges of the Seller's bank — for the Seller's account, charges of the Buyer's bank — for the Buyer's account, intermediary bank charges — for the Buyer's account (OUR/OUR).
+
+6.5. The payment date is considered the date of crediting funds to the Seller's bank account in the Russian Federation.
+
+6.6. PAYMENT VIA AUTHORIZED AGENT (Kyrgyzstan / Uzbekistan):
+Due to current international banking restrictions, the Buyer may pay through an authorized payment agent designated by the Seller (a licensed company in Kyrgyzstan or Uzbekistan). The Seller shall provide:
+• Tripartite Agency Agreement (Seller — Agent — Buyer)
+• Compliance letter from the Seller's bank
+• Agent invoice for the same amount as per this Contract
+This scheme is fully compliant with CIS, UAE, EU and US regulations as of 2026.
+
+6.7. ⚖️ FULFILLMENT OF PAYMENT OBLIGATION (CRITICAL — CB RF CURRENCY CONTROL):
+Notwithstanding any payment routing through agents or intermediaries, the Buyer's payment obligation under this Contract is deemed fulfilled only from the moment the funds are credited in full to the Seller's bank account in the Russian Federation.
+
+6.8. PAYMENT DELAYS:
+In case of payment delay for more than 10 (ten) banking days, the Seller reserves the right to:
+(a) suspend the performance of the Contract;
+(b) terminate the Contract unilaterally without compensation to the Buyer;
+(c) revise the price and delivery terms;
+(d) claim interest at the rate of 0.1% per day of delay.`;
       }
-      
+
       // ━━━━━━ 50/50 ━━━━━━
       if (schema === "prepay50") {
         return `
@@ -349,10 +335,21 @@ In case of payment delay for more than 10 (ten) banking days, the Seller reserve
 • 50% (fifty percent) advance payment within 5 (five) banking days from the date of signing this Contract.
 • 50% (fifty percent) balance payment against scan copy of Bill of Lading (B/L), within 5 (five) banking days from the date of receipt of B/L copy.
 
-6.3. Shipment of the Goods shall commence within 14 (fourteen) working days from the date of receipt of 50% advance payment to the Seller's bank account.${commonClauses}`;
+6.3. Shipment of the Goods shall commence within 14 (fourteen) working days from the date of receipt of 50% advance payment.
+
+6.4. Bank charges: OUR/OUR principle as described above.
+
+6.5. The payment date is considered the date of crediting funds to the Seller's bank account in the Russian Federation.
+
+6.6. PAYMENT VIA AUTHORIZED AGENT: As described in standard contract conditions.
+
+6.7. ⚖️ FULFILLMENT OF PAYMENT OBLIGATION (CB RF CURRENCY CONTROL):
+The Buyer's payment obligation is deemed fulfilled only upon crediting to the Seller's account in the Russian Federation.
+
+6.8. PAYMENT DELAYS: In case of delay over 10 banking days — suspension or termination of Contract, plus 0.1% per day penalty.`;
       }
-      
-      // ━━━━━━ L/C (Letter of Credit) ━━━━━━
+
+      // ━━━━━━ L/C ━━━━━━
       if (schema === "lc") {
         return `
 6.1. Payment is made in US Dollars (USD) by irrevocable confirmed Letter of Credit (L/C), opened by the Buyer in favor of the Seller.
@@ -360,7 +357,7 @@ In case of payment delay for more than 10 (ten) banking days, the Seller reserve
 6.2. Payment terms:
 • 100% payment by irrevocable confirmed L/C, opened by the Buyer in a first-class international bank within 10 (ten) banking days from the date of signing this Contract.
 • L/C shall be valid for at least 90 (ninety) days from the date of opening.
-• L/C shall be advised through the Seller's bank: as per clause 14.
+• L/C shall be advised through the Seller's bank.
 
 6.3. Payment against shipping documents:
 • Commercial Invoice
@@ -368,10 +365,19 @@ In case of payment delay for more than 10 (ten) banking days, the Seller reserve
 • Packing List
 • Certificate of Origin
 • Phytosanitary Certificate
-• Fumigation Certificate (ISPM-15)${commonClauses}`;
+• Fumigation Certificate (ISPM-15)
+
+6.4. All L/C charges in the country of the Buyer — for the Buyer's account. L/C charges in the country of the Seller — for the Seller's account.
+
+6.5. The payment date is considered the date of crediting funds to the Seller's bank account in the Russian Federation.
+
+6.6. ⚖️ FULFILLMENT OF PAYMENT OBLIGATION (CB RF CURRENCY CONTROL):
+The Buyer's payment obligation is deemed fulfilled only upon crediting to the Seller's account in the Russian Federation.
+
+6.7. L/C DELAYS: In case of failure to open L/C within 10 banking days — Seller may terminate the Contract without compensation.`;
       }
-      
-      // ━━━━━━ 30/70 (DEFAULT) ━━━━━━
+
+      // ━━━━━━ 30/70 (DEFAULT FALLBACK) ━━━━━━
       return `
 6.1. Payment is made in US Dollars (USD) by Telegraphic Transfer (T/T) or through an authorized payment agent (see clause 6.6).
 
@@ -379,33 +385,21 @@ In case of payment delay for more than 10 (ten) banking days, the Seller reserve
 • 30% (thirty percent) advance payment within 5 (five) banking days from the date of signing this Contract.
 • 70% (seventy percent) balance payment against scan copy of Bill of Lading (B/L), within 5 (five) banking days from the date of receipt of B/L copy.
 
-6.3. Shipment of the Goods shall commence within 14 (fourteen) working days from the date of receipt of 30% advance payment to the Seller's bank account.${commonClauses}`;
+6.3. Shipment of the Goods shall commence within 14 (fourteen) working days from the date of receipt of 30% advance payment.
+
+6.4. Bank charges: OUR/OUR principle.
+
+6.5. The payment date is considered the date of crediting funds to the Seller's bank account in the Russian Federation.
+
+6.6. PAYMENT VIA AUTHORIZED AGENT: As described in standard contract conditions.
+
+6.7. ⚖️ FULFILLMENT OF PAYMENT OBLIGATION (CB RF CURRENCY CONTROL):
+The Buyer's payment obligation is deemed fulfilled only upon crediting to the Seller's account in the Russian Federation.
+
+6.8. PAYMENT DELAYS: In case of delay over 10 banking days — suspension or termination of Contract, plus 0.1% per day penalty.`;
     },
     body_ru: (data) => {
       const schema = data.paymentSchemaId || "prepay100";
-      
-      const commonClausesRu = `
-
-6.${schema === "lc" ? "3" : "4"}. Банковские расходы: расходы банка Продавца — за счёт Продавца, расходы банка Покупателя — за счёт Покупателя, расходы банков-корреспондентов — за счёт Покупателя (OUR/OUR).
-
-6.${schema === "lc" ? "4" : "5"}. Датой оплаты считается дата зачисления денежных средств на расчётный счёт Продавца в Российской Федерации.
-
-6.${schema === "lc" ? "5" : "6"}. ОПЛАТА ЧЕРЕЗ УПОЛНОМОЧЕННОГО АГЕНТА (Киргизия / Узбекистан):
-В связи с текущими международными банковскими ограничениями, Покупатель может произвести оплату через уполномоченного платёжного агента, назначенного Продавцом (лицензированная компания в Киргизии или Узбекистане). Продавец предоставляет:
-• Трёхсторонний агентский договор (Продавец — Агент — Покупатель)
-• Письмо о комплаенсе от банка Продавца
-• Инвойс агента на сумму согласно настоящему Контракту
-Данная схема полностью соответствует требованиям регуляторов СНГ, ОАЭ, ЕС и США по состоянию на 2026 год.
-
-6.${schema === "lc" ? "6" : "7"}. ⚖️ МОМЕНТ ИСПОЛНЕНИЯ ОБЯЗАТЕЛЬСТВА ПО ОПЛАТЕ (КРИТИЧНО — ВАЛЮТНЫЙ КОНТРОЛЬ ЦБ РФ):
-Независимо от маршрутизации платежа через агентов или посредников, обязательства Покупателя по оплате считаются выполненными только с момента полного зачисления денежных средств на банковский счёт Продавца в Российской Федерации.
-
-6.${schema === "lc" ? "7" : "8"}. ПРОСРОЧКА ОПЛАТЫ:
-В случае задержки оплаты более чем на 10 (десять) банковских дней Продавец оставляет за собой право:
-(а) приостановить выполнение Контракта;
-(б) расторгнуть Контракт в одностороннем порядке без компенсации Покупателю;
-(в) пересмотреть цену и сроки поставки;
-(г) потребовать оплату процентов в размере 0.1% за каждый день просрочки.`;
 
       // ━━━━━━ 100% PREPAYMENT ━━━━━━
       if (schema === "prepay100") {
@@ -415,9 +409,30 @@ In case of payment delay for more than 10 (ten) banking days, the Seller reserve
 6.2. График оплаты:
 • 100% (сто процентов) предоплаты от общей суммы Контракта в течение 5 (пяти) банковских дней с даты подписания настоящего Контракта.
 
-6.3. Отгрузка Товара начинается в течение 14 (четырнадцати) рабочих дней с даты получения 100% предоплаты на расчётный счёт Продавца.${commonClausesRu}`;
+6.3. Отгрузка Товара начинается в течение 14 (четырнадцати) рабочих дней с даты получения 100% предоплаты на расчётный счёт Продавца.
+
+6.4. Банковские расходы: расходы банка Продавца — за счёт Продавца, расходы банка Покупателя — за счёт Покупателя, расходы банков-корреспондентов — за счёт Покупателя (OUR/OUR).
+
+6.5. Датой оплаты считается дата зачисления денежных средств на расчётный счёт Продавца в Российской Федерации.
+
+6.6. ОПЛАТА ЧЕРЕЗ УПОЛНОМОЧЕННОГО АГЕНТА (Киргизия / Узбекистан):
+В связи с текущими международными банковскими ограничениями, Покупатель может произвести оплату через уполномоченного платёжного агента, назначенного Продавцом (лицензированная компания в Киргизии или Узбекистане). Продавец предоставляет:
+• Трёхсторонний агентский договор (Продавец — Агент — Покупатель)
+• Письмо о комплаенсе от банка Продавца
+• Инвойс агента на сумму согласно настоящему Контракту
+Данная схема полностью соответствует требованиям регуляторов СНГ, ОАЭ, ЕС и США по состоянию на 2026 год.
+
+6.7. ⚖️ МОМЕНТ ИСПОЛНЕНИЯ ОБЯЗАТЕЛЬСТВА ПО ОПЛАТЕ (КРИТИЧНО — ВАЛЮТНЫЙ КОНТРОЛЬ ЦБ РФ):
+Независимо от маршрутизации платежа через агентов или посредников, обязательства Покупателя по оплате считаются выполненными только с момента полного зачисления денежных средств на банковский счёт Продавца в Российской Федерации.
+
+6.8. ПРОСРОЧКА ОПЛАТЫ:
+В случае задержки оплаты более чем на 10 (десять) банковских дней Продавец оставляет за собой право:
+(а) приостановить выполнение Контракта;
+(б) расторгнуть Контракт в одностороннем порядке без компенсации Покупателю;
+(в) пересмотреть цену и сроки поставки;
+(г) потребовать оплату процентов в размере 0.1% за каждый день просрочки.`;
       }
-      
+
       // ━━━━━━ 50/50 ━━━━━━
       if (schema === "prepay50") {
         return `
@@ -427,9 +442,20 @@ In case of payment delay for more than 10 (ten) banking days, the Seller reserve
 • 50% (пятьдесят процентов) авансовый платёж в течение 5 (пяти) банковских дней с даты подписания настоящего Контракта.
 • 50% (пятьдесят процентов) окончательный платёж против скан-копии коносамента (B/L), в течение 5 (пяти) банковских дней с даты получения копии B/L.
 
-6.3. Отгрузка Товара начинается в течение 14 (четырнадцати) рабочих дней с даты получения 50% авансового платежа на расчётный счёт Продавца.${commonClausesRu}`;
+6.3. Отгрузка Товара начинается в течение 14 (четырнадцати) рабочих дней с даты получения 50% авансового платежа на расчётный счёт Продавца.
+
+6.4. Банковские расходы: принцип OUR/OUR как описано выше.
+
+6.5. Датой оплаты считается дата зачисления денежных средств на расчётный счёт Продавца в Российской Федерации.
+
+6.6. ОПЛАТА ЧЕРЕЗ УПОЛНОМОЧЕННОГО АГЕНТА: Согласно стандартным условиям контракта.
+
+6.7. ⚖️ МОМЕНТ ИСПОЛНЕНИЯ ОБЯЗАТЕЛЬСТВА ПО ОПЛАТЕ (ВАЛЮТНЫЙ КОНТРОЛЬ ЦБ РФ):
+Обязательства Покупателя по оплате считаются выполненными только с момента зачисления средств на счёт Продавца в Российской Федерации.
+
+6.8. ПРОСРОЧКА ОПЛАТЫ: При задержке более 10 банковских дней — приостановка или расторжение Контракта, плюс 0.1% штрафа за каждый день просрочки.`;
       }
-      
+
       // ━━━━━━ L/C ━━━━━━
       if (schema === "lc") {
         return `
@@ -438,7 +464,7 @@ In case of payment delay for more than 10 (ten) banking days, the Seller reserve
 6.2. Условия оплаты:
 • 100% оплата безотзывным подтверждённым аккредитивом, открытым Покупателем в первоклассном международном банке в течение 10 (десяти) банковских дней с даты подписания настоящего Контракта.
 • Срок действия L/C — не менее 90 (девяноста) дней с даты открытия.
-• L/C должен быть авизован через банк Продавца: согласно п. 14.
+• L/C должен ��ыть авизован через банк Продавца.
 
 6.3. Оплата против отгрузочных документов:
 • Коммерческий инвойс
@@ -446,10 +472,19 @@ In case of payment delay for more than 10 (ten) banking days, the Seller reserve
 • Упаковочный лист
 • Сертификат происхождения
 • Фитосанитарный сертификат
-• Сертификат фумигации (ISPM-15)${commonClausesRu}`;
+• Сертификат фумигации (ISPM-15)
+
+6.4. Все расходы по L/C на территории Покупателя — за счёт Покупателя. Расходы по L/C на территории Продавца — за счёт Продавца.
+
+6.5. Датой оплаты считается дата зачисления денежных средств на расчётный счёт Продавца в Российской Федерации.
+
+6.6. ⚖️ МОМЕНТ ИСПОЛНЕНИЯ ОБЯЗАТЕЛЬСТВА ПО ОПЛАТЕ (ВАЛЮТНЫЙ КОНТРОЛЬ ЦБ РФ):
+Обязательства Покупателя по оплате считаются выполненными только с момента зачисления средств на счёт Продавца в Российской Федерации.
+
+6.7. ПРОСРОЧКА L/C: В случае неоткрытия L/C в течение 10 банковских дней — Продавец вправе расторгнуть Контракт без компенсации.`;
       }
-      
-      // ━━━━━━ 30/70 (DEFAULT) ━━━━━━
+
+      // ━━━━━━ 30/70 (DEFAULT FALLBACK) ━━━━━━
       return `
 6.1. Оплата производится в долларах США (USD) телеграфным переводом (T/T) или через уполномоченного платёжного агента (см. п. 6.6).
 
@@ -457,7 +492,18 @@ In case of payment delay for more than 10 (ten) banking days, the Seller reserve
 • 30% (тридцать процентов) авансовый платёж в течение 5 (пяти) банковских дней с даты подписания настоящего Контракта.
 • 70% (семьдесят процентов) окончательный платёж против скан-копии коносамента (B/L), в течение 5 (пяти) банковских дней с даты получения копии B/L.
 
-6.3. Отгрузка Товара начинается в течение 14 (четырнадцати) рабочих дней с даты получения 30% авансового платежа на расчётный счёт Продавца.${commonClausesRu}`;
+6.3. Отгрузка Товара начинается в течение 14 (четырнадцати) рабочих дней с даты получения 30% авансового платежа на расчётный счёт Продавца.
+
+6.4. Банковские расходы: принцип OUR/OUR.
+
+6.5. Датой оплаты считается дата зачисления денежных средств на расчётный счёт Продавца в Российской Федерации.
+
+6.6. ОПЛАТА ЧЕРЕЗ УПОЛНОМОЧЕННОГО АГЕНТА: Согласно стандартным условиям контракта.
+
+6.7. ⚖️ МОМЕНТ ИСПОЛНЕНИЯ ОБЯЗАТЕЛЬСТВА ПО ОПЛАТЕ (ВАЛЮТНЫЙ КОНТРОЛЬ ЦБ РФ):
+Обязательства Покупателя по оплате считаются выполненными только с момента зачисления средств на счёт Продавца в Российской Федерации.
+
+6.8. ПРОСРОЧКА ОПЛАТЫ: При задержке более 10 банковских дней — приостановка или расторжение Контракта, плюс 0.1% штрафа за каждый день просрочки.`;
     },
     tooltipKey: "Advance Payment",
     critical: true,
@@ -528,7 +574,6 @@ In case of payment delay for more than 10 (ten) banking days, the Seller reserve
     id: 9,
     title_en: "9. ACCEPTANCE OF GOODS",
     title_ru: "9. ПРИЁМКА ТОВАРА",
-    // ⭐ ПРАВКА #6: Убрано "unless gross negligence" — чёткие 5%
     body_en: () => `
 9.1. Acceptance of the Goods by quantity is performed at the port of destination, at the moment of container unloading, in the presence of the Buyer's representative.
 
@@ -588,10 +633,10 @@ The Seller's total liability under this Contract shall not exceed 5% (five perce
 (c) Epidemics, pandemics, government quarantine measures
 (d) Strikes, lockouts, port closures
 (e) Acts or omissions of governmental authorities
-(f) **International sanctions, embargoes, restrictions imposed by any country or international body (including but not limited to USA, EU, UK)**
-(g) **Refusal of banks to process payments due to sanctions or compliance reasons**
-(h) **SWIFT blockade or restrictions affecting Russian financial institutions**
-(i) **Government-imposed export bans or restrictions**
+(f) International sanctions, embargoes, restrictions imposed by any country or international body (including but not limited to USA, EU, UK)
+(g) Refusal of banks to process payments due to sanctions or compliance reasons
+(h) SWIFT blockade or restrictions affecting Russian financial institutions
+(i) Government-imposed export bans or restrictions
 
 11.2. The affected Party shall notify the other Party in writing within 10 (ten) calendar days of the Force Majeure event, with supporting evidence (Chamber of Commerce certificate or equivalent).
 
@@ -605,10 +650,10 @@ The Seller's total liability under this Contract shall not exceed 5% (five perce
 (в) Эпидемии, пандемии, государственные карантинные меры
 (г) Забастовки, локауты, закрытие портов
 (д) Действия или бездействие государственных органов
-(е) **Международные санкции, эмбарго, ограничения, введённые любой страной или международной организацией (включая, помимо прочего, США, ЕС, Великобританию)**
-(ж) **Отказ банков проводить платежи в связи с санкциями или комплаенсом**
-(з) **Блокада SWIFT или ограничения, влияющие на российские финансовые институты**
-(и) **Государственные запреты или ограничения на экспорт**
+(е) Международные санкции, эмбарго, ограничения, введённые любой страной или международной организацией (включая, помимо прочего, США, ЕС, Великобританию)
+(ж) Отказ банков проводить платежи в связи с санкциями или комплаенсом
+(з) Блокада SWIFT или ограничения, влияющие на российские финансовые институты
+(и) Государственные запреты или ограничения на экспорт
 
 11.2. Пострадавшая Сторона уведомляет другую Сторону в письменной форме в течение 10 (десяти) календарных дней с момента наступления форс-мажора, с подтверждающими документами (сертификат Торгово-промышленной палаты или эквивалент).
 
@@ -708,7 +753,7 @@ SWIFT: ${data.sellerSwift}
 Account (USD): ${data.sellerAccount}
 Correspondent Bank: ${data.sellerCorrespondent}
 
-⚖️ Note: Per clause 6.6, payment obligation is fulfilled only upon crediting of funds to this account in the Russian Federation.
+⚖️ Note: Per clause 6, payment obligation is fulfilled only upon crediting of funds to this account in the Russian Federation.
 
 BUYER'S BANKING DETAILS:
 [To be provided by the Buyer]
@@ -736,7 +781,7 @@ SWIFT: ${data.sellerSwift}
 Счёт (USD): ${data.sellerAccount}
 Банк-корреспондент: ${data.sellerCorrespondent}
 
-⚖️ Примечание: Согласно п. 6.6, обязательство по оплате считается исполненным только с момента зачисления средств на данный счёт в Российской Федерации.
+⚖️ Примечание: Согласно п. 6, обязательство по оплате считается исполненным только с момента зачисления средств на данный счёт в Российской Федерации.
 
 БАНКОВСКИЕ РЕКВИЗИТЫ ПОКУПАТЕЛЯ:
 [Предоставляются Покупателем]
