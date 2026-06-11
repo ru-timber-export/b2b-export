@@ -452,6 +452,14 @@ export default function PricingPage() {
   const profitAfterDiscount = totalProfit - discountAmount;
   const roiPeriod = capitalNeeded > 0 ? (profitAfterDiscount / capitalNeeded) * 100 : 0;
   const roiAnnual = daysFrozen > 0 ? roiPeriod * (365 / daysFrozen) : 0;
+  // 🆕 Честный годовой расчёт: цикл = полный lead time + 14 дней на новую сделку
+  const dealCycleDays = leadTimeTotal + 14;
+  const dealsPerYear = Math.max(1, Math.floor(365 / dealCycleDays));
+  const realisticAnnualProfit = profitAfterDiscount * dealsPerYear;
+  // 🆕 Честный годовой расчёт: цикл = полный lead time + 14 дней на новую сделку
+  const dealCycleDays = leadTimeTotal + 14;
+  const dealsPerYear = Math.max(1, Math.floor(365 / dealCycleDays));
+  const realisticAnnualProfit = profitAfterDiscount * dealsPerYear;
   
   const timeline = useMemo(() => {
     const events = [];
