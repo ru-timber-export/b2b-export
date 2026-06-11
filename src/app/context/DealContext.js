@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
+import { DEFAULT_BUSINESS_SETTINGS } from "../hooks/useBusinessSettings";
 
 const STORAGE_KEY = "ru-timber-deal";
 const ROUTES_KEY = "ru-timber-custom-routes";
@@ -145,8 +146,6 @@ export function calcAutoDiscount(containers) {
 // ═══════════════════════════════════════════
 // 💳 PAYMENT SCHEMAS — v2.1 (Dynamic)
 // ID совпадают с contractData.js: prepay100 / prepay50 / 30-70 / lc
-// Поля nameRu/descriptionRu/recommendedRu/contractTextRu/color
-// нужны страницам Contract и Quotation
 // ═══════════════════════════════════════════
 export const PAYMENT_SCHEMAS = {
   prepay100: {
@@ -316,14 +315,14 @@ export const FREIGHT_PRESETS = {
 // 🌊 OCEAN MISSION — дефолтные цели
 // ═══════════════════════════════════════════
 const DEFAULT_MISSION = {
-  currentCapital: 0,              // сколько уже накоплено, ₽
+  currentCapital: 0,               // сколько уже накоплено, ₽
   avgProfitPerContainer_usd: 4000, // средняя прибыль с контейнера, $
-  containersPerMonth: 2,          // план отгрузок в месяц
-  targetUsdRubRate: 90,           // плановый курс USD/RUB
-  goal_ship: 50000000,            // 🚢 Корабль
-  goal_house: 30000000,           // 🏠 Дом
-  goal_wedding: 3000000,          // 💍 Свадьба
-  goal_reserve: 25000000,         // 💰 Резерв (5 лет × 5 млн)
+  containersPerMonth: 2,           // план отгрузок в месяц
+  targetUsdRubRate: 90,            // плановый курс USD/RUB
+  goal_ship: 50000000,             // 🚢 Корабль
+  goal_house: 30000000,            // 🏠 Дом
+  goal_wedding: 3000000,           // 💍 Свадьба
+  goal_reserve: 25000000,          // 💰 Резерв (5 лет × 5 млн)
 };
 
 // ═══════════════════════════════════════════
@@ -417,23 +416,36 @@ export function DealProvider({ children }) {
         setMission({ ...DEFAULT_MISSION, ...JSON.parse(savedMission) });
       }
 
-      // 🏢 Seller — пробуем несколько возможных ключей Business Settings
-      const sellerKeys = [
-        SELLER_KEY,
-        "ru-timber-settings",
-        "ru-timber-business",
-        "businessSettings",
-      ];
-      let sellerData = {};
-      sellerKeys.forEach((key) => {
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          try {
-            sellerData = { ...sellerData, ...JSON.parse(raw) };
-          } catch (e) { /* skip broken key */ }
-        }
+      // 🏢 Seller — читаем Business Settings и маппим поля под контракт
+      let bs = { ...DEFAULT_BUSINESS_SETTINGS };
+      const rawSeller = localStorage.getItem(SELLER_KEY);
+      if (rawSeller) {
+        try {
+          const parsed = JSON.parse(rawSeller);
+          Object.keys(parsed).forEach((key) => {
+            if (parsed[key] !== "" && parsed[key] !== null && parsed[key] !== undefined) {
+              bs[key] = parsed[key];
+            }
+          });
+        } catch (e) { /* broken JSON — используем дефолты */ }
+      }
+
+      const pick = (...vals) =>
+        vals.find((v) => v !== undefined && v !== null && v !== "") || "";
+
+      setSeller({
+        ...bs, // все оригинальные поля тоже доступны
+        // 📜 нормализованные поля для Contract Autofill:
+        companyName: pick(bs.companyNameEn, bs.companyName),
+        legalAddress: pick(bs.legalAddress, bs.warehouseAddressEn, bs.officeAddress),
+        inn: pick(bs.inn),
+        ogrn: pick(bs.ogrnip, bs.ogrn),
+        director: pick(bs.signatureName, bs.fullName),
+        bankName: pick(bs.bankNameEn, bs.bankName),
+        bankSwift: pick(bs.bankSWIFT, bs.bankSwift),
+        bankAccountUSD: pick(bs.bankAccountUSD),
+        correspondentBank: pick(bs.bankCorrespondentUSD, bs.correspondentBank),
       });
-      setSeller(sellerData);
     } catch (e) {
       console.error("Load failed:", e);
     } finally {
