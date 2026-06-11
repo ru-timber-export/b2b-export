@@ -1,16 +1,17 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useMemo } from "react";
 
 const STORAGE_KEY = "ru-timber-deal";
 const ROUTES_KEY = "ru-timber-custom-routes";
 const PRICES_KEY = "ru-timber-species-prices";
 const PRICE_HISTORY_KEY = "ru-timber-price-history";
 const SUPPLIERS_KEY = "ru-timber-suppliers";
+const MISSION_KEY = "ru-timber-mission";
+const SELLER_KEY = "ru-timber-business-settings";
 
 // ═══════════════════════════════════════════
-// 🆕 КОНТЕЙНЕР 40HC — ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ
-// Все экраны берут вместимость ОТСЮДА
+// КОНТЕЙНЕР 40HC — ЕДИНЫЙ ИСТОЧНИК ПРАВДЫ
 // ═══════════════════════════════════════════
 export const CONTAINER_40HC = {
   nominalM3: 76,        // паспортный объём (внутренний)
@@ -20,39 +21,32 @@ export const CONTAINER_40HC = {
 };
 
 // ═══════════════════════════════════════════
-// 🆕 ДЕФОЛТНЫЕ ЦЕНЫ ПОРОД (на основе рынка 2025)
+// ДЕФОЛТНЫЕ ЦЕНЫ ПОРОД
 // ═══════════════════════════════════════════
 export const DEFAULT_SPECIES_PRICES = {
-  // Чистые породы — хвойные
-  pine: 175,         // Сосна — массовая
-  spruce: 165,       // Ель — чуть дешевле
-  larch: 230,        // Лиственница — премиум хвоя
-  cedar: 280,        // Кедр — премиум
-  spf: 180,          // SPF mix
-  
-  // Чистые породы — лиственные
-  birch: 220,        // Берёза — премиум
-  oak: 450,          // Дуб — самая дорогая
-  aspen: 140,        // Осина — sauna market
-  
-  // Смеси
+  pine: 175,
+  spruce: 165,
+  larch: 230,
+  cedar: 280,
+  spf: 180,
+  birch: 220,
+  oak: 450,
+  aspen: 140,
   "pine-spruce-50-50": 170,
   "pine-spruce-70-30": 172,
 };
 
-// Старое имя для обратной совместимости
 export const SPECIES_BASE_PRICES = DEFAULT_SPECIES_PRICES;
 
 // ═══════════════════════════════════════════
-// 🆕 КОЭФФИЦИЕНТЫ ВЛАЖНОСТИ
+// КОЭФФИЦИЕНТЫ ВЛАЖНОСТИ
 // ═══════════════════════════════════════════
 export const MOISTURE_MULTIPLIERS = {
-  kd: 1.00,      // KD 10-12% — базовая
-  ad: 0.88,      // AD 18-22% — -12%
-  fresh: 0.72,   // Fresh 22-30% — -28%
+  kd: 1.00,
+  ad: 0.88,
+  fresh: 0.72,
 };
 
-// Старое название (доплата) — для обратной совместимости в коде
 export const DRYING_SURCHARGE = {
   kd: 0,
   ad: 0,
@@ -71,7 +65,7 @@ export const PACKAGING_SURCHARGE = {
 };
 
 // ═══════════════════════════════════════════
-// 🆕 РЕГИОНЫ ЛЕСОПИЛОК (для бонуса)
+// РЕГИОНЫ ЛЕСОПИЛОК
 // ═══════════════════════════════════════════
 export const SAWMILL_REGIONS = {
   karelia: { name: "Карелия", flag: "🌲", multiplier: 1.00, baseFreight: 1500 },
@@ -83,7 +77,7 @@ export const SAWMILL_REGIONS = {
 };
 
 // ═══════════════════════════════════════════
-// 🆕 ДЕФОЛТНЫЕ ПОСТАВЩИКИ (можешь добавлять свои)
+// ДЕФОЛТНЫЕ ПОСТАВЩИКИ
 // ═══════════════════════════════════════════
 export const DEFAULT_SUPPLIERS = [
   {
@@ -97,10 +91,7 @@ export const DEFAULT_SUPPLIERS = [
 ];
 
 // ═══════════════════════════════════════════
-// COUNTRY MARGINS — реалистичные для новичка
-// India 12% (торгуются жёстко), China 10% (ценовая война),
-// UAE 18% (премиум-рынок), Egypt 15% (риск платежей),
-// Turkey 10% (близко, конкуренция высокая)
+// COUNTRY MARGINS
 // ═══════════════════════════════════════════
 export const COUNTRY_MARGINS = {
   india: 12,
@@ -111,7 +102,7 @@ export const COUNTRY_MARGINS = {
 };
 
 // ═══════════════════════════════════════════
-// LEAD TIME BREAKDOWN
+// LEAD TIME
 // ═══════════════════════════════════════════
 export const LEAD_TIME_BREAKDOWN = {
   production: 14,
@@ -128,7 +119,7 @@ export function calcLeadTime(routeKey, oceanTransitDays) {
     portHandling: LEAD_TIME_BREAKDOWN.portHandling,
     ocean,
     discharge: LEAD_TIME_BREAKDOWN.discharge,
-    total: LEAD_TIME_BREAKDOWN.production + LEAD_TIME_BREAKDOWN.landTransport + 
+    total: LEAD_TIME_BREAKDOWN.production + LEAD_TIME_BREAKDOWN.landTransport +
            LEAD_TIME_BREAKDOWN.portHandling + ocean + LEAD_TIME_BREAKDOWN.discharge,
   };
 }
@@ -145,95 +136,123 @@ export const DISCOUNT_TIERS = [
 ];
 
 export function calcAutoDiscount(containers) {
-  const tier = DISCOUNT_TIERS.find(t => 
+  const tier = DISCOUNT_TIERS.find(t =>
     containers >= t.minContainers && containers <= t.maxContainers
   );
   return tier ? tier.percent : 0;
 }
 
 // ═══════════════════════════════════════════
-// 📜 PAYMENT SCHEMAS (для контрактов и квотаций)
+// 💳 PAYMENT SCHEMAS — v2.1 (Dynamic)
+// ID совпадают с contractData.js: prepay100 / prepay50 / 30-70 / lc
+// Поля nameRu/descriptionRu/recommendedRu/contractTextRu/color
+// нужны страницам Contract и Quotation
 // ═══════════════════════════════════════════
 export const PAYMENT_SCHEMAS = {
-  "30-70-bl": {
-    id: "30-70-bl",
-    icon: "🤝",
-    name: "30/70 vs B/L",
-    label: "30% advance + 70% vs B/L copy",
-    advance: 30,
-    balance: 70,
-    advancePercent: 30,
-    balancePercent: 70,
-    trigger: "B/L copy",
-    risk: "low",
-    description: "Классическая схема. 30% при заказе, 70% после получения копии B/L (Telex Release).",
-    contractText: "30% advance payment within 5 (five) banking days of Contract signing. 70% balance payment against scan copy of Bill of Lading (Telex Release at destination port).",
-    forNewClient: false,
-  },
-  "50-50-bl": {
-    id: "50-50-bl",
-    icon: "🛡",
-    name: "50/50 vs B/L",
-    label: "50% advance + 50% vs B/L copy",
-    advance: 50,
-    balance: 50,
-    advancePercent: 50,
-    balancePercent: 50,
-    trigger: "B/L copy",
-    risk: "very-low",
-    description: "Для новых клиентов без истории. Снижает риск кассового разрыва.",
-    contractText: "50% advance payment within 5 (five) banking days of Contract signing. 50% balance payment against scan copy of Bill of Lading (Telex Release at destination port).",
-    forNewClient: true,
-  },
-  "100-advance": {
-    id: "100-advance",
+  prepay100: {
+    id: "prepay100",
     icon: "💯",
-    name: "100% Advance",
-    label: "100% advance payment",
+    color: "emerald",
+    risk: "zero",
     advance: 100,
     balance: 0,
     advancePercent: 100,
     balancePercent: 0,
-    trigger: "none",
-    risk: "zero",
-    description: "Полная предоплата. Для самых рисковых клиентов или первой сделки.",
-    contractText: "100% advance payment within 5 (five) banking days of Contract signing. Production starts upon receipt of funds.",
+    name: "100% Prepayment",
+    nameRu: "100% предоплата",
+    label: "100% advance payment before shipment",
+    labelRu: "100% предоплата до отгрузки",
+    short: "100% advance",
+    shortRu: "100% аванс",
+    description: "Full prepayment before production. Zero risk for the Seller.",
+    descriptionRu: "Полная предоплата до начала производства. Нулевой риск для продавца — производство стартует после зачисления денег.",
+    recommendedRu: "первая сделка, новый покупатель без истории",
+    contractText: "100% advance payment within 5 (five) banking days from the date of signing the Contract. Shipment commences after receipt of funds.",
+    contractTextRu: "100% предоплата в течение 5 (пяти) банковских дней с даты подписания Контракта. Отгрузка начинается после зачисления средств на счёт Продавца.",
     forNewClient: true,
   },
-  "lc-sight": {
-    id: "lc-sight",
+  prepay50: {
+    id: "prepay50",
+    icon: "🛡",
+    color: "blue",
+    risk: "low",
+    advance: 50,
+    balance: 50,
+    advancePercent: 50,
+    balancePercent: 50,
+    name: "50/50 vs B/L",
+    nameRu: "50/50 против B/L",
+    label: "50% advance + 50% against B/L copy",
+    labelRu: "50% аванс + 50% против копии коносамента",
+    short: "50/50 vs B/L",
+    shortRu: "50/50 по B/L",
+    description: "50% advance, 50% balance against Bill of Lading copy (Telex Release).",
+    descriptionRu: "50% аванс при заказе, 50% после получения копии коносамента (Telex Release). Баланс риска для обеих сторон.",
+    recommendedRu: "новые клиенты после первой успешной сделки",
+    contractText: "50% advance payment within 5 (five) banking days of Contract signing. 50% balance against scan copy of Bill of Lading.",
+    contractTextRu: "50% аванс в течение 5 (пяти) банковских дней с даты подписания Контракта. 50% — против скан-копии коносамента (B/L).",
+    forNewClient: true,
+  },
+  "30-70": {
+    id: "30-70",
+    icon: "🤝",
+    color: "amber",
+    risk: "medium",
+    advance: 30,
+    balance: 70,
+    advancePercent: 30,
+    balancePercent: 70,
+    name: "30/70 vs B/L",
+    nameRu: "30/70 против B/L",
+    label: "30% advance + 70% against B/L copy",
+    labelRu: "30% аванс + 70% против копии коносамента",
+    short: "30/70 vs B/L",
+    shortRu: "30/70 по B/L",
+    description: "Classic scheme: 30% advance, 70% against Bill of Lading copy (Telex Release).",
+    descriptionRu: "Классическая схема. 30% при заказе, 70% после получения копии B/L (Telex Release).",
+    recommendedRu: "проверенные клиенты с историей 2-3 сделок",
+    contractText: "30% advance payment within 5 (five) banking days of Contract signing. 70% balance against scan copy of Bill of Lading.",
+    contractTextRu: "30% аванс в течение 5 (пяти) банковских дней с даты подписания Контракта. 70% — против скан-копии коносамента (B/L).",
+    forNewClient: false,
+  },
+  lc: {
+    id: "lc",
     icon: "🏦",
-    name: "L/C at Sight",
-    label: "Letter of Credit at sight",
+    color: "purple",
+    risk: "low",
     advance: 0,
     balance: 100,
     advancePercent: 0,
     balancePercent: 100,
-    trigger: "L/C documents",
-    risk: "low",
-    description: "Аккредитив с оплатой по предъявлении документов. Банковская гарантия.",
-    contractText: "Payment by irrevocable Letter of Credit at sight, issued by a first-class international bank, payable against presentation of shipping documents.",
-    forNewClient: false,
-  },
-  "20-80-bl": {
-    id: "20-80-bl",
-    icon: "⭐",
-    name: "20/80 vs B/L",
-    label: "20% advance + 80% vs B/L copy",
-    advance: 20,
-    balance: 80,
-    advancePercent: 20,
-    balancePercent: 80,
-    trigger: "B/L copy",
-    risk: "medium",
-    description: "Мягкие условия для постоянного клиента с хорошей историей.",
-    contractText: "20% advance payment within 5 (five) banking days of Contract signing. 80% balance payment against scan copy of Bill of Lading (Telex Release at destination port).",
+    name: "L/C at Sight",
+    nameRu: "Аккредитив (L/C at sight)",
+    label: "Irrevocable Letter of Credit at sight",
+    labelRu: "Безотзывный аккредитив по предъявлении документов",
+    short: "L/C at sight",
+    shortRu: "Аккредитив",
+    description: "Irrevocable confirmed Letter of Credit, payable against shipping documents.",
+    descriptionRu: "Безотзывный подтверждённый аккредитив. Банк покупателя гарантирует оплату против отгрузочных документов.",
+    recommendedRu: "крупные сделки, корпоративные покупатели",
+    contractText: "Payment by irrevocable confirmed Letter of Credit at sight, payable against presentation of shipping documents.",
+    contractTextRu: "Оплата безотзывным подтверждённым аккредитивом по предъявлении отгрузочных документов через банк Продавца.",
     forNewClient: false,
   },
 };
 
+// Старые ID (если где-то сохранились в localStorage) → новые
+const SCHEMA_ALIASES = {
+  "100-advance": "prepay100",
+  "50-50-bl": "prepay50",
+  "30-70-bl": "30-70",
+  "20-80-bl": "30-70",
+  "lc-sight": "lc",
+};
+
 export function getPaymentSchema(schemaId) {
-  return PAYMENT_SCHEMAS[schemaId] || PAYMENT_SCHEMAS["30-70-bl"];
+  if (PAYMENT_SCHEMAS[schemaId]) return PAYMENT_SCHEMAS[schemaId];
+  const alias = SCHEMA_ALIASES[schemaId];
+  if (alias && PAYMENT_SCHEMAS[alias]) return PAYMENT_SCHEMAS[alias];
+  return PAYMENT_SCHEMAS["prepay100"];
 }
 
 // ═══════════════════════════════════════════
@@ -244,53 +263,67 @@ export const FREIGHT_PRESETS = {
   "nvr-jebelali": { port: "Jebel Ali", country: "UAE", flag: "🇦🇪", rate: 2400, transit: 18, label: "Novorossiysk → Jebel Ali", star: true },
   "nvr-khalifa": { port: "Khalifa Port", country: "UAE", flag: "🇦🇪", rate: 2450, transit: 19, label: "Novorossiysk → Khalifa" },
   "nvr-sharjah": { port: "Sharjah", country: "UAE", flag: "🇦🇪", rate: 2500, transit: 20, label: "Novorossiysk → Sharjah" },
-  
+
   // INDIA
   "nvr-nhavasheva": { port: "Nhava Sheva / Mumbai", country: "India", flag: "🇮🇳", rate: 2850, transit: 21, label: "Novorossiysk → Mumbai", star: true },
   "nvr-mundra": { port: "Mundra", country: "India", flag: "🇮🇳", rate: 2750, transit: 20, label: "Novorossiysk → Mundra" },
   "nvr-chennai": { port: "Chennai", country: "India", flag: "🇮🇳", rate: 3100, transit: 25, label: "Novorossiysk → Chennai" },
   "nvr-cochin": { port: "Cochin", country: "India", flag: "🇮🇳", rate: 2950, transit: 23, label: "Novorossiysk → Cochin" },
   "nvr-kolkata": { port: "Kolkata", country: "India", flag: "🇮🇳", rate: 3300, transit: 28, label: "Novorossiysk → Kolkata" },
-  
+
   // CHINA
   "vlv-shanghai": { port: "Shanghai", country: "China", flag: "🇨🇳", rate: 1800, transit: 8, label: "Vladivostok → Shanghai", star: true },
   "vlv-ningbo": { port: "Ningbo", country: "China", flag: "🇨🇳", rate: 1850, transit: 9, label: "Vladivostok → Ningbo" },
   "vlv-qingdao": { port: "Qingdao", country: "China", flag: "🇨🇳", rate: 1750, transit: 7, label: "Vladivostok → Qingdao" },
-  
+
   // EGYPT
   "nvr-alexandria": { port: "Alexandria", country: "Egypt", flag: "🇪🇬", rate: 1900, transit: 12, label: "Novorossiysk → Alexandria", star: true },
   "nvr-portsaid": { port: "Port Said", country: "Egypt", flag: "🇪🇬", rate: 1950, transit: 13, label: "Novorossiysk → Port Said" },
   "nvr-damietta": { port: "Damietta", country: "Egypt", flag: "🇪🇬", rate: 1920, transit: 12, label: "Novorossiysk → Damietta" },
-  
+
   // TURKEY
   "nvr-istanbul": { port: "Istanbul / Ambarli", country: "Turkey", flag: "🇹🇷", rate: 1400, transit: 8, label: "Novorossiysk → Istanbul", star: true },
   "nvr-izmir": { port: "Izmir", country: "Turkey", flag: "🇹🇷", rate: 1450, transit: 9, label: "Novorossiysk → Izmir" },
   "nvr-mersin": { port: "Mersin", country: "Turkey", flag: "🇹🇷", rate: 1500, transit: 10, label: "Novorossiysk → Mersin" },
-  
+
   // SAUDI ARABIA
   "nvr-jeddah": { port: "Jeddah", country: "Saudi Arabia", flag: "🇸🇦", rate: 2200, transit: 17, label: "Novorossiysk → Jeddah" },
   "nvr-dammam": { port: "Dammam", country: "Saudi Arabia", flag: "🇸🇦", rate: 2600, transit: 22, label: "Novorossiysk → Dammam" },
-  
+
   // EUROPE
   "spb-rotterdam": { port: "Rotterdam", country: "Netherlands", flag: "🇳🇱", rate: 1100, transit: 5, label: "Saint Petersburg → Rotterdam" },
   "spb-hamburg": { port: "Hamburg", country: "Germany", flag: "🇩🇪", rate: 1050, transit: 4, label: "Saint Petersburg → Hamburg" },
   "spb-gdansk": { port: "Gdansk", country: "Poland", flag: "🇵🇱", rate: 950, transit: 3, label: "Saint Petersburg → Gdansk" },
-  
+
   // SOUTH KOREA / JAPAN
   "vlv-busan": { port: "Busan", country: "South Korea", flag: "🇰🇷", rate: 1600, transit: 6, label: "Vladivostok → Busan" },
   "vlv-tokyo": { port: "Tokyo", country: "Japan", flag: "🇯🇵", rate: 1900, transit: 9, label: "Vladivostok → Tokyo" },
   "vlv-yokohama": { port: "Yokohama", country: "Japan", flag: "🇯🇵", rate: 1950, transit: 10, label: "Vladivostok → Yokohama" },
-  
+
   // VIETNAM
   "vlv-haiphong": { port: "Haiphong", country: "Vietnam", flag: "🇻🇳", rate: 2100, transit: 14, label: "Vladivostok → Haiphong" },
   "vlv-hochiminh": { port: "Ho Chi Minh", country: "Vietnam", flag: "🇻🇳", rate: 2200, transit: 15, label: "Vladivostok → Ho Chi Minh" },
-  
+
   // INDONESIA / MALAYSIA
   "vlv-jakarta": { port: "Jakarta", country: "Indonesia", flag: "🇮🇩", rate: 2400, transit: 17, label: "Vladivostok → Jakarta" },
   "vlv-portklang": { port: "Port Klang", country: "Malaysia", flag: "🇲🇾", rate: 2350, transit: 16, label: "Vladivostok → Port Klang" },
-  
+
   // KAZAKHSTAN (rail)
   "kgd-almaty": { port: "Almaty (rail)", country: "Kazakhstan", flag: "🇰🇿", rate: 1300, transit: 7, label: "Kaliningrad → Almaty" },
+};
+
+// ═══════════════════════════════════════════
+// 🌊 OCEAN MISSION — дефолтные цели
+// ═══════════════════════════════════════════
+const DEFAULT_MISSION = {
+  currentCapital: 0,              // сколько уже накоплено, ₽
+  avgProfitPerContainer_usd: 4000, // средняя прибыль с контейнера, $
+  containersPerMonth: 2,          // план отгрузок в месяц
+  targetUsdRubRate: 90,           // плановый курс USD/RUB
+  goal_ship: 50000000,            // 🚢 Корабль
+  goal_house: 30000000,           // 🏠 Дом
+  goal_wedding: 3000000,          // 💍 Свадьба
+  goal_reserve: 25000000,         // 💰 Резерв (5 лет × 5 млн)
 };
 
 // ═══════════════════════════════════════════
@@ -303,15 +336,15 @@ const DEFAULT_DEAL = {
   incoterm: "cif",
   freightRoute: "nvr-jebelali",
   customRoute: null,
-  
+
   thickness: 50,
   width: 150,
   length: 6000,
   totalVolume: 50,
-  
+
   margin: 18,
   usdRubRate: 91,
-  
+
   finalContainers: 1,
   finalTotalAmount: 0,
   finalPricePerM3: 0,
@@ -320,16 +353,16 @@ const DEFAULT_DEAL = {
   finalProfitTotal: 0,
   finalIncoterm: "cif",
   finalFreightRoute: "nvr-jebelali",
-  
+
   positions: [],
   leadTimeOverride: null,
-  
+
   discountMode: "auto",
   customDiscountPercent: 0,
-  
+
   profileProcessing: false,
-  
-  paymentSchema: "30-70-bl",
+
+  paymentSchema: "prepay100",
 };
 
 // ═══════════════════════════════════════════
@@ -340,19 +373,17 @@ const DealContext = createContext(null);
 export function DealProvider({ children }) {
   const [deal, setDeal] = useState(DEFAULT_DEAL);
   const [customRoutes, setCustomRoutes] = useState([]);
-  
-  // 🆕 Кастомные цены пород
   const [customSpeciesPrices, setCustomSpeciesPrices] = useState({});
-  
-  // 🆕 История цен
   const [priceHistory, setPriceHistory] = useState({});
-  
-  // 🆕 Поставщики
   const [suppliers, setSuppliers] = useState(DEFAULT_SUPPLIERS);
-  
-  // 🆕 Дата последнего обновления цен
   const [pricesLastUpdated, setPricesLastUpdated] = useState(null);
-  
+
+  // 🌊 Mission
+  const [mission, setMission] = useState(DEFAULT_MISSION);
+
+  // 🏢 Seller (реквизиты продавца из Business Settings)
+  const [seller, setSeller] = useState({});
+
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load from localStorage
@@ -363,28 +394,46 @@ export function DealProvider({ children }) {
         const parsed = JSON.parse(saved);
         setDeal({ ...DEFAULT_DEAL, ...parsed });
       }
-      
+
       const savedRoutes = localStorage.getItem(ROUTES_KEY);
-      if (savedRoutes) {
-        setCustomRoutes(JSON.parse(savedRoutes));
-      }
-      
+      if (savedRoutes) setCustomRoutes(JSON.parse(savedRoutes));
+
       const savedPrices = localStorage.getItem(PRICES_KEY);
       if (savedPrices) {
         const parsed = JSON.parse(savedPrices);
         setCustomSpeciesPrices(parsed.prices || {});
         setPricesLastUpdated(parsed.lastUpdated || null);
       }
-      
+
       const savedHistory = localStorage.getItem(PRICE_HISTORY_KEY);
-      if (savedHistory) {
-        setPriceHistory(JSON.parse(savedHistory));
-      }
-      
+      if (savedHistory) setPriceHistory(JSON.parse(savedHistory));
+
       const savedSuppliers = localStorage.getItem(SUPPLIERS_KEY);
-      if (savedSuppliers) {
-        setSuppliers(JSON.parse(savedSuppliers));
+      if (savedSuppliers) setSuppliers(JSON.parse(savedSuppliers));
+
+      // 🌊 Mission
+      const savedMission = localStorage.getItem(MISSION_KEY);
+      if (savedMission) {
+        setMission({ ...DEFAULT_MISSION, ...JSON.parse(savedMission) });
       }
+
+      // 🏢 Seller — пробуем несколько возможных ключей Business Settings
+      const sellerKeys = [
+        SELLER_KEY,
+        "ru-timber-settings",
+        "ru-timber-business",
+        "businessSettings",
+      ];
+      let sellerData = {};
+      sellerKeys.forEach((key) => {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          try {
+            sellerData = { ...sellerData, ...JSON.parse(raw) };
+          } catch (e) { /* skip broken key */ }
+        }
+      });
+      setSeller(sellerData);
     } catch (e) {
       console.error("Load failed:", e);
     } finally {
@@ -395,24 +444,18 @@ export function DealProvider({ children }) {
   // Save deal
   useEffect(() => {
     if (!isLoaded) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(deal));
-    } catch (e) {
-      console.error("Save deal failed:", e);
-    }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(deal)); }
+    catch (e) { console.error("Save deal failed:", e); }
   }, [deal, isLoaded]);
 
   // Save custom routes
   useEffect(() => {
     if (!isLoaded) return;
-    try {
-      localStorage.setItem(ROUTES_KEY, JSON.stringify(customRoutes));
-    } catch (e) {
-      console.error("Save routes failed:", e);
-    }
+    try { localStorage.setItem(ROUTES_KEY, JSON.stringify(customRoutes)); }
+    catch (e) { console.error("Save routes failed:", e); }
   }, [customRoutes, isLoaded]);
 
-  // 🆕 Save species prices
+  // Save species prices
   useEffect(() => {
     if (!isLoaded) return;
     try {
@@ -420,30 +463,29 @@ export function DealProvider({ children }) {
         prices: customSpeciesPrices,
         lastUpdated: pricesLastUpdated,
       }));
-    } catch (e) {
-      console.error("Save prices failed:", e);
-    }
+    } catch (e) { console.error("Save prices failed:", e); }
   }, [customSpeciesPrices, pricesLastUpdated, isLoaded]);
 
-  // 🆕 Save price history
+  // Save price history
   useEffect(() => {
     if (!isLoaded) return;
-    try {
-      localStorage.setItem(PRICE_HISTORY_KEY, JSON.stringify(priceHistory));
-    } catch (e) {
-      console.error("Save history failed:", e);
-    }
+    try { localStorage.setItem(PRICE_HISTORY_KEY, JSON.stringify(priceHistory)); }
+    catch (e) { console.error("Save history failed:", e); }
   }, [priceHistory, isLoaded]);
 
-  // 🆕 Save suppliers
+  // Save suppliers
   useEffect(() => {
     if (!isLoaded) return;
-    try {
-      localStorage.setItem(SUPPLIERS_KEY, JSON.stringify(suppliers));
-    } catch (e) {
-      console.error("Save suppliers failed:", e);
-    }
+    try { localStorage.setItem(SUPPLIERS_KEY, JSON.stringify(suppliers)); }
+    catch (e) { console.error("Save suppliers failed:", e); }
   }, [suppliers, isLoaded]);
+
+  // 🌊 Save mission
+  useEffect(() => {
+    if (!isLoaded) return;
+    try { localStorage.setItem(MISSION_KEY, JSON.stringify(mission)); }
+    catch (e) { console.error("Save mission failed:", e); }
+  }, [mission, isLoaded]);
 
   const updateDeal = (updates) => {
     setDeal(prev => ({ ...prev, ...updates }));
@@ -452,6 +494,71 @@ export function DealProvider({ children }) {
   const resetDeal = () => {
     setDeal(DEFAULT_DEAL);
   };
+
+  // 🌊 Mission update
+  const updateMission = (updates) => {
+    setMission(prev => ({ ...prev, ...updates }));
+  };
+
+  // 🏢 Seller update
+  const updateSeller = (updates) => {
+    setSeller(prev => {
+      const next = { ...prev, ...updates };
+      try { localStorage.setItem(SELLER_KEY, JSON.stringify(next)); }
+      catch (e) { console.error("Save seller failed:", e); }
+      return next;
+    });
+  };
+
+  // ═══════════════════════════════════════════
+  // 🌊 MISSION STATS — расчёт прогресса к океану
+  // ═══════════════════════════════════════════
+  const missionStats = useMemo(() => {
+    const totalGoal =
+      (mission.goal_ship || 0) +
+      (mission.goal_house || 0) +
+      (mission.goal_wedding || 0) +
+      (mission.goal_reserve || 0);
+
+    const current = mission.currentCapital || 0;
+    const remaining = Math.max(totalGoal - current, 0);
+
+    const profitPerContainerRub =
+      (mission.avgProfitPerContainer_usd || 0) * (mission.targetUsdRubRate || 90);
+
+    const containersNeeded = profitPerContainerRub > 0
+      ? Math.ceil(remaining / profitPerContainerRub)
+      : 0;
+
+    const perMonth = mission.containersPerMonth || 1;
+    const monthsNeeded = containersNeeded > 0
+      ? Math.ceil(containersNeeded / perMonth)
+      : 0;
+
+    const yearsNeeded = monthsNeeded / 12;
+
+    const targetDate = new Date();
+    targetDate.setMonth(targetDate.getMonth() + monthsNeeded);
+
+    const profitPerMonthRub = profitPerContainerRub * perMonth;
+    const profitPerYearRub = profitPerMonthRub * 12;
+
+    const overallProgress = totalGoal > 0
+      ? Math.min((current / totalGoal) * 100, 100)
+      : 0;
+
+    return {
+      totalGoal,
+      remaining,
+      containersNeeded,
+      monthsNeeded,
+      yearsNeeded,
+      targetDate,
+      profitPerMonthRub,
+      profitPerYearRub,
+      overallProgress,
+    };
+  }, [mission]);
 
   // Positions (корзина)
   const addPosition = (position) => {
@@ -478,10 +585,8 @@ export function DealProvider({ children }) {
   };
 
   // ═══════════════════════════════════════════
-  // 🆕 ФУНКЦИИ УПРАВЛЕНИЯ ЦЕНАМИ
+  // ЦЕНЫ ПОРОД
   // ═══════════════════════════════════════════
-  
-  // Получить актуальную цену породы
   const getSpeciesPrice = (speciesKey) => {
     if (customSpeciesPrices[speciesKey] !== undefined && customSpeciesPrices[speciesKey] !== null) {
       return customSpeciesPrices[speciesKey];
@@ -489,19 +594,16 @@ export function DealProvider({ children }) {
     return DEFAULT_SPECIES_PRICES[speciesKey] || 0;
   };
 
-  // Получить цену с учётом влажности
   const getSpeciesPriceWithMoisture = (speciesKey, moistureKey) => {
     const basePrice = getSpeciesPrice(speciesKey);
     const multiplier = MOISTURE_MULTIPLIERS[moistureKey] || 1;
     return Math.round(basePrice * multiplier);
   };
 
-  // Обновить цену породы
   const updateSpeciesPrice = (speciesKey, newPrice) => {
     const price = parseFloat(newPrice);
     if (isNaN(price) || price < 0) return;
-    
-    // Сохраняем историю (последние 30 записей на каждую породу)
+
     const oldPrice = getSpeciesPrice(speciesKey);
     if (oldPrice !== price) {
       const historyEntry = {
@@ -509,24 +611,21 @@ export function DealProvider({ children }) {
         oldPrice,
         newPrice: price,
       };
-      
       setPriceHistory(prev => ({
         ...prev,
         [speciesKey]: [historyEntry, ...(prev[speciesKey] || [])].slice(0, 30),
       }));
     }
-    
+
     setCustomSpeciesPrices(prev => ({ ...prev, [speciesKey]: price }));
     setPricesLastUpdated(new Date().toISOString());
   };
 
-  // Сбросить цены к дефолтным
   const resetSpeciesPrices = () => {
     setCustomSpeciesPrices({});
     setPricesLastUpdated(null);
   };
 
-  // Сбросить цену одной породы
   const resetSpeciesPrice = (speciesKey) => {
     setCustomSpeciesPrices(prev => {
       const newPrices = { ...prev };
@@ -535,7 +634,6 @@ export function DealProvider({ children }) {
     });
   };
 
-  // Быстрая корректировка ±%
   const adjustAllPrices = (percentChange) => {
     const factor = 1 + (percentChange / 100);
     const newPrices = {};
@@ -543,8 +641,7 @@ export function DealProvider({ children }) {
       const currentPrice = getSpeciesPrice(key);
       newPrices[key] = Math.round(currentPrice * factor);
     });
-    
-    // История для каждой породы
+
     const historyDate = new Date().toISOString();
     const newHistory = { ...priceHistory };
     Object.keys(newPrices).forEach(key => {
@@ -556,13 +653,12 @@ export function DealProvider({ children }) {
         bulk: `${percentChange > 0 ? "+" : ""}${percentChange}%`,
       }, ...(priceHistory[key] || [])].slice(0, 30);
     });
-    
+
     setCustomSpeciesPrices(newPrices);
     setPriceHistory(newHistory);
     setPricesLastUpdated(historyDate);
   };
 
-  // Импорт цен из CSV
   const importPricesFromCSV = (csvText) => {
     try {
       const lines = csvText.trim().split("\n");
@@ -570,15 +666,14 @@ export function DealProvider({ children }) {
       const newHistory = { ...priceHistory };
       const historyDate = new Date().toISOString();
       let imported = 0;
-      
+
       lines.forEach(line => {
         const parts = line.split(/[,;\t]/).map(p => p.trim());
         if (parts.length >= 2) {
           const key = parts[0].toLowerCase().replace(/\s+/g, "-");
           const price = parseFloat(parts[1]);
-          
+
           if (!isNaN(price) && price > 0) {
-            // Маппинг ключей
             const keyMap = {
               "pine": "pine", "сосна": "pine",
               "spruce": "spruce", "ель": "spruce",
@@ -589,7 +684,7 @@ export function DealProvider({ children }) {
               "aspen": "aspen", "осина": "aspen",
               "spf": "spf",
             };
-            
+
             const mappedKey = keyMap[key] || key;
             if (DEFAULT_SPECIES_PRICES[mappedKey] !== undefined) {
               const oldPrice = getSpeciesPrice(mappedKey);
@@ -605,13 +700,13 @@ export function DealProvider({ children }) {
           }
         }
       });
-      
+
       if (imported > 0) {
         setCustomSpeciesPrices(newPrices);
         setPriceHistory(newHistory);
         setPricesLastUpdated(historyDate);
       }
-      
+
       return { success: true, imported };
     } catch (e) {
       console.error("CSV import failed:", e);
@@ -620,12 +715,11 @@ export function DealProvider({ children }) {
   };
 
   // ═══════════════════════════════════════════
-  // 🆕 ФУНКЦИИ УПРАВЛЕНИЯ ПОСТАВЩИКАМИ
+  // ПОСТАВЩИКИ
   // ═══════════════════════════════════════════
-  
   const addSupplier = (supplier) => {
-    const newSupplier = { 
-      ...supplier, 
+    const newSupplier = {
+      ...supplier,
       id: `supplier-${Date.now()}`,
       createdAt: new Date().toISOString(),
     };
@@ -641,12 +735,18 @@ export function DealProvider({ children }) {
   };
 
   return (
-    <DealContext.Provider value={{ 
+    <DealContext.Provider value={{
       deal, updateDeal, resetDeal, isLoaded,
       addPosition, removePosition, clearPositions,
       customRoutes, addCustomRoute, removeCustomRoute,
-      
-      // 🆕 Цены
+
+      // 🌊 Mission
+      mission, updateMission, missionStats,
+
+      // 🏢 Seller
+      seller, updateSeller,
+
+      // Цены
       customSpeciesPrices,
       pricesLastUpdated,
       priceHistory,
@@ -657,8 +757,8 @@ export function DealProvider({ children }) {
       resetSpeciesPrice,
       adjustAllPrices,
       importPricesFromCSV,
-      
-      // 🆕 Поставщики
+
+      // Поставщики
       suppliers,
       addSupplier,
       removeSupplier,
