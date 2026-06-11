@@ -613,6 +613,7 @@ export default function PricingPage() {
           <Link href="/" className="text-sm">← Home</Link>
           <div className="text-xs font-mono hidden sm:block">STEP 3.12 · PRICING</div>
           <div className="flex gap-1 text-xs">
+            <Link href="/backup" className="bg-amber-600 px-2 py-1 rounded active:scale-95">💾</Link>
             <Link href="/calculator" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📐 Vol</Link>
             <Link href="/calculator/quotation" className="bg-emerald-600 px-2 py-1 rounded active:scale-95">
               📄 Quote {positions.length > 0 && <span className="bg-orange-500 ml-1 px-1.5 rounded-full">{positions.length}</span>}
