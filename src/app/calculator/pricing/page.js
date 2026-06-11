@@ -16,6 +16,8 @@ import {
   DISCOUNT_TIERS,
   calcAutoDiscount,
   CONTAINER_40HC,
+  PAYMENT_SCHEMAS,
+  getPaymentSchema,
 } from "../../context/DealContext";
 
 const DEFAULT_COSTS = {
@@ -32,14 +34,13 @@ const DEFAULT_COSTS = {
 };
 
 const DEFAULT_CASHFLOW = {
-  buyerAdvancePercent: 30,
   millPrepayPercent: 100,
   daysToReceive70: 22,
   millPaymentDelayDays: 0,
   safetyMarginPercent: 20,
 };
 
-const STORAGE_KEY = "ru-timber-pricing-costs-v2";
+const STORAGE_KEY = "ru-timber-pricing-costs-v3";
 const CASHFLOW_KEY = "ru-timber-cashflow-settings";
 
 const SPECIES_NAMES = {
@@ -299,6 +300,9 @@ export default function PricingPage() {
   const margin = deal.margin === "" ? 0 : parseFloat(deal.margin) || 18;
   const rate = deal.usdRubRate === "" ? 91 : parseFloat(deal.usdRubRate) || 91;
 
+  // 🆕 PAYMENT SCHEMA — единый источник правды (синхронно с Quotation)
+  const paymentSchema = getPaymentSchema(deal.paymentSchema);
+
   // 🆕 Дата актуальности цен
   const daysSincePriceUpdate = useMemo(() => {
     if (!pricesLastUpdated) return null;
@@ -425,7 +429,7 @@ export default function PricingPage() {
   const discountAmount = (subtotal * appliedDiscountPercent) / 100;
   const grandTotal = subtotal - discountAmount;
 
-  // CASH FLOW
+  // CASH FLOW — 🆕 аванс берётся из выбранной PAYMENT SCHEMA
   const millCostPerCont = millPricePerContainer + factoryLoadingPerContainer;
   const logisticsPerCont = landTransportPerContainer + costs.portTHC + costs.portBL + costs.portTelex + costs.portOther;
   const oceanInsurancePerCont = oceanPerContainer + insurancePerContainer;
@@ -438,8 +442,8 @@ export default function PricingPage() {
   const totalDutySpend = dutyPerCont * containers;
   const totalSpend = totalMillSpend + totalLogisticsSpend + totalOceanInsuranceSpend + totalDutySpend;
   
-  const buyerAdvance = (grandTotal * cashflow.buyerAdvancePercent) / 100;
-  const buyer70Percent = grandTotal - buyerAdvance;
+  const buyerAdvance = (grandTotal * paymentSchema.advancePercent) / 100;
+  const buyerBalance = grandTotal - buyerAdvance;
   
   const capitalNeeded = Math.max(0, totalSpend - buyerAdvance);
   const safetyCapital = capitalNeeded * (1 + cashflow.safetyMarginPercent / 100);
@@ -451,7 +455,9 @@ export default function PricingPage() {
   
   const timeline = useMemo(() => {
     const events = [];
-    events.push({ day: 0, label: "Buyer advance", amount: buyerAdvance, type: "in" });
+    if (paymentSchema.advancePercent > 0) {
+      events.push({ day: 0, label: `Buyer advance (${paymentSchema.advancePercent}%)`, amount: buyerAdvance, type: "in" });
+    }
     events.push({ day: cashflow.millPaymentDelayDays, label: `Mill payment (${cashflow.millPrepayPercent}%)`, amount: -totalMillSpend, type: "out" });
     events.push({ day: 17, label: "Land transport (truck)", amount: -totalLogisticsSpend, type: "out" });
     if (incoterm === "cif") {
@@ -460,7 +466,9 @@ export default function PricingPage() {
     if (!dutyFree) {
       events.push({ day: 21, label: "Export duty", amount: -totalDutySpend, type: "out" });
     }
-    events.push({ day: cashflow.daysToReceive70, label: "Buyer 70% payment", amount: buyer70Percent, type: "in" });
+    if (paymentSchema.balancePercent > 0) {
+      events.push({ day: cashflow.daysToReceive70, label: `Buyer balance (${paymentSchema.balancePercent}%)`, amount: buyerBalance, type: "in" });
+    }
     events.push({ day: leadTimeTotal, label: "Cargo delivered ✅", amount: 0, type: "info" });
     
     events.sort((a, b) => a.day - b.day);
@@ -471,7 +479,7 @@ export default function PricingPage() {
       if (cumulative < maxGap) maxGap = cumulative;
       return { ...e, cumulative };
     });
-  }, [buyerAdvance, totalMillSpend, totalLogisticsSpend, totalOceanInsuranceSpend, totalDutySpend, buyer70Percent, cashflow, incoterm, dutyFree, leadTimeTotal]);
+  }, [buyerAdvance, totalMillSpend, totalLogisticsSpend, totalOceanInsuranceSpend, totalDutySpend, buyerBalance, cashflow, incoterm, dutyFree, leadTimeTotal, paymentSchema]);
 
   const maxGapAmount = Math.abs(Math.min(...timeline.map(e => e.cumulative), 0));
   
@@ -606,7 +614,6 @@ export default function PricingPage() {
           <div className="text-xs font-mono hidden sm:block">STEP 3.12 · PRICING</div>
           <div className="flex gap-1 text-xs">
             <Link href="/calculator" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📐 Vol</Link>
-            <Link href="/calculator/container" className="bg-slate-700 px-2 py-1 rounded active:scale-95">📦 3D</Link>
             <Link href="/calculator/quotation" className="bg-emerald-600 px-2 py-1 rounded active:scale-95">
               📄 Quote {positions.length > 0 && <span className="bg-orange-500 ml-1 px-1.5 rounded-full">{positions.length}</span>}
             </Link>
@@ -782,7 +789,7 @@ export default function PricingPage() {
                     }`}>
                     <div className="font-bold">{label}</div>
                     <div className={`text-[10px] mt-0.5 ${isActive ? "opacity-80" : "opacity-60"}`}>
-                      {add > 0 ? `+$${add}/m³` : "free"}
+                      {add > 0 ? `+${add}/m³` : "free"}
                     </div>
                   </button>
                 );
@@ -1327,19 +1334,43 @@ export default function PricingPage() {
           <h2 className="font-black text-slate-900 flex items-center mb-1 text-lg">💰 Cash Flow & Working Capital</h2>
           <p className="text-xs text-slate-600 mb-4">🎯 Сколько ДЕНЕГ ты должен ВЫЛОЖИТЬ ИЗ КАРМАНА</p>
 
+          {/* 🆕 PAYMENT SCHEMA SELECTOR — синхронизировано с Quotation */}
+          <div className="bg-white rounded-lg p-3 mb-3">
+            <div className="text-xs font-bold text-slate-700 mb-2">
+              💳 Payment Schema <span className="text-emerald-600">(→ идёт в Quotation)</span>:
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {Object.values(PAYMENT_SCHEMAS).map((s) => {
+                const isActive = paymentSchema.id === s.id;
+                return (
+                  <button key={s.id} onClick={() => updateDeal({ paymentSchema: s.id })}
+                    className={`p-2 rounded-lg text-xs text-left transition-all active:scale-95 border-2 ${
+                      isActive
+                        ? "bg-purple-600 text-white border-purple-700 shadow-lg"
+                        : "bg-slate-50 text-slate-700 border-transparent hover:border-purple-300"
+                    }`}>
+                    <div className="font-bold">{s.icon} {s.name}</div>
+                    <div className={`text-[10px] mt-0.5 ${isActive ? "opacity-80" : "opacity-60"}`}>
+                      {s.advancePercent}% / {s.balancePercent}%
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="mt-2 text-[11px] text-slate-500 italic">
+              {paymentSchema.description}
+            </div>
+          </div>
+
           <button onClick={() => setShowCashflowSettings(!showCashflowSettings)}
             className="w-full bg-white hover:bg-slate-50 text-slate-700 font-bold p-2 rounded-lg text-xs active:scale-95 mb-3 border border-slate-300">
-            {showCashflowSettings ? "▲ Hide settings" : "⚙️ Payment Schema Settings"}
+            {showCashflowSettings ? "▲ Hide settings" : "⚙️ Cash Flow Settings"}
           </button>
 
           {showCashflowSettings && (
             <div className="bg-white rounded-lg p-3 mb-3 grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-600 font-bold">Buyer advance %</label>
-                <input type="number" value={cashflow.buyerAdvancePercent}
-                  onChange={(e) => updateCashflow("buyerAdvancePercent", e.target.value)}
-                  onFocus={(e) => e.target.select()}
-                  className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm font-bold focus:border-amber-500 outline-none" />
+              <div className="col-span-2 bg-purple-50 border border-purple-200 rounded p-2 text-xs text-purple-800">
+                💳 Buyer advance: <strong>{paymentSchema.advancePercent}%</strong> — задаётся схемой оплаты выше
               </div>
               <div>
                 <label className="text-xs text-slate-600 font-bold">Mill prepay %</label>
@@ -1349,7 +1380,7 @@ export default function PricingPage() {
                   className="w-full mt-1 p-2 border-2 border-slate-300 rounded text-sm font-bold focus:border-amber-500 outline-none" />
               </div>
               <div>
-                <label className="text-xs text-slate-600 font-bold">Days to receive 70%</label>
+                <label className="text-xs text-slate-600 font-bold">Days to receive balance</label>
                 <input type="number" value={cashflow.daysToReceive70}
                   onChange={(e) => updateCashflow("daysToReceive70", e.target.value)}
                   onFocus={(e) => e.target.select()}
@@ -1367,7 +1398,7 @@ export default function PricingPage() {
 
           <div className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-xl p-5 shadow-xl mb-4">
             <div className="text-xs uppercase tracking-wider opacity-60 mb-2 font-bold">
-              💎 YOUR CAPITAL NEEDED ({containers} × 40HC)
+              💎 YOUR CAPITAL NEEDED ({containers} × 40HC · {paymentSchema.icon} {paymentSchema.name})
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
@@ -1382,7 +1413,7 @@ export default function PricingPage() {
             </div>
             <div className="grid grid-cols-3 gap-2 pt-3 border-t border-slate-700">
               <div><div className="text-xs opacity-50">⏱ Frozen</div><div className="font-bold text-sm">{daysFrozen} days</div></div>
-              <div><div className="text-xs opacity-50">📈 ROI</div><div className="font-bold text-sm text-emerald-400">{roiAnnual.toFixed(0)}%/year</div></div>
+              <div><div className="text-xs opacity-50">📈 ROI</div><div className="font-bold text-sm text-emerald-400">{capitalNeeded > 0 ? `${roiAnnual.toFixed(0)}%/year` : "∞ (no capital)"}</div></div>
               <div><div className="text-xs opacity-50">💎 Profit</div><div className="font-bold text-sm text-emerald-400">${profitAfterDiscount.toFixed(0)}</div></div>
             </div>
           </div>
@@ -1394,7 +1425,7 @@ export default function PricingPage() {
 
           {showCashflowTimeline && (
             <div className="bg-white rounded-lg p-4 mb-3">
-              <div className="text-xs font-bold text-slate-700 mb-3">📅 Day-by-day payments:</div>
+              <div className="text-xs font-bold text-slate-700 mb-3">📅 Day-by-day payments ({paymentSchema.icon} {paymentSchema.name}):</div>
               <div className="space-y-2">
                 {timeline.map((e, idx) => {
                   const isMax = e.cumulative === Math.min(...timeline.map(t => t.cumulative));
@@ -1457,7 +1488,9 @@ export default function PricingPage() {
           <div className="bg-rose-50 border-2 border-rose-300 rounded-lg p-4 mb-3">
             <div className="font-bold text-rose-900 text-sm mb-2">⚠️ RISK WARNINGS</div>
             <ul className="text-xs text-rose-800 space-y-1">
-              <li>• <strong>Если клиент не платит 70%</strong> → потери ${capitalNeeded.toFixed(0)}</li>
+              {paymentSchema.balancePercent > 0 && (
+                <li>• <strong>Если клиент не платит баланс {paymentSchema.balancePercent}%</strong> → потери ${capitalNeeded.toFixed(0)}</li>
+              )}
               <li>• <strong>Курсовая разница:</strong> при росте USD ₽-расходы растут</li>
               <li>• <strong>Задержка отгрузки</strong> → деньги заморожены дольше → ROI падает</li>
               <li>• <strong>Демередж в порту</strong> → лишние $50-150/день за каждый контейнер</li>
@@ -1470,7 +1503,7 @@ export default function PricingPage() {
               <li>• <strong>EXIAR insurance</strong> — страхование экспортного риска (0.5-2%)</li>
               <li>• <strong>L/C (Letter of Credit)</strong> — банковская гарантия (0.5-2%)</li>
               <li>• <strong>50/50 schema</strong> — для новых клиентов</li>
-              <li>• <strong>Telex Release control</strong> — только после 70%</li>
+              <li>• <strong>Telex Release control</strong> — только после получения баланса</li>
               <li>• <strong>Кредитная линия в банке</strong> — снижает свой капитал</li>
               <li>• <strong>Subsidies REC</strong> — субсидия на логистику до 80%</li>
             </ul>
@@ -1481,7 +1514,7 @@ export default function PricingPage() {
         <section className="bg-slate-900 text-white rounded-xl p-5 shadow-lg">
           <h2 className="font-bold">🎯 Final Pricing</h2>
           <div className="text-xs opacity-60 mt-1">
-            {incoterm.toUpperCase()} {activeRoute.destinationPort} · {margin}% · {totalVol.toFixed(2)}m³ · {containers}×40HC · {leadTimeTotal}d
+            {incoterm.toUpperCase()} {activeRoute.destinationPort} · {margin}% · {totalVol.toFixed(2)}m³ · {containers}×40HC · {leadTimeTotal}d · {paymentSchema.icon} {paymentSchema.name}
           </div>
 
           <div className="mt-4 p-4 bg-slate-800 rounded-lg">
@@ -1510,7 +1543,7 @@ export default function PricingPage() {
             <div className="text-xs opacity-90 mb-1">💰 YOUR CAPITAL NEEDED (out of pocket)</div>
             <div className="text-3xl font-black">${capitalNeeded.toFixed(0)}</div>
             <div className="text-xs opacity-75 mt-1">
-              ≈ ₽{(capitalNeeded * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })} · frozen {daysFrozen} days · ROI {roiAnnual.toFixed(0)}%/year
+              ≈ ₽{(capitalNeeded * rate).toLocaleString("ru-RU", { maximumFractionDigits: 0 })} · frozen {daysFrozen} days{capitalNeeded > 0 && <> · ROI {roiAnnual.toFixed(0)}%/year</>}
             </div>
           </div>
 
@@ -1530,10 +1563,7 @@ export default function PricingPage() {
             {justAdded ? <>✓ ADDED</> : <>➕ ADD TO QUOTATION BASKET</>}
           </button>
 
-          <Link href="/calculator/container" className="block w-full mt-3 bg-orange-500 text-white text-center py-3 rounded-lg font-bold active:scale-95">
-            📦 3D View →
-          </Link>
-          <Link href="/calculator/quotation" className="block w-full mt-2 bg-emerald-600 text-white text-center py-3 rounded-lg font-bold active:scale-95">
+          <Link href="/calculator/quotation" className="block w-full mt-3 bg-emerald-600 text-white text-center py-3 rounded-lg font-bold active:scale-95">
             📄 {positions.length > 0 ? `Generate Quotation (${positions.length})` : "Generate Quotation"} →
           </Link>
         </section>
